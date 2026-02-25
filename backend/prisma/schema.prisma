@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  moduleFormat    = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Role {
+  ADMIN
+  USER
+  PT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum FitnessGoal {
+  LOSE_WEIGHT
+  GAIN_MUSCLE
+  IMPROVE_HEALTH
+  MAINTAIN_WEIGHT
+}
+
+model Account {
+  id String @id @default(uuid())
+  email String @unique
+  password String
+  status AccountStatus @default(INACTIVE)
+  role Role @default(USER)
+  verificationCode String?
+  verificationCodeExpire DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  profile Profile?
+}
+
+model Profile {
+  id String @id @default(uuid())
+  accountId   String      @unique
+  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name String
+  gender Gender?
+  phone String?
+  dateOfBirth DateTime?
+  avatar String?
+  height Float?
+  weight Float?
+  fitnessGoal FitnessGoal?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
