@@ -9,8 +9,8 @@ function page() {
   return (
     <main className="min-h-screen bg-background">
       <Hero />
-      <ChooseUs />
       <PricingPlan />
+      <ChooseUs />
       <Coaches />
     </main>
   );
