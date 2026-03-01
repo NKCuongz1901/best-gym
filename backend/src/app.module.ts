@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { BranchModule } from './branch/branch.module';
 import { PackageModule } from './package/package.module';
+import { UserPackageModule } from './user-package/user-package.module';
+import { PersonalTrainerModule } from './personal-trainer/personal-trainer.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { PackageModule } from './package/package.module';
     MailModule,
     BranchModule,
     PackageModule,
+    UserPackageModule,
+    PersonalTrainerModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

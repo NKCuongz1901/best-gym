@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { VerifyAccountDto } from './dto/verify-account.dto';
@@ -15,5 +15,10 @@ export class AccountController {
   @Post('verify-account')
   async verifyAccount(@Body() verifyAccountDto: VerifyAccountDto) {
     return this.accountService.verifyAccount(verifyAccountDto);
+  }
+
+  @Get('pt-accounts')
+  async getPTAccounts() {
+    return this.accountService.getPTAccounts();
   }
 }

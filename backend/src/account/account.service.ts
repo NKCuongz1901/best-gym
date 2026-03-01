@@ -8,7 +8,7 @@ import {
 } from 'src/utils/helpers';
 import { MailService } from 'src/mail/mail.service';
 import { VerifyAccountDto } from './dto/verify-account.dto';
-import { AccountStatus } from 'generated/prisma/enums';
+import { AccountStatus, Role } from 'generated/prisma/enums';
 
 @Injectable()
 export class AccountService {
@@ -91,6 +91,31 @@ export class AccountService {
     return {
       message: 'Account verified successfully',
       account: updatedAccount,
+    };
+  }
+
+  async getPTAccounts() {
+    const ptAccounts = await this.prisma.account.findMany({
+      where: {
+        role: Role.PT,
+        status: AccountStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return {
+      message: 'Get PT accounts successfully',
+      data: ptAccounts,
     };
   }
 }

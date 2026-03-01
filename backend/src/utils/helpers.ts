@@ -1,3 +1,5 @@
+import { addDays, addMonths } from 'date-fns';
+
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
@@ -20,4 +22,14 @@ export const comparePassword = async (
   hashedPassword: string,
 ) => {
   return await bcrypt.compare(password, hashedPassword);
+};
+
+export const calcEndAt = (
+  startAt: Date,
+  unit: 'DAY' | 'MONTH',
+  durationValue: number,
+) => {
+  return unit === 'DAY'
+    ? addDays(startAt, durationValue)
+    : addMonths(startAt, durationValue);
 };
