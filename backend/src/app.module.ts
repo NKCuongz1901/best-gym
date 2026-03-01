@@ -7,6 +7,7 @@ import { AccountModule } from './account/account.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { BranchModule } from './branch/branch.module';
+import { PackageModule } from './package/package.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { BranchModule } from './branch/branch.module';
     AuthModule,
     MailModule,
     BranchModule,
+    PackageModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
