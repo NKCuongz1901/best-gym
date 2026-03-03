@@ -9,6 +9,8 @@ import {
 import { MailService } from 'src/mail/mail.service';
 import { VerifyAccountDto } from './dto/verify-account.dto';
 import { AccountStatus, Role } from 'generated/prisma/enums';
+import { FilterPtDto } from './dto/filter-pt.dto';
+import { FilterUserDto } from './dto/filter-user.dto';
 
 @Injectable()
 export class AccountService {
@@ -94,12 +96,87 @@ export class AccountService {
     };
   }
 
-  async getPTAccounts() {
+  async getPTAccounts(filterPtDto: FilterPtDto) {
+    const { page = 1, itemsPerPage = 10, search = '' } = filterPtDto;
+    const skip = (page - 1) * itemsPerPage;
+
+    const whereCondition = search
+      ? {
+          email: {
+            contains: search,
+          },
+          role: Role.PT,
+          status: AccountStatus.ACTIVE,
+        }
+      : {
+          role: Role.PT,
+          status: AccountStatus.ACTIVE,
+        };
+    const total = await this.prisma.account.count({
+      where: whereCondition,
+    });
+
+    const totalPages = Math.ceil(total / itemsPerPage);
     const ptAccounts = await this.prisma.account.findMany({
-      where: {
-        role: Role.PT,
-        status: AccountStatus.ACTIVE,
+      where: whereCondition,
+      skip,
+      take: itemsPerPage,
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: {
+            name: true,
+            gender: true,
+            phone: true,
+            dateOfBirth: true,
+            avatar: true,
+            height: true,
+            weight: true,
+            fitnessGoal: true,
+          },
+        },
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return {
+      message: 'Get PT accounts successfully',
+      meta: {
+        page,
+        itemsPerPage,
+        total,
+        totalPages,
+      },
+      data: ptAccounts,
+    };
+  }
+
+  async getUserAccounts(filterUserDto: FilterUserDto) {
+    const { page = 1, itemsPerPage = 10, search = '' } = filterUserDto;
+    const skip = (page - 1) * itemsPerPage;
+
+    const whereCondition = search
+      ? {
+          email: {
+            contains: search,
+          },
+          role: Role.USER,
+          status: AccountStatus.ACTIVE,
+        }
+      : {
+          role: Role.USER,
+          status: AccountStatus.ACTIVE,
+        };
+    const total = await this.prisma.account.count({
+      where: whereCondition,
+    });
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const userAccounts = await this.prisma.account.findMany({
+      where: whereCondition,
+      skip,
+      take: itemsPerPage,
       select: {
         id: true,
         email: true,
@@ -114,8 +191,14 @@ export class AccountService {
       },
     });
     return {
-      message: 'Get PT accounts successfully',
-      data: ptAccounts,
+      message: 'Get user accounts successfully',
+      meta: {
+        page,
+        itemsPerPage,
+        total,
+        totalPages,
+      },
+      data: userAccounts,
     };
   }
 }
