@@ -39,3 +39,36 @@ export interface PtAccountsResponse {
   meta: PaginationMeta;
   data: PtAccount[];
 }
+
+export interface Package {
+  id: string;
+  name: string;
+  unit: 'DAY' | 'MONTH';
+  durationValue: number;
+  hasPt: boolean;
+  price: number;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PackagesResponse {
+  message: string;
+  meta: PaginationMeta;
+  data: Package[];
+}
+
+export interface CreatePackageRequest {
+  name: string;
+  description: string;
+  unit: 'DAY' | 'MONTH';
+  durationValue: number;
+  hasPt: boolean;
+  price: number;
+}
+
+export interface CreatePackageResponse {
+  message: string;
+  data: Package;
+}

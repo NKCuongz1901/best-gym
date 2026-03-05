@@ -11,6 +11,7 @@ export interface API_PROPS {
   };
   ADMIN: {
     GET_ACCOUNT_USER: string;
+    CREATE_PACKAGE: string;
   };
 }
 
@@ -27,5 +28,6 @@ export const API: API_PROPS = {
   },
   ADMIN: {
     GET_ACCOUNT_USER: '/account/user-accounts',
+    CREATE_PACKAGE: '/package',
   },
 };

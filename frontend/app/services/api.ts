@@ -1,12 +1,13 @@
-import { FILTER_PROPS } from '../types/filters';
-import { PtAccountsResponse, UserAccountsResponse } from '../types/types';
+import { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '../types/filters';
+import {
+  CreatePackageRequest,
+  CreatePackageResponse,
+  PackagesResponse,
+  PtAccountsResponse,
+  UserAccountsResponse,
+} from '../types/types';
 import axios from './axios.customize';
 import { API } from './constant';
-
-export const getPackages = async () => {
-  const response = await axios.get(API.PACKAGE.GET_ALL);
-  return response.data;
-};
 
 export const signin = async (
   email: string,
@@ -50,5 +51,28 @@ export const getPtAccounts = async (filter: FILTER_PROPS): Promise<any> => {
       search: filter.search,
     },
   });
+  return res;
+};
+
+export const getPackages = async (
+  filter: FILTER_PACKAGE_PROPS,
+): Promise<any> => {
+  const res = await axios.get<PackagesResponse>(API.PACKAGE.GET_ALL, {
+    params: {
+      page: filter.page,
+      itemsPerPage: filter.itemsPerPage,
+      unit: filter.unit,
+    },
+  });
+  return res;
+};
+
+export const createPackage = async (
+  request: CreatePackageRequest,
+): Promise<any> => {
+  const res = await axios.post<CreatePackageResponse>(
+    API.ADMIN.CREATE_PACKAGE,
+    request,
+  );
   return res;
 };
