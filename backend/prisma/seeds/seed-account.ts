@@ -31,6 +31,14 @@ export async function seedAccount() {
       role: Role.ADMIN,
     },
   });
+  await prisma.profile.upsert({
+    where: { accountId: admin.id },
+    update: {},
+    create: {
+      accountId: admin.id,
+      name: 'Admin',
+    },
+  });
   console.log('Seeded 1 admin account:', admin.email);
 
   // 5 PT accounts + profile
@@ -41,7 +49,13 @@ export async function seedAccount() {
     'pt4@bestgym.com',
     'pt5@bestgym.com',
   ];
-  const ptNames = ['Nguyễn Văn PT 1', 'Trần Thị PT 2', 'Lê Văn PT 3', 'Phạm Thị PT 4', 'Hoàng Văn PT 5'];
+  const ptNames = [
+    'Nguyễn Văn PT 1',
+    'Trần Thị PT 2',
+    'Lê Văn PT 3',
+    'Phạm Thị PT 4',
+    'Hoàng Văn PT 5',
+  ];
 
   for (let i = 0; i < ptEmails.length; i++) {
     const account = await prisma.account.upsert({
@@ -68,9 +82,13 @@ export async function seedAccount() {
   console.log('Seeded 5 PT accounts with profiles.');
 
   // 3 User accounts
-  const userEmails = ['user1@bestgym.com', 'user2@bestgym.com', 'user3@bestgym.com'];
+  const userEmails = [
+    'user1@bestgym.com',
+    'user2@bestgym.com',
+    'user3@bestgym.com',
+  ];
   for (const email of userEmails) {
-    await prisma.account.upsert({
+    const account = await prisma.account.upsert({
       where: { email },
       update: {},
       create: {
@@ -78,6 +96,14 @@ export async function seedAccount() {
         password: hashedPassword,
         status: AccountStatus.ACTIVE,
         role: Role.USER,
+      },
+    });
+    await prisma.profile.upsert({
+      where: { accountId: account.id },
+      update: {},
+      create: {
+        accountId: account.id,
+        name: 'User',
       },
     });
   }

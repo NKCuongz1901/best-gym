@@ -76,7 +76,7 @@ model Profile {
   accountId   String      @unique
   account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  name String
+  name String?
   gender Gender?
   phone String?
   dateOfBirth DateTime?

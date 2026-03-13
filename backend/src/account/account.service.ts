@@ -57,6 +57,12 @@ export class AccountService {
       throw new BadRequestException('Failed to create account');
     }
 
+    await this.prisma.profile.create({
+      data: {
+        accountId: account.id,
+      },
+    });
+
     await this.mailService.sendVerificationEmail(
       email,
       verificationCode,
