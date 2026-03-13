@@ -88,13 +88,42 @@ export class UserPackageService {
       where: {
         accountId,
       },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        package: {
+          select: {
+            id: true,
+            name: true,
+            unit: true,
+            durationValue: true,
+            hasPt: true,
+            price: true,
+            description: true,
+          },
+        },
+        ptAccount: {
+          select: {
+            id: true,
+            profile: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
+
     return {
       message: 'Get user packages successfully',
       data: userPackages,
     };
   }
-
   async getUserDetailPackage(accountId: string, userPackageId: string) {
     const userPackage = await this.prisma.userPackage.findUnique({
       where: {
