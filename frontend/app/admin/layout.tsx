@@ -13,6 +13,7 @@ import { Button, Layout, Menu, theme } from 'antd';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { appRoute } from '../config/appRoute';
+import AdminProtectedRoute from '../components/layout/AdminProtectedRoute';
 
 const { Header, Sider, Content } = Layout;
 
@@ -51,70 +52,72 @@ export default function AdminLayout({
   ];
 
   return (
-    <Layout
-      style={{
-        minHeight: '100vh',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-    >
-      <Sider trigger={null} collapsible collapsed={collapsed}>
-        <div className="flex h-16 items-center justify-center bg-neutral-800">
-          <span className="text-lg font-bold text-white">
-            {collapsed ? 'B' : 'BestGym'}
-          </span>
-        </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[pathname]}
-          items={menuItems}
-          style={{ marginTop: 8 }}
-        />
-      </Sider>
+    <AdminProtectedRoute>
       <Layout
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-          minHeight: 0,
+          minHeight: '100vh',
+          height: '100vh',
           overflow: 'hidden',
         }}
       >
-        <Header
-          style={{
-            padding: 0,
-            background: colorBgContainer,
-            display: 'flex',
-            alignItems: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
+        <Sider trigger={null} collapsible collapsed={collapsed}>
+          <div className="flex h-16 items-center justify-center bg-neutral-800">
+            <span className="text-lg font-bold text-white">
+              {collapsed ? 'B' : 'BestGym'}
+            </span>
+          </div>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[pathname]}
+            items={menuItems}
+            style={{ marginTop: 8 }}
           />
-        </Header>
-        <Content
+        </Sider>
+        <Layout
           style={{
-            margin: '24px 16px',
-            padding: 24,
-            background: colorBgContainer,
-            borderRadius: borderRadiusLG,
+            display: 'flex',
+            flexDirection: 'column',
             flex: 1,
-            overflow: 'auto',
             minHeight: 0,
+            overflow: 'hidden',
           }}
         >
-          {children}
-        </Content>
+          <Header
+            style={{
+              padding: 0,
+              background: colorBgContainer,
+              display: 'flex',
+              alignItems: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                fontSize: '16px',
+                width: 64,
+                height: 64,
+              }}
+            />
+          </Header>
+          <Content
+            style={{
+              margin: '24px 16px',
+              padding: 24,
+              background: colorBgContainer,
+              borderRadius: borderRadiusLG,
+              flex: 1,
+              overflow: 'auto',
+              minHeight: 0,
+            }}
+          >
+            {children}
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </AdminProtectedRoute>
   );
 }
