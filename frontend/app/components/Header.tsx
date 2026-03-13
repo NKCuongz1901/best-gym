@@ -1,29 +1,24 @@
-"use client";
+'use client';
 
-import {
-  Menu,
-  Button,
-  Modal,
-  Form,
-  Input,
-  message,
-  Dropdown,
-} from "antd";
-import type { MenuProps } from "antd";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { useAuthStore } from "../stores/authStore";
-import { getMe, signin } from "../services/api";
+import { Menu, Button, Modal, Form, Input, message, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { useAuthStore } from '../stores/authStore';
+import { getMe, signin } from '../services/api';
+import { appRoute } from '../config/appRoute';
 
 const menuItems = [
-  { key: "/", label: <Link href="/">Home</Link> },
-  { key: "/about", label: <Link href="/about">About</Link> },
-  { key: "/packages", label: <Link href="/packages">Packages</Link> },
-  { key: "/shop", label: <Link href="/shop">Shop</Link> },
-  { key: "/events", label: <Link href="/events">Events</Link> },
-  { key: "/contact", label: <Link href="/contact">Contact us</Link> },
+  { key: '/', label: <Link href="/">Home</Link> },
+  { key: '/about', label: <Link href="/about">About</Link> },
+  {
+    key: '/packages',
+    label: <Link href={appRoute.home.packages}>Packages</Link>,
+  },
+  { key: '/shop', label: <Link href="/shop">Excercise</Link> },
+  { key: '/events', label: <Link href="/events">Coaches</Link> },
 ];
 
 export default function Header() {
@@ -42,19 +37,19 @@ export default function Header() {
       const values = await form.validateFields();
       setLoading(true);
       const { access_token } = await signin(values.email, values.password);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("access_token", access_token);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('access_token', access_token);
       }
       const me = await getMe();
       setAuth(access_token, me);
-      message.success("Đăng nhập thành công");
+      message.success('Đăng nhập thành công');
       form.resetFields();
       setIsModalOpen(false);
     } catch (err: unknown) {
-      let msg = "Email hoặc mật khẩu không đúng";
-      if (err && typeof err === "object") {
+      let msg = 'Email hoặc mật khẩu không đúng';
+      if (err && typeof err === 'object') {
         const obj = err as { message?: unknown };
-        if (typeof obj.message === "string") msg = obj.message;
+        if (typeof obj.message === 'string') msg = obj.message;
       }
       message.error(msg);
     } finally {
@@ -71,19 +66,19 @@ export default function Header() {
     clearAuth();
   };
 
-  const userMenuItems: MenuProps["items"] = [
-    ...(user?.role === "USER"
+  const userMenuItems: MenuProps['items'] = [
+    ...(user?.role === 'USER'
       ? [
           {
-            key: "my-packages",
+            key: 'my-packages',
             label: <Link href="/my-packages">Gói tập đã đăng ký</Link>,
           },
         ]
       : []),
-    ...(user?.role === "ADMIN"
-      ? [{ key: "admin", label: <Link href="/admin">Admin page</Link> }]
+    ...(user?.role === 'ADMIN'
+      ? [{ key: 'admin', label: <Link href="/admin">Admin page</Link> }]
       : []),
-    { key: "logout", label: "Đăng xuất", danger: true, onClick: handleLogout },
+    { key: 'logout', label: 'Đăng xuất', danger: true, onClick: handleLogout },
   ];
 
   return (
@@ -106,14 +101,14 @@ export default function Header() {
             selectedKeys={[pathname]}
             items={menuItems}
             theme="dark"
-            style={{ background: "transparent", borderBottom: "none" }}
+            style={{ background: 'transparent', borderBottom: 'none' }}
           />
         </div>
 
         {isLoggedIn ? (
           <Dropdown
             menu={{ items: userMenuItems }}
-            trigger={["hover"]}
+            trigger={['hover']}
             placement="bottomRight"
           >
             <span className="cursor-pointer text-white hover:underline">
@@ -152,8 +147,8 @@ export default function Header() {
             name="email"
             label="Email"
             rules={[
-              { required: true, message: "Vui lòng nhập email" },
-              { type: "email", message: "Email không hợp lệ" },
+              { required: true, message: 'Vui lòng nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
             ]}
           >
             <Input type="email" placeholder="example@email.com" size="large" />
@@ -161,7 +156,7 @@ export default function Header() {
           <Form.Item
             name="password"
             label="Mật khẩu"
-            rules={[{ required: true, message: "Vui lòng nhập mật khẩu" }]}
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
           >
             <Input.Password placeholder="••••••••" size="large" />
           </Form.Item>
