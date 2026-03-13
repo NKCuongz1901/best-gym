@@ -1,21 +1,14 @@
 'use client';
 
 import { CheckOutlined } from '@ant-design/icons';
+import type { Package as ApiPackage } from '@/app/types/types';
 
-export type Package = {
-  id: string;
-  name: string;
-  unit: 'DAY' | 'MONTH';
-  durationValue: number;
-  hasPt: boolean;
-  price: number;
-  description: string | null;
-  isActive: boolean;
-};
+export type Package = ApiPackage;
 
 type PackageCardProps = {
   package: Package;
   isFeatured?: boolean;
+  onSelect?: (pkg: Package) => void;
 };
 
 function formatPrice(price: number): string {
@@ -45,6 +38,7 @@ function getFeatures(pkg: Package): string[] {
 export default function PackageCard({
   package: pkg,
   isFeatured = false,
+  onSelect,
 }: PackageCardProps) {
   const features = getFeatures(pkg);
   const unitLabel = getUnitLabel(pkg.unit);
@@ -87,7 +81,11 @@ export default function PackageCard({
         ))}
       </ul>
 
-      <button className="mt-8 w-full rounded-xl px-6 py-3 font-semibold transition-colors bg-neutral-900 text-white hover:bg-neutral-800 group-hover:bg-white group-hover:text-neutral-900">
+      <button
+        className="mt-8 w-full rounded-xl px-6 py-3 font-semibold transition-colors bg-neutral-900 text-white hover:bg-neutral-800 group-hover:bg-white group-hover:text-neutral-900"
+        type="button"
+        onClick={() => onSelect?.(pkg)}
+      >
         Chọn gói
       </button>
     </div>

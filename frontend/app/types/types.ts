@@ -72,3 +72,30 @@ export interface CreatePackageResponse {
   message: string;
   data: Package;
 }
+
+export interface Branch {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BranchesResponse {
+  message: string;
+  meta: PaginationMeta;
+  data: Branch[];
+}
+
+export interface PurchasePackageRequest {
+  packageId: string;
+  branchId: string;
+  ptAccountId?: string;
+}
+
+export interface PurchasePackageResponse {
+  message: string;
+  data: Package;
+}

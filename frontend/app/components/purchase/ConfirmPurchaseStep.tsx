@@ -1,0 +1,83 @@
+'use client';
+
+import { Descriptions, Result } from 'antd';
+import { motion } from 'motion/react';
+import type { Branch, Package, PtAccount } from '@/app/types/types';
+
+interface ConfirmPurchaseStepProps {
+  selectedPackage: Package | null;
+  selectedBranch: Branch | null;
+  selectedPt?: PtAccount | null;
+}
+
+export default function ConfirmPurchaseStep({
+  selectedPackage,
+  selectedBranch,
+  selectedPt,
+}: ConfirmPurchaseStepProps) {
+  if (!selectedPackage || !selectedBranch) {
+    return (
+      <Result
+        status="warning"
+        title="Bạn chưa chọn đầy đủ thông tin"
+        subTitle="Vui lòng quay lại các bước trước để chọn gói tập và cơ sở."
+      />
+    );
+  }
+
+  const unitLabel = selectedPackage.unit === 'DAY' ? 'Ngày' : 'Tháng';
+  const durationText = `${selectedPackage.durationValue} ${unitLabel}`;
+
+  return (
+    <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6 text-center"
+      >
+        <h2 className="text-2xl font-bold text-neutral-900 md:text-3xl">
+          Xác nhận đăng ký gói tập
+        </h2>
+        <p className="mt-2 text-sm text-neutral-500">
+          Vui lòng kiểm tra lại thông tin trước khi hoàn tất thanh toán.
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mx-auto max-w-xl"
+      >
+        <Descriptions
+          bordered
+          column={1}
+          size="middle"
+          labelStyle={{ width: 160 }}
+        >
+          <Descriptions.Item label="Gói tập">
+            {selectedPackage.name}
+          </Descriptions.Item>
+          <Descriptions.Item label="Thời hạn">
+            {durationText}
+          </Descriptions.Item>
+          <Descriptions.Item label="Giá">
+            {new Intl.NumberFormat('vi-VN').format(selectedPackage.price)}₫
+          </Descriptions.Item>
+          <Descriptions.Item label="Cơ sở tập luyện">
+            {selectedBranch.name}
+            {selectedBranch.address && ` - ${selectedBranch.address}`}
+          </Descriptions.Item>
+          {selectedPackage.hasPt && (
+            <Descriptions.Item label="Huấn luyện viên cá nhân">
+              {selectedPt
+                ? selectedPt.profile?.name || selectedPt.email
+                : 'Chưa chọn'}
+            </Descriptions.Item>
+          )}
+        </Descriptions>
+      </motion.div>
+    </div>
+  );
+}
+

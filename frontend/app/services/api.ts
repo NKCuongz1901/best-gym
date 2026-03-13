@@ -1,9 +1,12 @@
 import { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '../types/filters';
 import {
+  BranchesResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   PackagesResponse,
   PtAccountsResponse,
+  PurchasePackageRequest,
+  PurchasePackageResponse,
   UserAccountsResponse,
 } from '../types/types';
 import axios from './axios.customize';
@@ -72,6 +75,27 @@ export const createPackage = async (
 ): Promise<any> => {
   const res = await axios.post<CreatePackageResponse>(
     API.ADMIN.CREATE_PACKAGE,
+    request,
+  );
+  return res;
+};
+
+export const getBranches = async (filter: FILTER_PROPS): Promise<any> => {
+  const res = await axios.get<BranchesResponse>(API.BRANCH.GET_ALL, {
+    params: {
+      page: filter.page,
+      itemsPerPage: filter.itemsPerPage,
+      search: filter.search,
+    },
+  });
+  return res;
+};
+
+export const purchasePackage = async (
+  request: PurchasePackageRequest,
+): Promise<any> => {
+  const res = await axios.post<PurchasePackageResponse>(
+    API.USER.PURCHASE_PACKAGE,
     request,
   );
   return res;

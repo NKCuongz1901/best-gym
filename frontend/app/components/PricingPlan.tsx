@@ -1,19 +1,25 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getPackages } from "../services/api";
-import PackageCard, { type Package } from "./card/packageCard";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getPackages } from '../services/api';
+import PackageCard, { type Package } from './card/packageCard';
+import { FILTER_PACKAGE_PROPS } from '../types/filters';
 
 export default function PricingPlan() {
+  const [filters, setFilters] = useState<FILTER_PACKAGE_PROPS>({
+    page: 1,
+    itemsPerPage: 10,
+    unit: undefined,
+  });
   const [isYearly, setIsYearly] = useState(true);
 
-  const { data: apiResponse } = useQuery({
-    queryKey: ["packages"],
-    queryFn: getPackages,
+  const { data, isLoading } = useQuery({
+    queryKey: ['packages', filters],
+    queryFn: () => getPackages(filters),
   });
 
-  const packages: Package[] = apiResponse ?? [];
+  const packages: Package[] = data?.data ?? [];
 
   return (
     <section className="w-full bg-neutral-50 py-20">
@@ -32,21 +38,33 @@ export default function PricingPlan() {
           {/* Toggle */}
           <div className="flex rounded-xl border border-neutral-200 bg-white p-1">
             <button
-              onClick={() => setIsYearly(false)}
+              onClick={() => {
+                setIsYearly(false);
+                setFilters((prev) => ({
+                  ...prev,
+                  unit: 'MONTH',
+                }));
+              }}
               className={`rounded-lg px-6 py-2 text-sm font-medium transition-colors ${
                 !isYearly
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-600 hover:text-neutral-900"
+                  ? 'bg-neutral-900 text-white'
+                  : 'text-neutral-600 hover:text-neutral-900'
               }`}
             >
               Monthly
             </button>
             <button
-              onClick={() => setIsYearly(true)}
+              onClick={() => {
+                setIsYearly(true);
+                setFilters((prev) => ({
+                  ...prev,
+                  unit: 'DAY',
+                }));
+              }}
               className={`rounded-lg px-6 py-2 text-sm font-medium transition-colors ${
                 isYearly
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-600 hover:text-neutral-900"
+                  ? 'bg-neutral-900 text-white'
+                  : 'text-neutral-600 hover:text-neutral-900'
               }`}
             >
               Daily
