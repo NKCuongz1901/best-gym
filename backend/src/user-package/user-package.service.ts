@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PurchasePackageDto } from './dto/purchase-package.dto';
 import { AccountStatus, Role, UserPackageStatus } from 'generated/prisma/enums';
 import { calcEndAt } from 'src/utils/helpers';
+import { CheckinPackageDto } from './dto/checkin-package.dto';
 
 @Injectable()
 export class UserPackageService {
@@ -142,6 +147,43 @@ export class UserPackageService {
     return {
       message: 'Get user detail package successfully',
       data: userPackage,
+    };
+  }
+
+  async checkinPackage(
+    accountId: string,
+    checkinPackageDto: CheckinPackageDto,
+  ) {
+    const { userPackageId, branchId } = checkinPackageDto;
+
+    const userPackage = await this.prisma.userPackage.findUnique({
+      where: {
+        id: userPackageId,
+        accountId,
+        branchId,
+        status: UserPackageStatus.ACTIVE,
+      },
+    });
+    if (!userPackage) {
+      throw new NotFoundException('User package not found');
+    }
+
+    const now = new Date();
+    if (userPackage.expiredAt && now > userPackage.expiredAt) {
+      throw new BadRequestException('User package has expired');
+    }
+
+    const checkin = await this.prisma.checkIn.create({
+      data: {
+        accountId,
+        userPackageId,
+        branchId,
+        checkedInAt: now,
+      },
+    });
+    return {
+      message: 'Checkin package successfully',
+      data: checkin,
     };
   }
 }

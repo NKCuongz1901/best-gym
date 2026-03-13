@@ -13,6 +13,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'generated/prisma/enums';
+import { CheckinPackageDto } from './dto/checkin-package.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -43,5 +44,18 @@ export class UserPackageController {
   @Get('my-packages/:id')
   async getUserDetailPackage(@Req() req: any, @Param('id') id: string) {
     return this.userPackageService.getUserDetailPackage(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Post('checkin')
+  async checkinPackage(
+    @Req() req: any,
+    @Body() checkinPackageDto: CheckinPackageDto,
+  ) {
+    return this.userPackageService.checkinPackage(
+      req.user.userId,
+      checkinPackageDto,
+    );
   }
 }
