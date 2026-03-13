@@ -68,6 +68,7 @@ model Account {
 
   // 2) PT được gán cho gói
   ptAssignedUserPackages UserPackage[] @relation("UserPackagesPT")
+  checkins CheckIn[]
 
 }
 
@@ -98,6 +99,7 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userPackages UserPackage[]
+  checkins CheckIn[]
 }
 
 model Package {
@@ -144,8 +146,32 @@ model UserPackage {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  checkins CheckIn[]
+
 
   @@index([accountId, status])
   @@index([ptAccountId])
   @@index([branchId])
+}
+
+model CheckIn {
+  id            String   @id @default(uuid())
+
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userPackageId String
+  userPackage   UserPackage @relation(fields: [userPackageId], references: [id], onDelete: Cascade)
+
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  checkedInAt   DateTime @default(now())
+
+
+  createdAt     DateTime @default(now())
+
+  @@index([accountId, checkedInAt])
+  @@index([userPackageId, checkedInAt])
+  @@index([branchId, checkedInAt])
 }
