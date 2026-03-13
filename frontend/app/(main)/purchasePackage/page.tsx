@@ -60,28 +60,19 @@ export default function PurchasePackagePage() {
     }
   }, [authLoading, isLoggedIn, router]);
 
-  const {
-    data: packagesRes,
-    isLoading: isLoadingPackages,
-  } = useQuery({
+  const { data: packagesRes, isLoading: isLoadingPackages } = useQuery({
     queryKey: ['packages', packageFilters],
     queryFn: () => getPackages(packageFilters),
     enabled: isLoggedIn,
   });
 
-  const {
-    data: branchesRes,
-    isLoading: isLoadingBranches,
-  } = useQuery({
+  const { data: branchesRes, isLoading: isLoadingBranches } = useQuery({
     queryKey: ['branches', branchFilters],
     queryFn: () => getBranches(branchFilters),
     enabled: isLoggedIn,
   });
 
-  const {
-    data: ptsRes,
-    isLoading: isLoadingPts,
-  } = useQuery({
+  const { data: ptsRes, isLoading: isLoadingPts } = useQuery({
     queryKey: ['pt-accounts', ptFilters],
     queryFn: () => getPtAccounts(ptFilters),
     enabled: isLoggedIn,
@@ -91,7 +82,6 @@ export default function PurchasePackagePage() {
   const branches: Branch[] = branchesRes?.data ?? [];
   const pts: PtAccount[] = ptsRes?.data ?? [];
 
-  // Prefill selected package from query string (?packageId=...)
   useEffect(() => {
     const initialPackageId = searchParams.get('packageId');
     if (!initialPackageId || selectedPackageId) return;
@@ -177,7 +167,7 @@ export default function PurchasePackagePage() {
     const payload: PurchasePackageRequest = {
       packageId: selectedPackageId,
       branchId: selectedBranchId,
-      ptAccountId: requirePt ? selectedPtId ?? undefined : undefined,
+      ptAccountId: requirePt ? (selectedPtId ?? undefined) : undefined,
     };
 
     doPurchase(payload);
@@ -282,4 +272,3 @@ export default function PurchasePackagePage() {
     </div>
   );
 }
-

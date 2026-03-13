@@ -72,6 +72,14 @@ export default function Header() {
   };
 
   const userMenuItems: MenuProps["items"] = [
+    ...(user?.role === "USER"
+      ? [
+          {
+            key: "my-packages",
+            label: <Link href="/my-packages">Gói tập đã đăng ký</Link>,
+          },
+        ]
+      : []),
     ...(user?.role === "ADMIN"
       ? [{ key: "admin", label: <Link href="/admin">Admin page</Link> }]
       : []),

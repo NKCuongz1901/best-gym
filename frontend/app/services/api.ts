@@ -3,6 +3,7 @@ import {
   BranchesResponse,
   CreatePackageRequest,
   CreatePackageResponse,
+  MyPurchasePackagesResponse,
   PackagesResponse,
   PtAccountsResponse,
   PurchasePackageRequest,
@@ -97,6 +98,13 @@ export const purchasePackage = async (
   const res = await axios.post<PurchasePackageResponse>(
     API.USER.PURCHASE_PACKAGE,
     request,
+  );
+  return res;
+};
+
+export const getMyPurchasePackages = async (): Promise<any> => {
+  const res = await axios.get<MyPurchasePackagesResponse>(
+    API.USER.GET_PURCHASE_PACKAGE,
   );
   return res;
 };

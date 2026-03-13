@@ -5,6 +5,7 @@ export interface API_PROPS {
   };
   USER: {
     PURCHASE_PACKAGE: string;
+    GET_PURCHASE_PACKAGE: string;
   };
   PACKAGE: {
     GET_ALL: string;
@@ -28,6 +29,7 @@ export const API: API_PROPS = {
   },
   USER: {
     PURCHASE_PACKAGE: '/user-package/purchase',
+    GET_PURCHASE_PACKAGE: '/user-package/my-packages',
   },
   PACKAGE: {
     GET_ALL: '/package',

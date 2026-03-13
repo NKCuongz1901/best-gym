@@ -99,3 +99,27 @@ export interface PurchasePackageResponse {
   message: string;
   data: Package;
 }
+
+export interface MyPurchasePackage {
+  id: string;
+  accountId: string;
+  packageId: string;
+  branchId: string;
+  ptAccountId: string;
+  status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
+  startAt: string | null;
+  endAt: string | null;
+  activatedAt: string | null;
+  cancelledAt: string | null;
+  expiredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  branch: Branch;
+  package: Package;
+  ptAccount: PtAccount | null;
+}
+
+export interface MyPurchasePackagesResponse {
+  message: string;
+  data: MyPurchasePackage[];
+}
