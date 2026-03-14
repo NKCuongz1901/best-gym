@@ -123,3 +123,50 @@ export interface MyPurchasePackagesResponse {
   message: string;
   data: MyPurchasePackage[];
 }
+
+export interface TraineeRequest {
+  id: string;
+  accountId: string;
+  packageId: string;
+  branchId: string;
+  ptAccountId: string;
+  status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
+  startAt: string | null;
+  endAt: string | null;
+  activatedAt: string | null;
+  cancelledAt: string | null;
+  expiredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  package: Package;
+  account: UserAccount;
+  branch: Branch;
+}
+
+export interface TraineeRequestsResponse {
+  message: string;
+  data: TraineeRequest[];
+}
+
+export interface ApproveTraineeRequestRequest {
+  requestId: string;
+}
+
+export interface ApproveTraineeRequestResponse {
+  message: string;
+  data: TraineeRequest;
+}
+
+export interface RejectTraineeRequestRequest {
+  requestId: string;
+}
+
+export interface RejectTraineeRequestResponse {
+  message: string;
+  data: TraineeRequest;
+}
+
+export interface AcceptedTraineeRequestsResponse {
+  message: string;
+  data: TraineeRequest[];
+}

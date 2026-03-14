@@ -12,4 +12,8 @@ export const appRoute = {
     root: '/',
     packages: '/packages',
   },
+  pt: {
+    root: '/pt',
+    trainee: '/pt/trainee',
+  },
 };

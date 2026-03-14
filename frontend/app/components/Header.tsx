@@ -75,6 +75,14 @@ export default function Header() {
           },
         ]
       : []),
+    ...(user?.role === 'PT'
+      ? [
+          {
+            key: 'pt-students',
+            label: <Link href="/pt/trainee">Danh sách học viên</Link>,
+          },
+        ]
+      : []),
     ...(user?.role === 'ADMIN'
       ? [{ key: 'admin', label: <Link href="/admin">Admin page</Link> }]
       : []),

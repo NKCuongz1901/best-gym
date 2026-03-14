@@ -1,5 +1,8 @@
 import { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '../types/filters';
 import {
+  AcceptedTraineeRequestsResponse,
+  ApproveTraineeRequestRequest,
+  ApproveTraineeRequestResponse,
   BranchesResponse,
   CreatePackageRequest,
   CreatePackageResponse,
@@ -8,6 +11,9 @@ import {
   PtAccountsResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
+  RejectTraineeRequestRequest,
+  RejectTraineeRequestResponse,
+  TraineeRequestsResponse,
   UserAccountsResponse,
 } from '../types/types';
 import axios from './axios.customize';
@@ -105,6 +111,40 @@ export const purchasePackage = async (
 export const getMyPurchasePackages = async (): Promise<any> => {
   const res = await axios.get<MyPurchasePackagesResponse>(
     API.USER.GET_PURCHASE_PACKAGE,
+  );
+  return res;
+};
+
+export const getTraineeRequests = async (): Promise<any> => {
+  const res = await axios.get<TraineeRequestsResponse>(
+    API.PT.GET_REQUESTS_LIST,
+  );
+  return res;
+};
+
+export const getAcceptedTraineeRequests = async (): Promise<any> => {
+  const res = await axios.get<AcceptedTraineeRequestsResponse>(
+    API.PT.GET_ACCEPTED_REQUESTS_LIST,
+  );
+  return res;
+};
+
+export const approveTraineeRequest = async (
+  request: ApproveTraineeRequestRequest,
+): Promise<any> => {
+  const res = await axios.post<ApproveTraineeRequestResponse>(
+    API.PT.APPROVE_REQUEST(request.requestId),
+    request,
+  );
+  return res;
+};
+
+export const rejectTraineeRequest = async (
+  request: RejectTraineeRequestRequest,
+): Promise<any> => {
+  const res = await axios.post<RejectTraineeRequestResponse>(
+    API.PT.REJECT_REQUEST(request.requestId),
+    request,
   );
   return res;
 };
