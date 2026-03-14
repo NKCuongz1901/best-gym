@@ -1,3 +1,4 @@
+import { MyPurchasePackagesResponse } from "@/types/types";
 import axios from "./axios.customize";
 import { API } from "./constant";
 
@@ -19,4 +20,11 @@ export const getMe = async (): Promise<{
 }> => {
   const res = await axios.get(API.AUTHENTICATION.PROFILE);
   return res as unknown as { userId: string; role: string; email: string };
+};
+
+export const getMyPurchasePackages = async (): Promise<any> => {
+  const res = await axios.get<MyPurchasePackagesResponse>(
+    API.USER.GET_PURCHASE_PACKAGE,
+  );
+  return res;
 };
