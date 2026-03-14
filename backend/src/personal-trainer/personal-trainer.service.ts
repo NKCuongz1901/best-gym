@@ -13,11 +13,66 @@ export class PersonalTrainerService {
         ptAccountId: ptAccountId,
         status: UserPackageStatus.PENDING,
       },
+      include: {
+        package: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        account: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+          },
+        },
+      },
     });
 
     return {
       message: 'Get requested packages successfully',
       data: listRequestedPackages,
+    };
+  }
+
+  async getAcceptedPackages(ptAccountId: string) {
+    const listAcceptedPackages = await this.prisma.userPackage.findMany({
+      where: {
+        ptAccountId: ptAccountId,
+        status: UserPackageStatus.ACTIVE,
+      },
+      include: {
+        package: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        account: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+          },
+        },
+      },
+    });
+    return {
+      message: 'Get accepted packages successfully',
+      data: listAcceptedPackages,
     };
   }
 

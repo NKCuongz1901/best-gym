@@ -20,6 +20,13 @@ export class PersonalTrainerController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)
+  @Get('accepted-packages')
+  async getAcceptedPackages(@Req() req: any) {
+    return this.personalTrainerService.getAcceptedPackages(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
   @Post('accepted-request/:id')
   async acceptedRequest(@Req() req: any, @Param('id') id: string) {
     return this.personalTrainerService.acceptedRequest(req.user.userId, id);
