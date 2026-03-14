@@ -1,6 +1,5 @@
-import Input from "@/components/input/input";
-import { APP_ROUTES } from "@/constants/appRoute";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import { useMutation } from "@tanstack/react-query";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -12,15 +11,54 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+
+import Input from "@/components/input/input";
+import { signin } from "@/services/api";
+import { useAuthStore } from "@/stores/auth.store";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
+
+  const loginMutation = useMutation({
+    mutationFn: () => signin(email, password),
+    onSuccess: async (data) => {
+      await setAccessToken(data.access_token);
+
+      Toast.show({
+        type: "success",
+        text1: "Đăng nhập thành công",
+      });
+
+      router.replace("/(tabs)");
+    },
+    onError: (error: any) => {
+      Toast.show({
+        type: "error",
+        text1: "Đăng nhập thất bại",
+        text2:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Email hoặc mật khẩu không đúng",
+      });
+    },
+  });
+
   const handleLogin = () => {
-    console.log("Login:", { email, password });
-    router.replace("/(tabs)");
+    if (!email.trim() || !password.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Thiếu thông tin",
+        text2: "Vui lòng nhập email và mật khẩu",
+      });
+      return;
+    }
+
+    loginMutation.mutate();
   };
 
   return (
@@ -76,14 +114,25 @@ export default function LoginScreen() {
               <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
             </Pressable>
 
-            <Pressable style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginButtonText}>Đăng nhập</Text>
-              <Ionicons name="arrow-forward" size={28} color="#08110A" />
+            <Pressable
+              style={[
+                styles.loginButton,
+                loginMutation.isPending && styles.loginButtonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={loginMutation.isPending}
+            >
+              <Text style={styles.loginButtonText}>
+                {loginMutation.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
+              </Text>
+              {!loginMutation.isPending && (
+                <Ionicons name="arrow-forward" size={28} color="#08110A" />
+              )}
             </Pressable>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-              <Pressable onPress={() => router.push(APP_ROUTES.REGISTER)}>
+              <Pressable onPress={() => router.push("/(auth)/register")}>
                 <Text style={styles.registerText}>Đăng ký ngay</Text>
               </Pressable>
             </View>
@@ -136,7 +185,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loginButton: {
-    height: 56,
+    height: 76,
     borderRadius: 28,
     backgroundColor: "#22C55E",
     flexDirection: "row",
@@ -144,6 +193,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     columnGap: 14,
     marginTop: 8,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: "#08110A",

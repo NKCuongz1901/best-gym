@@ -1,14 +1,14 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-const _layout = () => {
+const workout = () => {
   return (
     <View>
-      <Text> _layout</Text>
+      <Text>workout</Text>
     </View>
   );
 };
 
-export default _layout;
+export default workout;
 
 const styles = StyleSheet.create({});
