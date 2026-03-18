@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -56,6 +57,26 @@ export class UserPackageController {
     return this.userPackageService.checkinPackage(
       req.user.userId,
       checkinPackageDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get('checkins')
+  async getCheckins(@Req() req: any) {
+    return this.userPackageService.getCheckins(req.user.userId);
+  }
+
+  @Get('checkins/grouped')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  getGrouped(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.userPackageService.getCheckinsGrouped(
+      req.user.userId,
+      from,
+      to,
     );
   }
 }

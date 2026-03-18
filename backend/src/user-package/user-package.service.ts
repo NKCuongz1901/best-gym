@@ -8,6 +8,7 @@ import { PurchasePackageDto } from './dto/purchase-package.dto';
 import { AccountStatus, Role, UserPackageStatus } from 'generated/prisma/enums';
 import { calcEndAt } from 'src/utils/helpers';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
+import { formatInTimeZone } from 'date-fns-tz';
 
 @Injectable()
 export class UserPackageService {
@@ -184,6 +185,76 @@ export class UserPackageService {
     return {
       message: 'Checkin package successfully',
       data: checkin,
+    };
+  }
+
+  async getCheckins(accountId: string) {
+    const checkins = await this.prisma.checkIn.findMany({
+      where: {
+        accountId,
+      },
+      include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        checkedInAt: 'desc',
+      },
+    });
+
+    return {
+      message: 'Get checkins successfully',
+      data: checkins,
+    };
+  }
+
+  async getCheckinsGrouped(accountId: string, from?: string, to?: string) {
+    const tz = 'Asia/Ho_Chi_Minh';
+
+    const where: any = { accountId };
+
+    if (from || to) {
+      where.checkedInAt = {};
+      if (from) where.checkedInAt.gte = new Date(`${from}T00:00:00.000Z`);
+      if (to) where.checkedInAt.lte = new Date(`${to}T23:59:59.999Z`);
+    }
+
+    const checkins = await this.prisma.checkIn.findMany({
+      where,
+      select: {
+        id: true,
+        userPackageId: true,
+        checkedInAt: true,
+        branch: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { checkedInAt: 'desc' },
+    });
+
+    const grouped: Record<
+      string,
+      Array<{
+        id: string;
+        userPackageId: string;
+        checkedInAt: Date;
+        branch: { id: string; name: string };
+      }>
+    > = {};
+
+    for (const c of checkins) {
+      const dayKey = formatInTimeZone(c.checkedInAt, tz, 'yyyy-MM-dd');
+      if (!grouped[dayKey]) grouped[dayKey] = [];
+      grouped[dayKey].push(c);
+    }
+
+    return {
+      message: 'Get checkins successfully',
+      data: grouped,
     };
   }
 }
