@@ -180,3 +180,18 @@ export interface CheckInResponse {
   message: string;
   data: any;
 }
+
+export interface CheckInHistoryItem {
+  id: string;
+  userPackageId: string;
+  checkedInAt: string;
+  branch: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface CheckInHistoryResponse {
+  message: string;
+  data: Record<string, CheckInHistoryItem[]>;
+}

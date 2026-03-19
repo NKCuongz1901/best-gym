@@ -1,4 +1,5 @@
 import {
+  CheckInHistoryResponse,
   CheckInRequest,
   CheckInResponse,
   MyPurchasePackagesResponse,
@@ -36,4 +37,11 @@ export const getMyPurchasePackages = async (): Promise<any> => {
 export const checkIn = async (request: CheckInRequest): Promise<any> => {
   const res = await axios.post<CheckInResponse>(API.USER.CHECK_IN, request);
   return res;
+};
+
+export const getCheckInHistory = async (): Promise<any> => {
+  const res = await axios.get<CheckInHistoryResponse>(
+    API.USER.GET_CHECK_IN_HISTORY,
+  );
+  return res as unknown as CheckInHistoryResponse;
 };
