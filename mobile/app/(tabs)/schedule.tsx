@@ -11,4 +11,11 @@ const schedule = () => {
 
 export default schedule;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  header: {},
+});

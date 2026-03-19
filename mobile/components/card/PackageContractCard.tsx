@@ -1,7 +1,10 @@
 import { MyPurchasePackage } from "@/types/types";
+import { APP_ROUTES } from "@/constants/appRoute";
 import { Feather, Ionicons } from "@expo/vector-icons";
+import AntDesign from "@expo/vector-icons/AntDesign";
+import { router } from "expo-router";
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   item: MyPurchasePackage;
@@ -48,7 +51,7 @@ export default function PackageContractCard({ item }: Props) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Feather name="award" size={24} color="#19F07C" />
-          <Text style={styles.headerTitle}>Hợp đồng</Text>
+          <Text style={styles.headerTitle}>Gói tập</Text>
         </View>
       </View>
 
@@ -91,6 +94,23 @@ export default function PackageContractCard({ item }: Props) {
           </View>
         </View>
       </View>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.scanButton}
+        onPress={() =>
+          router.push({
+            pathname: APP_ROUTES.CHECK_IN,
+            params: {
+              userPackageId: item.id,
+              branchId: item.branchId,
+              packageName: item.package.name,
+            },
+          })
+        }
+      >
+        <AntDesign name="qrcode" size={26} color="#F8FAFC" />
+        <Text style={styles.scanButtonText}>Quét QR Check-in</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -125,7 +145,8 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingVertical: 22,
+    paddingTop: 22,
+    paddingBottom: 0,
   },
   topRow: {
     flexDirection: "row",
@@ -137,7 +158,7 @@ const styles = StyleSheet.create({
   packageName: {
     flex: 1,
     color: "#F8FAFC",
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
   },
   statusBadge: {
@@ -176,5 +197,23 @@ const styles = StyleSheet.create({
   endDate: {
     color: "#19F07C",
     fontSize: 17,
+  },
+  scanButton: {
+    marginTop: 20,
+    backgroundColor: "#22C55E",
+    height: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    columnGap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.10)",
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  scanButtonText: {
+    color: "#F8FAFC",
+    fontSize: 18,
+    fontWeight: "800",
   },
 });

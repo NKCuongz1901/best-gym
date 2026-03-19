@@ -170,3 +170,13 @@ export interface AcceptedTraineeRequestsResponse {
   message: string;
   data: TraineeRequest[];
 }
+
+export interface CheckInRequest {
+  userPackageId: string;
+  branchId: string;
+}
+
+export interface CheckInResponse {
+  message: string;
+  data: any;
+}

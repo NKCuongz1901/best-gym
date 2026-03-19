@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import Toast from "react-native-toast-message";
 
 import { useAuthStore } from "@/stores/auth.store";
+import { APP_ROUTES } from "@/constants/appRoute";
 
 export default function RootLayout() {
   const queryClient = useMemo(() => new QueryClient(), []);
@@ -20,6 +21,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name={APP_ROUTES.CHECK_IN.slice(1)} />
       </Stack>
 
       <Toast />

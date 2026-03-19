@@ -1,4 +1,8 @@
-import { MyPurchasePackagesResponse } from "@/types/types";
+import {
+  CheckInRequest,
+  CheckInResponse,
+  MyPurchasePackagesResponse,
+} from "@/types/types";
 import axios from "./axios.customize";
 import { API } from "./constant";
 
@@ -26,5 +30,10 @@ export const getMyPurchasePackages = async (): Promise<any> => {
   const res = await axios.get<MyPurchasePackagesResponse>(
     API.USER.GET_PURCHASE_PACKAGE,
   );
+  return res;
+};
+
+export const checkIn = async (request: CheckInRequest): Promise<any> => {
+  const res = await axios.post<CheckInResponse>(API.USER.CHECK_IN, request);
   return res;
 };
