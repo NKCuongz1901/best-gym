@@ -10,6 +10,7 @@ import { BranchModule } from './branch/branch.module';
 import { PackageModule } from './package/package.module';
 import { UserPackageModule } from './user-package/user-package.module';
 import { PersonalTrainerModule } from './personal-trainer/personal-trainer.module';
+import { ExcerciseModule } from './excercise/excercise.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PersonalTrainerModule } from './personal-trainer/personal-trainer.modul
     PackageModule,
     UserPackageModule,
     PersonalTrainerModule,
+    ExcerciseModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { seedBranch } from './seeds/seed-branch';
 import { seedAccount } from './seeds/seed-account';
+import { seedExcercise } from './seeds/seed-excercise';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 const prisma = new PrismaClient({
@@ -12,6 +13,7 @@ const prisma = new PrismaClient({
 async function main() {
   await seedBranch();
   await seedAccount();
+  await seedExcercise();
 }
 
 main()

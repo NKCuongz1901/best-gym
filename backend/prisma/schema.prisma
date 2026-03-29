@@ -50,6 +50,22 @@ enum UserPackageStatus {
   CANCELLED
 }
 
+enum MuscleGroup {
+  CHEST
+  BACK
+  LEGS
+  SHOULDERS
+  ARMS
+  ABS
+  FULL_BODY
+}
+
+enum ExerciseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 
 model Account {
   id String @id @default(uuid())
@@ -174,4 +190,30 @@ model CheckIn {
   @@index([accountId, checkedInAt])
   @@index([userPackageId, checkedInAt])
   @@index([branchId, checkedInAt])
+}
+
+model Exercise {
+  id          String @id @default(uuid())
+
+  name        String
+  description String?     
+  content     String?     
+
+  muscleGroup MuscleGroup
+  level       ExerciseLevel
+
+  equipments  String? 
+  thumbnail   String?     
+  videoUrl    String?    
+
+  suggestion  String?   
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([muscleGroup])
+  @@index([level])
+  @@index([isActive])
 }
