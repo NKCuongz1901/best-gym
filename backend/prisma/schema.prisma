@@ -66,6 +66,12 @@ enum ExerciseLevel {
   ADVANCED
 }
 
+enum ProgramLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 
 model Account {
   id String @id @default(uuid())
@@ -213,7 +219,62 @@ model Exercise {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  programDayExercises ProgramDayExercise[]
+
   @@index([muscleGroup])
   @@index([level])
   @@index([isActive])
+}
+
+model Program {
+  id            String       @id @default(uuid())
+  name          String
+  description   String?
+  level         ProgramLevel
+  daysPerWeek   Int          
+  isActive      Boolean      @default(true)
+
+  thumbnail     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  days          ProgramDay[]
+
+  @@index([level])
+  @@index([isActive])
+}
+
+model ProgramDay {
+  id          String   @id @default(uuid())
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int      
+  title       String?  
+  note        String? 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exercises   ProgramDayExercise[]
+
+  @@unique([programId, dayOfWeek])
+  @@index([programId])
+}
+
+model ProgramDayExercise {
+  id            String   @id @default(uuid())
+
+  programDayId  String
+  programDay    ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
+
+  exerciseId    String
+  exercise      Exercise @relation(fields: [exerciseId], references: [id])
+
+  sortOrder     Int     
+  createdAt     DateTime @default(now())
+
+  @@unique([programDayId, exerciseId])
+  @@index([exerciseId])
+  @@index([programDayId, sortOrder])
 }

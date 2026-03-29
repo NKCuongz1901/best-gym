@@ -18,7 +18,7 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'generated/prisma/enums';
 
-@Controller('excercise')
+@Controller('exercise')
 export class ExcerciseController {
   constructor(private readonly excerciseService: ExcerciseService) {}
 
