@@ -275,3 +275,18 @@ export interface ProgramsResponse {
   meta: PaginationMeta;
   data: Program[];
 }
+
+export interface CheckInHistoryItem {
+  id: string;
+  userPackageId: string;
+  checkedInAt: string;
+  branch: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface CheckInHistoryResponse {
+  message: string;
+  data: Record<string, CheckInHistoryItem[]>;
+}

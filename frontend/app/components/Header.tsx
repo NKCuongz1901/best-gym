@@ -73,6 +73,10 @@ export default function Header() {
             key: 'my-packages',
             label: <Link href="/my-packages">Gói tập đã đăng ký</Link>,
           },
+          {
+            key: 'my-schedule',
+            label: <Link href="/my-schedule">Lịch tập</Link>,
+          },
         ]
       : []),
     ...(user?.role === 'PT'
@@ -80,6 +84,10 @@ export default function Header() {
           {
             key: 'pt-students',
             label: <Link href="/pt/trainee">Danh sách học viên</Link>,
+          },
+          {
+            key: 'pt-schedule',
+            label: <Link href="/pt/schedule">Lịch dạy</Link>,
           },
         ]
       : []),

@@ -4,6 +4,7 @@ import {
   ApproveTraineeRequestRequest,
   ApproveTraineeRequestResponse,
   BranchesResponse,
+  CheckInHistoryResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   CreateProgramDayExerciseRequest,
@@ -213,4 +214,11 @@ export const getPrograms = async (filter: FILTER_PROPS): Promise<any> => {
     },
   });
   return res;
+};
+
+export const getCheckInHistory = async (): Promise<any> => {
+  const res = await axios.get<CheckInHistoryResponse>(
+    API.USER.GET_CHECK_IN_HISTORY,
+  );
+  return res as unknown as CheckInHistoryResponse;
 };
