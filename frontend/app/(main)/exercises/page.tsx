@@ -11,14 +11,14 @@ import {
 } from '@ant-design/icons';
 import { Spin } from 'antd';
 
-import { getExercises } from '@/app/services/api';
-import type { Exercise } from '@/app/types/types';
+import { getExercises, getPrograms } from '@/app/services/api';
+import type { Exercise, Program, ProgramsResponse } from '@/app/types/types';
 import { muscleGroupLabels, levelLabels } from '@/app/lib/exerciseLabels';
-import { trainingPrograms } from '@/app/data/trainingPrograms';
 import ExerciseCard from '@/app/components/exercises/ExerciseCard';
 import ExerciseVideoModal from '@/app/components/exercises/ExerciseVideoModal';
 import FilterChip from '@/app/components/exercises/FilterChip';
 import ProgramCard from '@/app/components/exercises/ProgramCard';
+import ProgramExercisesModal from '@/app/components/exercises/ProgramExercisesModal';
 
 type TabKey = 'library' | 'programs';
 
@@ -36,12 +36,22 @@ export default function ExercisesPage() {
   );
   const [showFilters, setShowFilters] = useState(false);
   const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
+  const [previewProgram, setPreviewProgram] = useState<Program | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['exercises', 'list'],
     queryFn: () =>
       getExercises({ page: 1, itemsPerPage: 500 }),
   });
+
+  const { data: programsRes, isLoading: programsLoading } =
+    useQuery<ProgramsResponse>({
+      queryKey: ['programs', 'public-list'],
+      queryFn: () => getPrograms({ page: 1, itemsPerPage: 100 }),
+      enabled: tab === 'programs',
+    });
+
+  const programs: Program[] = programsRes?.data ?? [];
 
   const exercises: Exercise[] = useMemo(
     () => (data?.data as Exercise[] | undefined) ?? [],
@@ -348,13 +358,41 @@ export default function ExercisesPage() {
               <p className="text-neutral-600">
                 Các chương trình tập được thiết kế bởi đội ngũ PT chuyên nghiệp.
               </p>
-              {trainingPrograms.map((program) => (
-                <ProgramCard key={program.id} program={program} />
-              ))}
+              {programsLoading ? (
+                <div className="flex justify-center py-20">
+                  <Spin size="large" />
+                </div>
+              ) : programs.length === 0 ? (
+                <div className="py-16 text-center text-neutral-500">
+                  Chưa có chương trình tập nào.
+                </div>
+              ) : (
+                programs.map((program) => (
+                  <ProgramCard
+                    key={program.id}
+                    program={program}
+                    onPreviewExercises={() => setPreviewProgram(program)}
+                  />
+                ))
+              )}
             </motion.div>
           )}
         </AnimatePresence>
       </section>
+
+      <AnimatePresence>
+        {previewProgram && (
+          <ProgramExercisesModal
+            key={previewProgram.id}
+            program={previewProgram}
+            onClose={() => setPreviewProgram(null)}
+            onExerciseClick={(ex) => {
+              setPreviewProgram(null);
+              setActiveExercise(ex);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {activeExercise && (
