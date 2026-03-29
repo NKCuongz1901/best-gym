@@ -8,6 +8,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   item: MyPurchasePackage;
+  onRequestPt?: (item: MyPurchasePackage) => void;
 };
 
 const formatDate = (dateString: string | null) => {
@@ -36,7 +37,7 @@ const getStatusLabel = (status: MyPurchasePackage["status"]) => {
   }
 };
 
-export default function PackageContractCard({ item }: Props) {
+export default function PackageContractCard({ item, onRequestPt }: Props) {
   const ptName = useMemo(() => {
     return (
       item.ptAccount?.profile?.name || item.ptAccount?.email || "Không có PT"
@@ -45,6 +46,10 @@ export default function PackageContractCard({ item }: Props) {
 
   const branchAddress =
     item.branch?.address || item.branch?.name || "Chưa có địa chỉ";
+  const canRequestPt =
+    item.package.hasPt &&
+    item.status === "ACTIVE" &&
+    Boolean(item.ptAccountId && item.ptAccount);
 
   return (
     <View style={styles.card}>
@@ -93,6 +98,32 @@ export default function PackageContractCard({ item }: Props) {
             </Text>
           </View>
         </View>
+
+        {item.package.hasPt && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            disabled={!canRequestPt || !onRequestPt}
+            style={[
+              styles.requestPtButton,
+              (!canRequestPt || !onRequestPt) && styles.requestPtButtonDisabled,
+            ]}
+            onPress={() => onRequestPt?.(item)}
+          >
+            <Ionicons
+              name="fitness-outline"
+              size={20}
+              color={canRequestPt ? "#08110A" : "#94A3B8"}
+            />
+            <Text
+              style={[
+                styles.requestPtButtonText,
+                !canRequestPt && styles.requestPtButtonTextDisabled,
+              ]}
+            >
+              {canRequestPt ? "Đặt lịch với PT" : "Chưa thể đặt lịch PT"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
       <TouchableOpacity
         activeOpacity={0.9}
@@ -197,6 +228,27 @@ const styles = StyleSheet.create({
   endDate: {
     color: "#19F07C",
     fontSize: 17,
+  },
+  requestPtButton: {
+    marginTop: 22,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: "#22C55E",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    columnGap: 10,
+  },
+  requestPtButtonDisabled: {
+    backgroundColor: "#182235",
+  },
+  requestPtButtonText: {
+    color: "#08110A",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  requestPtButtonTextDisabled: {
+    color: "#94A3B8",
   },
   scanButton: {
     marginTop: 20,

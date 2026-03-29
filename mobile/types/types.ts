@@ -171,6 +171,38 @@ export interface AcceptedTraineeRequestsResponse {
   data: TraineeRequest[];
 }
 
+export interface CreatePtAssistRequest {
+  userPackageId: string;
+  startTime: string;
+  endTime: string;
+  note?: string;
+}
+
+export interface PtAssistRequest {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  branchId: string;
+  ptAccountId: string;
+  startTime: string;
+  endTime: string;
+  note?: string | null;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  branch: {
+    id: string;
+    name: string;
+  };
+  ptAccount: {
+    id: string;
+    email: string;
+  };
+}
+
+export interface CreatePtAssistRequestResponse {
+  message: string;
+  data: PtAssistRequest;
+}
+
 export interface CheckInRequest {
   userPackageId: string;
   branchId: string;

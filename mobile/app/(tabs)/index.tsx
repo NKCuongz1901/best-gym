@@ -1,20 +1,26 @@
 import PackageContractCard from "@/components/card/PackageContractCard";
 import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
+import { createPtAssistRequest } from "@/services/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useMyPurchasePackages } from "@/stores/useMyPurchasePackages";
+import { MyPurchasePackage } from "@/types/types";
+import { useMutation } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 
 const categories = [
   {
@@ -66,11 +72,92 @@ const featuredWorkouts = [
   },
 ];
 
+const durationOptions = [30, 60, 90];
+const timeSlotOptions = Array.from({ length: 15 }, (_, index) => {
+  const hour = index + 6;
+  return `${String(hour).padStart(2, "0")}:00`;
+});
+
+const getUpcomingDateOptions = (days = 7) =>
+  Array.from({ length: days }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() + index);
+
+    return {
+      value: date.toISOString().split("T")[0],
+      label: date.toLocaleDateString("vi-VN", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+      }),
+    };
+  });
+
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
-  const { data, isLoading, isRefetching } = useMyPurchasePackages();
+  const { data, isLoading, isRefetching, refetch } = useMyPurchasePackages();
+  const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
+    null,
+  );
+  const upcomingDateOptions = useMemo(() => getUpcomingDateOptions(), []);
+  const [selectedDate, setSelectedDate] = useState(upcomingDateOptions[0]?.value ?? "");
+  const [selectedTime, setSelectedTime] = useState("09:00");
+  const [selectedDuration, setSelectedDuration] = useState(60);
+  const [note, setNote] = useState("");
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
+  const ptRequestMutation = useMutation({
+    mutationFn: createPtAssistRequest,
+    onSuccess: async (response) => {
+      Toast.show({
+        type: "success",
+        text1: "Tạo lịch PT thành công",
+        text2: response.message,
+      });
+      setSelectedPackage(null);
+      setNote("");
+      await refetch();
+    },
+    onError: (error: any) => {
+      Toast.show({
+        type: "error",
+        text1: "Không thể tạo lịch PT",
+        text2: error?.response?.data?.message || "Vui lòng thử lại sau.",
+      });
+    },
+  });
+
+  const handleOpenPtRequestModal = (item: MyPurchasePackage) => {
+    setSelectedPackage(item);
+    setSelectedDate(upcomingDateOptions[0]?.value ?? "");
+    setSelectedTime("09:00");
+    setSelectedDuration(60);
+    setNote("");
+  };
+
+  const handleClosePtRequestModal = () => {
+    if (ptRequestMutation.isPending) {
+      return;
+    }
+
+    setSelectedPackage(null);
+  };
+
+  const handleCreatePtRequest = () => {
+    if (!selectedPackage || !selectedDate || !selectedTime) {
+      return;
+    }
+
+    const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
+    const endTime = new Date(startTime.getTime() + selectedDuration * 60 * 1000);
+
+    ptRequestMutation.mutate({
+      userPackageId: selectedPackage.id,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      note: note.trim() || undefined,
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,7 +211,12 @@ export default function HomeScreen() {
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                renderItem={({ item }) => <PackageContractCard item={item} />}
+                renderItem={({ item }) => (
+                  <PackageContractCard
+                    item={item}
+                    onRequestPt={handleOpenPtRequestModal}
+                  />
+                )}
                 contentContainerStyle={styles.contractListContent}
                 ListEmptyComponent={
                   <View style={styles.emptyCard}>
@@ -187,6 +279,152 @@ export default function HomeScreen() {
           )}
         </ScrollView>
       </View>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={!!selectedPackage}
+        onRequestClose={handleClosePtRequestModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Đặt lịch với PT</Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedPackage?.package.name || "Chọn thời gian tập luyện"}
+                </Text>
+              </View>
+
+              <Pressable onPress={handleClosePtRequestModal} style={styles.closeButton}>
+                <Ionicons name="close" size={22} color="#F8FAFC" />
+              </Pressable>
+            </View>
+
+            <Text style={styles.inputLabel}>Chọn ngày</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalSelectorContent}
+            >
+              {upcomingDateOptions.map((item) => {
+                const isActive = item.value === selectedDate;
+
+                return (
+                  <Pressable
+                    key={item.value}
+                    onPress={() => setSelectedDate(item.value)}
+                    style={[styles.selectorChip, isActive && styles.selectorChipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectorChipText,
+                        isActive && styles.selectorChipTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.inputLabel}>Giờ bắt đầu</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalSelectorContent}
+            >
+              {timeSlotOptions.map((time) => {
+                const isActive = time === selectedTime;
+
+                return (
+                  <Pressable
+                    key={time}
+                    onPress={() => setSelectedTime(time)}
+                    style={[styles.selectorChip, isActive && styles.selectorChipActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.selectorChipText,
+                        isActive && styles.selectorChipTextActive,
+                      ]}
+                    >
+                      {time}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <Text style={styles.inputLabel}>Thời lượng buổi tập</Text>
+            <View style={styles.durationRow}>
+              {durationOptions.map((duration) => {
+                const isActive = duration === selectedDuration;
+
+                return (
+                  <Pressable
+                    key={duration}
+                    onPress={() => setSelectedDuration(duration)}
+                    style={[
+                      styles.durationChip,
+                      isActive && styles.durationChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.durationChipText,
+                        isActive && styles.durationChipTextActive,
+                      ]}
+                    >
+                      {duration} phút
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.inputLabel}>Ghi chú</Text>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Ví dụ: muốn tập phần thân trên"
+              placeholderTextColor="#64748B"
+              multiline
+              numberOfLines={3}
+              style={styles.noteInput}
+            />
+
+            <Text style={styles.helperText}>
+              Yêu cầu sẽ được gửi tới PT đã gán sẵn cho gói tập này.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={handleClosePtRequestModal}
+                style={styles.secondaryButton}
+              >
+                <Text style={styles.secondaryButtonText}>Đóng</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleCreatePtRequest}
+                style={[
+                  styles.primaryButton,
+                  ptRequestMutation.isPending && styles.primaryButtonDisabled,
+                ]}
+                disabled={ptRequestMutation.isPending}
+              >
+                {ptRequestMutation.isPending ? (
+                  <ActivityIndicator color="#08110A" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Tạo yêu cầu</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -317,5 +555,150 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(2,8,23,0.72)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: "#101826",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 20,
+    gap: 12,
+  },
+  modalTitle: {
+    color: "#F8FAFC",
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    color: "#94A3B8",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  closeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#1A2332",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputLabel: {
+    color: "#F8FAFC",
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: 10,
+  },
+  horizontalSelectorContent: {
+    paddingBottom: 14,
+    paddingRight: 8,
+  },
+  selectorChip: {
+    paddingHorizontal: 16,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "#182235",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  selectorChipActive: {
+    backgroundColor: "#22C55E",
+  },
+  selectorChipText: {
+    color: "#CBD5E1",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  selectorChipTextActive: {
+    color: "#08110A",
+  },
+  durationRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  durationChip: {
+    flex: 1,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#182235",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  durationChipActive: {
+    backgroundColor: "#22C55E",
+  },
+  durationChipText: {
+    color: "#CBD5E1",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  durationChipTextActive: {
+    color: "#08110A",
+  },
+  noteInput: {
+    minHeight: 88,
+    borderRadius: 18,
+    backgroundColor: "#182235",
+    color: "#F8FAFC",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    textAlignVertical: "top",
+    marginBottom: 10,
+    fontSize: 14,
+  },
+  helperText: {
+    color: "#94A3B8",
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "#182235",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    color: "#F8FAFC",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  primaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "#22C55E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  primaryButtonText: {
+    color: "#08110A",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

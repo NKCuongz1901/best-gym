@@ -3,6 +3,8 @@ import {
   CheckInHistoryResponse,
   CheckInRequest,
   CheckInResponse,
+  CreatePtAssistRequest,
+  CreatePtAssistRequestResponse,
   ExerciseDetailResponse,
   ExercisesResponse,
   MyPurchasePackagesResponse,
@@ -77,4 +79,14 @@ export const getPrograms = async (filter: FILTER_PROPS): Promise<any> => {
     },
   });
   return res;
+};
+
+export const createPtAssistRequest = async (
+  request: CreatePtAssistRequest,
+): Promise<CreatePtAssistRequestResponse> => {
+  const res = await axios.post<CreatePtAssistRequestResponse>(
+    API.USER.CREATE_REQUEST_PT,
+    request,
+  );
+  return res as unknown as CreatePtAssistRequestResponse;
 };

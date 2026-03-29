@@ -8,6 +8,7 @@ export interface API_PROPS {
     GET_PURCHASE_PACKAGE: string;
     GET_CHECK_IN_HISTORY: string;
     CHECK_IN: string;
+    CREATE_REQUEST_PT: string;
   };
   PACKAGE: {
     GET_ALL: string;
@@ -45,6 +46,7 @@ export const API: API_PROPS = {
     GET_PURCHASE_PACKAGE: "/user-package/my-packages",
     GET_CHECK_IN_HISTORY: "/user-package/checkins/grouped",
     CHECK_IN: "/user-package/checkin",
+    CREATE_REQUEST_PT: "/user-package/pt-assist-request",
   },
   PACKAGE: {
     GET_ALL: "/package",
