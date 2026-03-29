@@ -15,6 +15,7 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'generated/prisma/enums';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
+import { CreatePtAssistRequestDto } from './dto/create-pt-assist-request.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -45,6 +46,19 @@ export class UserPackageController {
   @Get('my-packages/:id')
   async getUserDetailPackage(@Req() req: any, @Param('id') id: string) {
     return this.userPackageService.getUserDetailPackage(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Post('pt-assist-request')
+  async createPtAssistRequest(
+    @Req() req: any,
+    @Body() createPtAssistRequestDto: CreatePtAssistRequestDto,
+  ) {
+    return this.userPackageService.createRequestPT(
+      req.user.userId,
+      createPtAssistRequestDto,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

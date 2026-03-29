@@ -1,17 +1,15 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
-  moduleFormat    = "cjs"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
+  // url      = env("DATABASE_URL")
 }
 
 enum AccountStatus {
@@ -43,9 +41,9 @@ enum PackageUnit {
 }
 
 enum UserPackageStatus {
-  PENDING   
+  PENDING
   ACTIVE
-  REJECTED 
+  REJECTED
   EXPIRED
   CANCELLED
 }
@@ -72,104 +70,121 @@ enum ProgramLevel {
   ADVANCED
 }
 
+enum PtAssistRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
 
 model Account {
-  id String @id @default(uuid())
-  email String @unique
-  password String
-  status AccountStatus @default(INACTIVE)
-  role Role @default(USER)
-  verificationCode String?
+  id                     String        @id @default(uuid())
+  email                  String        @unique
+  password               String
+  status                 AccountStatus @default(INACTIVE)
+  role                   Role          @default(USER)
+  verificationCode       String?
   verificationCodeExpire DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
   profile Profile?
-  
+
   // 1) user mua gói
   userPackages UserPackage[] @relation("UserPackagesOwner")
 
   // 2) PT được gán cho gói
   ptAssignedUserPackages UserPackage[] @relation("UserPackagesPT")
+
+  // check-in history
   checkins CheckIn[]
 
+  // PT request: USER tạo request
+  ptAssistRequests PtAssistRequest[] @relation("PtAssistRequestsOwner")
+
+  // PT request: request gửi đến PT
+  ptIncomingAssistRequests PtAssistRequest[] @relation("PtAssistRequestsPT")
 }
 
 model Profile {
-  id String @id @default(uuid())
-  accountId   String      @unique
-  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  accountId String  @unique
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  name String?
-  gender Gender?
-  phone String?
+  name        String?
+  gender      Gender?
+  phone       String?
   dateOfBirth DateTime?
-  avatar String?
-  height Float?
-  weight Float?
+  avatar      String?
+  height      Float?
+  weight      Float?
   fitnessGoal FitnessGoal?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Branch {
-  id String @id @default(uuid())
-  name String
-  address String?
-  phone String?
+  id       String  @id @default(uuid())
+  name     String
+  address  String?
+  phone    String?
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  userPackages UserPackage[]
-  checkins CheckIn[]
+
+  userPackages      UserPackage[]
+  checkins          CheckIn[]
+  ptAssistRequests  PtAssistRequest[]
 }
 
 model Package {
-  id            String   @id @default(uuid())
+  id            String     @id @default(uuid())
   name          String
   unit          PackageUnit
-  durationValue Int       
-  hasPt         Boolean    @default(false) 
+  durationValue Int
+  hasPt         Boolean    @default(false)
   price         Int
   description   String?
   isActive      Boolean    @default(true)
 
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userPackages  UserPackage[]
+  userPackages UserPackage[]
 }
 
 model UserPackage {
-  id           String @id @default(uuid())
+  id String @id @default(uuid())
 
   // Owner of the user package
-  accountId    String
+  accountId String
   account   Account @relation("UserPackagesOwner", fields: [accountId], references: [id], onDelete: Cascade)
 
-  packageId    String
-  package      Package @relation(fields: [packageId], references: [id])
+  packageId String
+  package   Package @relation(fields: [packageId], references: [id])
 
-  branchId     String
-  branch       Branch  @relation(fields: [branchId], references: [id])
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
 
-  // PT assigned to the user package
-  ptAccountId  String?
+  // PT assigned to the user package (fixed PT)
+  ptAccountId String?
   ptAccount   Account? @relation("UserPackagesPT", fields: [ptAccountId], references: [id])
 
-  status       UserPackageStatus @default(PENDING)
+  status UserPackageStatus @default(PENDING)
 
-  startAt      DateTime?
-  endAt        DateTime?
-  activatedAt  DateTime?
-  cancelledAt  DateTime?
-  expiredAt    DateTime?
+  startAt     DateTime?
+  endAt       DateTime?
+  activatedAt DateTime?
+  cancelledAt DateTime?
+  expiredAt   DateTime?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   checkins CheckIn[]
-
+  ptAssistRequests PtAssistRequest[]
 
   @@index([accountId, status])
   @@index([ptAccountId])
@@ -177,21 +192,19 @@ model UserPackage {
 }
 
 model CheckIn {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  accountId     String
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   userPackageId String
   userPackage   UserPackage @relation(fields: [userPackageId], references: [id], onDelete: Cascade)
 
-  branchId      String
-  branch        Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  checkedInAt   DateTime @default(now())
-
-
-  createdAt     DateTime @default(now())
+  checkedInAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@index([accountId, checkedInAt])
   @@index([userPackageId, checkedInAt])
@@ -200,24 +213,23 @@ model CheckIn {
 
 model Exercise {
   id          String @id @default(uuid())
-
   name        String
-  description String?     
-  content     String?     
+  description String?
+  content     String?
 
   muscleGroup MuscleGroup
   level       ExerciseLevel
 
-  equipments  String? 
-  thumbnail   String?     
-  videoUrl    String?    
+  // bạn đang dùng String?; nếu muốn filter dụng cụ tốt hơn thì đổi sang String[]
+  equipments String?
+  thumbnail  String?
+  videoUrl   String?
 
-  suggestion  String?   
+  suggestion String?
+  isActive   Boolean @default(true)
 
-  isActive    Boolean  @default(true)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   programDayExercises ProgramDayExercise[]
 
@@ -227,54 +239,88 @@ model Exercise {
 }
 
 model Program {
-  id            String       @id @default(uuid())
-  name          String
-  description   String?
-  level         ProgramLevel
-  daysPerWeek   Int          
-  isActive      Boolean      @default(true)
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  level       ProgramLevel
+  daysPerWeek Int
+  isActive    Boolean      @default(true)
 
-  thumbnail     String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  thumbnail String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  days          ProgramDay[]
+  days ProgramDay[]
 
   @@index([level])
   @@index([isActive])
 }
 
 model ProgramDay {
-  id          String   @id @default(uuid())
-  programId   String
-  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  programId String
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
 
-  dayOfWeek   Int      
-  title       String?  
-  note        String? 
+  dayOfWeek Int
+  title     String?
+  note      String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  exercises   ProgramDayExercise[]
+  exercises ProgramDayExercise[]
 
   @@unique([programId, dayOfWeek])
   @@index([programId])
 }
 
 model ProgramDayExercise {
-  id            String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  programDayId  String
-  programDay    ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
+  programDayId String
+  programDay   ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
 
-  exerciseId    String
-  exercise      Exercise @relation(fields: [exerciseId], references: [id])
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
 
-  sortOrder     Int     
-  createdAt     DateTime @default(now())
+  sortOrder Int
+  createdAt DateTime @default(now())
 
   @@unique([programDayId, exerciseId])
   @@index([exerciseId])
   @@index([programDayId, sortOrder])
+}
+
+
+model PtAssistRequest {
+  id String @id @default(uuid())
+
+  accountId String
+  account   Account @relation("PtAssistRequestsOwner", fields: [accountId], references: [id], onDelete: Cascade)
+
+  userPackageId String
+  userPackage   UserPackage @relation(fields: [userPackageId], references: [id], onDelete: Cascade)
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  ptAccountId String
+  ptAccount   Account @relation("PtAssistRequestsPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  startTime DateTime
+  endTime   DateTime
+
+  status       PtAssistRequestStatus @default(PENDING)
+  note         String?
+  rejectReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ptAccountId, status])
+  @@index([accountId, startTime])
+  @@index([branchId, startTime])
+  @@index([userPackageId, startTime])
+
+  @@unique([accountId, ptAccountId, startTime, endTime])
 }

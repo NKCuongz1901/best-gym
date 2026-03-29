@@ -1,5 +1,14 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { PersonalTrainerService } from './personal-trainer.service';
+import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
@@ -10,6 +19,38 @@ export class PersonalTrainerController {
   constructor(
     private readonly personalTrainerService: PersonalTrainerService,
   ) {}
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Get('pt-assist-requests')
+  async getPtAssistRequests(@Req() req: any) {
+    return this.personalTrainerService.getPtAssistRequests(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Post('pt-assist-requests/:id/accept')
+  async acceptPtAssistRequest(@Req() req: any, @Param('id') id: string) {
+    return this.personalTrainerService.acceptPtAssistRequest(
+      req.user.userId,
+      id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Post('pt-assist-requests/:id/reject')
+  async rejectPtAssistRequest(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() rejectPtAssistRequestDto: RejectPtAssistRequestDto,
+  ) {
+    return this.personalTrainerService.rejectPtAssistRequest(
+      req.user.userId,
+      id,
+      rejectPtAssistRequestDto,
+    );
+  }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)

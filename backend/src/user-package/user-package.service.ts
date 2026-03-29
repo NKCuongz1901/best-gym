@@ -1,11 +1,18 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PurchasePackageDto } from './dto/purchase-package.dto';
-import { AccountStatus, Role, UserPackageStatus } from 'generated/prisma/enums';
+import { CreatePtAssistRequestDto } from './dto/create-pt-assist-request.dto';
+import {
+  AccountStatus,
+  PtAssistRequestStatus,
+  Role,
+  UserPackageStatus,
+} from 'generated/prisma/enums';
 import { calcEndAt } from 'src/utils/helpers';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -256,5 +263,119 @@ export class UserPackageService {
       message: 'Get checkins successfully',
       data: grouped,
     };
+  }
+
+  async createRequestPT(accountId: string, dto: CreatePtAssistRequestDto) {
+    const start = new Date(dto.startTime);
+    const end = new Date(dto.endTime);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid startTime or endTime');
+    }
+    if (end <= start) {
+      throw new BadRequestException('endTime must be greater than startTime');
+    }
+
+    // const durationMinutes = (end.getTime() - start.getTime()) / 60000;
+    // if (durationMinutes < 30 || durationMinutes > 180) {
+    //   throw new BadRequestException(
+    //     'Session duration must be between 30 and 180 minutes',
+    //   );
+    // }
+
+    return this.prisma.$transaction(async (tx) => {
+      const userPackage = await tx.userPackage.findUnique({
+        where: { id: dto.userPackageId },
+        include: { package: true },
+      });
+
+      if (!userPackage) {
+        throw new NotFoundException('UserPackage not found');
+      }
+      if (userPackage.accountId !== accountId) {
+        throw new ForbiddenException('Not your package');
+      }
+
+      if (userPackage.status !== UserPackageStatus.ACTIVE) {
+        throw new BadRequestException('UserPackage is not ACTIVE');
+      }
+      if (!userPackage.startAt || !userPackage.endAt) {
+        throw new BadRequestException('UserPackage has no valid time range');
+      }
+
+      const now = new Date();
+      if (now < userPackage.startAt || now > userPackage.endAt) {
+        throw new BadRequestException(
+          'UserPackage is expired or not started yet',
+        );
+      }
+
+      if (!userPackage.package.hasPt) {
+        throw new BadRequestException('This package does not include PT');
+      }
+
+      if (!userPackage.ptAccountId) {
+        throw new BadRequestException('No PT assigned to this UserPackage');
+      }
+
+      if (start < userPackage.startAt || start > userPackage.endAt) {
+        throw new BadRequestException(
+          'Requested time is outside package validity',
+        );
+      }
+
+      const conflict = await tx.ptAssistRequest.findFirst({
+        where: {
+          ptAccountId: userPackage.ptAccountId,
+          status: PtAssistRequestStatus.ACCEPTED,
+          startTime: { lt: end },
+          endTime: { gt: start },
+        },
+        select: { id: true },
+      });
+
+      if (conflict) {
+        throw new BadRequestException('PT is not available in this time slot');
+      }
+
+      const dupPending = await tx.ptAssistRequest.findFirst({
+        where: {
+          accountId,
+          ptAccountId: userPackage.ptAccountId,
+          status: PtAssistRequestStatus.PENDING,
+          startTime: { lt: end },
+          endTime: { gt: start },
+        },
+        select: { id: true },
+      });
+
+      if (dupPending) {
+        throw new BadRequestException(
+          'You already have a pending request in this time slot',
+        );
+      }
+
+      const created = await tx.ptAssistRequest.create({
+        data: {
+          accountId,
+          userPackageId: userPackage.id,
+          branchId: userPackage.branchId,
+          ptAccountId: userPackage.ptAccountId,
+          startTime: start,
+          endTime: end,
+          note: dto.note,
+          status: PtAssistRequestStatus.PENDING,
+        },
+        include: {
+          branch: { select: { id: true, name: true } },
+          ptAccount: { select: { id: true, email: true } },
+        },
+      });
+
+      return {
+        message: 'Create PT assist request successfully',
+        data: created,
+      };
+    });
   }
 }
