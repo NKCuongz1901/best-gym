@@ -195,3 +195,71 @@ export interface CheckInHistoryResponse {
   message: string;
   data: Record<string, CheckInHistoryItem[]>;
 }
+
+export interface Exercise {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  muscleGroup: "CHEST" | "BACK" | "ARMS" | "LEGS" | "ABS" | "CORE" | "CARDIO";
+  level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  equipments: string;
+  thumbnail: string;
+  videoUrl: string;
+  suggestion: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExercisesResponse {
+  message: string;
+  meta: PaginationMeta;
+  data: Exercise[];
+}
+
+export interface ExerciseDetailResponse {
+  message: string;
+  data: Exercise;
+}
+
+export type ProgramLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+export interface ProgramDayExercise {
+  id: string;
+  programDayId: string;
+  exerciseId: string;
+  sortOrder: number;
+  createdAt: string;
+  exercise: Exercise;
+}
+
+export interface ProgramDay {
+  id: string;
+  programId: string;
+  dayOfWeek: number;
+  title: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+  exercises: ProgramDayExercise[];
+}
+
+export interface Program {
+  id: string;
+  name: string;
+  description: string;
+  level: ProgramLevel;
+  daysPerWeek: number;
+  isActive: boolean;
+  thumbnail: string;
+  createdAt: string;
+  updatedAt: string;
+  days: ProgramDay[];
+}
+
+export interface ProgramsResponse {
+  message: string;
+  meta: PaginationMeta;
+  data: Program[];
+}

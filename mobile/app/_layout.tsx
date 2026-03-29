@@ -22,6 +22,9 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name={APP_ROUTES.CHECK_IN.slice(1)} />
+        <Stack.Screen name={APP_ROUTES.EXERCISE_DETAIL.slice(1)} />
+        <Stack.Screen name={APP_ROUTES.PROGRAM_DETAIL.slice(1)} />
+        <Stack.Screen name={APP_ROUTES.PROGRAM_SESSION.slice(1)} />
       </Stack>
 
       <Toast />

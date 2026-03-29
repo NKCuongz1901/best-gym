@@ -1,14 +1,458 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { APP_ROUTES } from "@/constants/appRoute";
+import { getExercises, getPrograms } from "@/services/api";
+import { Exercise, Program } from "@/types/types";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import React, { useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const workout = () => {
-  return (
-    <View>
-      <Text>workout</Text>
-    </View>
-  );
+type WorkoutTab = "exercises" | "programs";
+
+const workoutTabs: { key: WorkoutTab; label: string }[] = [
+  { key: "exercises", label: "Bài tập" },
+  { key: "programs", label: "Chương trình tập" },
+];
+
+const getLevelLabel = (level: Exercise["level"] | Program["level"]) => {
+  switch (level) {
+    case "BEGINNER":
+      return "Cơ bản";
+    case "INTERMEDIATE":
+      return "Trung cấp";
+    case "ADVANCED":
+      return "Nâng cao";
+    default:
+      return level;
+  }
 };
 
-export default workout;
+const getMuscleGroupLabel = (muscleGroup: Exercise["muscleGroup"]) => {
+  switch (muscleGroup) {
+    case "CHEST":
+      return "Ngực";
+    case "BACK":
+      return "Lưng";
+    case "ARMS":
+      return "Tay";
+    case "LEGS":
+      return "Chân";
+    case "ABS":
+      return "Bụng";
+    case "CORE":
+      return "Core";
+    case "CARDIO":
+      return "Cardio";
+    default:
+      return muscleGroup;
+  }
+};
 
-const styles = StyleSheet.create({});
+function ExerciseCard({ item }: { item: Exercise }) {
+  return (
+    <Pressable
+      style={styles.card}
+      onPress={() =>
+        router.push({
+          pathname: APP_ROUTES.EXERCISE_DETAIL,
+          params: { id: item.id },
+        })
+      }
+    >
+      <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} contentFit="cover" />
+
+      <View style={styles.cardBody}>
+        <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{getLevelLabel(item.level)}</Text>
+          </View>
+          <View style={styles.badgeMuted}>
+            <Text style={styles.badgeMutedText}>
+              {getMuscleGroupLabel(item.muscleGroup)}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerLabel} numberOfLines={1}>
+            Dụng cụ: {item.equipments || "Không yêu cầu"}
+          </Text>
+          <Text style={styles.linkText}>Xem video</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function ProgramCard({ item }: { item: Program }) {
+  const totalExercises = useMemo(
+    () =>
+      item.days.reduce((count, day) => count + day.exercises.length, 0),
+    [item.days],
+  );
+
+  return (
+    <Pressable
+      style={styles.card}
+      onPress={() =>
+        router.push({
+          pathname: APP_ROUTES.PROGRAM_DETAIL,
+          params: { id: item.id },
+        })
+      }
+    >
+      <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} contentFit="cover" />
+
+      <View style={styles.cardBody}>
+        <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{getLevelLabel(item.level)}</Text>
+          </View>
+          <View style={styles.badgeMuted}>
+            <Text style={styles.badgeMutedText}>
+              {item.daysPerWeek} buổi / tuần
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+
+        <View style={styles.programStatsRow}>
+          <View style={styles.programStatCard}>
+            <Text style={styles.programStatValue}>{item.days.length}</Text>
+            <Text style={styles.programStatLabel}>Ngày tập</Text>
+          </View>
+          <View style={styles.programStatCard}>
+            <Text style={styles.programStatValue}>{totalExercises}</Text>
+            <Text style={styles.programStatLabel}>Bài tập</Text>
+          </View>
+        </View>
+
+        <View style={styles.programActionRow}>
+          <Text style={styles.footerLabel}>Chạm để xem lịch tập theo ngày</Text>
+          <Text style={styles.linkText}>Xem chi tiết</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyTitle}>Chưa có dữ liệu</Text>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
+export default function WorkoutScreen() {
+  const [activeTab, setActiveTab] = useState<WorkoutTab>("exercises");
+
+  const {
+    data: exercisesResponse,
+    isLoading: isLoadingExercises,
+    isError: isExercisesError,
+  } = useQuery({
+    queryKey: ["exercises"],
+    queryFn: () => getExercises({ page: 1, itemsPerPage: 20 }),
+  });
+
+  const {
+    data: programsResponse,
+    isLoading: isLoadingPrograms,
+    isError: isProgramsError,
+  } = useQuery({
+    queryKey: ["programs"],
+    queryFn: () => getPrograms({ page: 1, itemsPerPage: 20 }),
+  });
+
+  const exercises = useMemo(
+    () => exercisesResponse?.data ?? [],
+    [exercisesResponse],
+  );
+  const programs = useMemo(() => programsResponse?.data ?? [], [programsResponse]);
+
+  const isExercisesTab = activeTab === "exercises";
+  const isLoading = isExercisesTab ? isLoadingExercises : isLoadingPrograms;
+  const isError = isExercisesTab ? isExercisesError : isProgramsError;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>Workout</Text>
+        <Text style={styles.screenSubtitle}>
+          Khám phá bài tập và chương trình tập phù hợp với mục tiêu của bạn.
+        </Text>
+      </View>
+
+      <View style={styles.tabsContainer}>
+        {workoutTabs.map((tab) => {
+          const isActive = tab.key === activeTab;
+
+          return (
+            <Pressable
+              key={tab.key}
+              style={[styles.tabButton, isActive && styles.tabButtonActive]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {isLoading ? (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator size="large" color="#22C55E" />
+          <Text style={styles.stateText}>Đang tải dữ liệu workout...</Text>
+        </View>
+      ) : isError ? (
+        <View style={styles.stateContainer}>
+          <Text style={styles.errorTitle}>Không tải được dữ liệu</Text>
+          <Text style={styles.stateText}>
+            Vui lòng thử lại sau hoặc kiểm tra kết nối mạng.
+          </Text>
+        </View>
+      ) : isExercisesTab ? (
+        <FlatList
+          data={exercises}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ExerciseCard item={item} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <EmptyState message="Hiện chưa có bài tập nào để hiển thị." />
+          }
+        />
+      ) : (
+        <FlatList
+          data={programs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ProgramCard item={item} />}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <EmptyState message="Hiện chưa có chương trình tập nào để hiển thị." />
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#020817",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  screenTitle: {
+    color: "#F8FAFC",
+    fontSize: 28,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  screenSubtitle: {
+    color: "#94A3B8",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 12,
+  },
+  tabButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#111827",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonActive: {
+    backgroundColor: "#22C55E",
+    borderColor: "#22C55E",
+  },
+  tabText: {
+    color: "#CBD5E1",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  tabTextActive: {
+    color: "#08110A",
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  card: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#101826",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 16,
+  },
+  thumbnail: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#111827",
+  },
+  cardBody: {
+    padding: 18,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+    flexWrap: "wrap",
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#22C55E",
+  },
+  badgeText: {
+    color: "#08110A",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  badgeMuted: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#182235",
+  },
+  badgeMutedText: {
+    color: "#CBD5E1",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  cardTitle: {
+    color: "#F8FAFC",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  cardDescription: {
+    color: "#94A3B8",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 16,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  footerLabel: {
+    flex: 1,
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  linkText: {
+    color: "#22C55E",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  programStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 16,
+  },
+  programStatCard: {
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: "#182235",
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  programStatValue: {
+    color: "#F8FAFC",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  programStatLabel: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  programActionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  errorTitle: {
+    color: "#F8FAFC",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  stateText: {
+    color: "#94A3B8",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    marginTop: 12,
+  },
+  emptyState: {
+    borderRadius: 24,
+    backgroundColor: "#101826",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 24,
+    marginTop: 8,
+  },
+  emptyTitle: {
+    color: "#F8FAFC",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: "#94A3B8",
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+});

@@ -26,6 +26,13 @@ export interface API_PROPS {
     GET_ACCOUNT_USER: string;
     CREATE_PACKAGE: string;
   };
+  EXERCISE: {
+    GET_ALL: string;
+    GET_BY_ID: (exerciseId: string) => string;
+  };
+  PROGRAM: {
+    GET_ALL: string;
+  };
 }
 
 export const API: API_PROPS = {
@@ -55,5 +62,12 @@ export const API: API_PROPS = {
   ADMIN: {
     GET_ACCOUNT_USER: "/account/user-accounts",
     CREATE_PACKAGE: "/package",
+  },
+  EXERCISE: {
+    GET_ALL: "/exercise",
+    GET_BY_ID: (exerciseId: string) => `/exercise/${exerciseId}`,
+  },
+  PROGRAM: {
+    GET_ALL: "/program",
   },
 };
