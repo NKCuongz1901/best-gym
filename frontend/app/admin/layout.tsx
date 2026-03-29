@@ -8,6 +8,7 @@ import {
   UploadOutlined,
   UserOutlined,
   VideoCameraOutlined,
+  FolderOpenFilled,
 } from '@ant-design/icons';
 import { Button, Layout, Menu, theme } from 'antd';
 import Link from 'next/link';
@@ -48,6 +49,16 @@ export default function AdminLayout({
       key: appRoute.admin.package,
       icon: <UploadOutlined />,
       label: <Link href={appRoute.admin.package}>Package</Link>,
+    },
+    {
+      key: appRoute.admin.exercise,
+      icon: <VideoCameraOutlined />,
+      label: <Link href={appRoute.admin.exercise}>Exercise</Link>,
+    },
+    {
+      key: appRoute.admin.program,
+      icon: <FolderOpenFilled />,
+      label: <Link href={appRoute.admin.program}>Program</Link>,
     },
   ];
 

@@ -4,6 +4,8 @@ export const appRoute = {
     users: '/admin/user',
     package: '/admin/package',
     pt: '/admin/Pt',
+    exercise: '/admin/exercise',
+    program: '/admin/program',
   },
   user: {
     root: '/my-packages',

@@ -17,7 +17,7 @@ const menuItems = [
     key: '/packages',
     label: <Link href={appRoute.home.packages}>Packages</Link>,
   },
-  { key: '/shop', label: <Link href="/shop">Excercise</Link> },
+  { key: '/exercises', label: <Link href="/exercises">Exercises</Link> },
   { key: '/events', label: <Link href="/events">Coaches</Link> },
 ];
 
@@ -90,7 +90,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="w-full bg-black px-6 md:px-12">
+    <header className="w-full bg-black px-6 md:px-10">
       <div className="mx-auto flex min-h-[88px] w-full max-w-7xl items-center justify-between gap-4">
         <Link href="/" className="flex shrink-0 items-center">
           <Image
@@ -103,12 +103,13 @@ export default function Header() {
           />
         </Link>
 
-        <div className="hidden flex-1 justify-center md:flex">
+        <div className="hidden flex-1 justify-center sm:flex">
           <Menu
             mode="horizontal"
             selectedKeys={[pathname]}
             items={menuItems}
             theme="dark"
+            disabledOverflow
             style={{ background: 'transparent', borderBottom: 'none' }}
           />
         </div>

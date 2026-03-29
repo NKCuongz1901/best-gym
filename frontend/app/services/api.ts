@@ -6,8 +6,17 @@ import {
   BranchesResponse,
   CreatePackageRequest,
   CreatePackageResponse,
+  CreateProgramDayExerciseRequest,
+  CreateProgramDayExerciseResponse,
+  CreateProgramDayRequest,
+  CreateProgramDayResponse,
+  CreateProgramResponse,
+  ExerciseDetailResponse,
+  ExercisesResponse,
   MyPurchasePackagesResponse,
   PackagesResponse,
+  ProgramRequest,
+  ProgramsResponse,
   PtAccountsResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
@@ -146,5 +155,62 @@ export const rejectTraineeRequest = async (
     API.PT.REJECT_REQUEST(request.requestId),
     request,
   );
+  return res;
+};
+
+export const getExercises = async (filter: FILTER_PROPS): Promise<any> => {
+  const res = await axios.get<ExercisesResponse>(API.EXERCISE.GET_ALL, {
+    params: {
+      page: filter.page,
+      itemsPerPage: filter.itemsPerPage,
+      search: filter.search,
+    },
+  });
+  return res;
+};
+
+export const getExerciseById = async (exerciseId: string): Promise<any> => {
+  const res = await axios.get<ExerciseDetailResponse>(
+    API.EXERCISE.GET_BY_ID(exerciseId),
+  );
+  return res;
+};
+
+export const createProgram = async (request: ProgramRequest): Promise<any> => {
+  const res = await axios.post<CreateProgramResponse>(
+    API.PROGRAM.CREATE_PROGRAM,
+    request,
+  );
+  return res;
+};
+
+export const createProgramDay = async (
+  request: CreateProgramDayRequest,
+): Promise<any> => {
+  const res = await axios.post<CreateProgramDayResponse>(
+    API.PROGRAM.CREATE_PROGRAM_DAY(request.programId),
+    request,
+  );
+  return res;
+};
+
+export const createProgramDayExercise = async (
+  request: CreateProgramDayExerciseRequest,
+): Promise<any> => {
+  const res = await axios.post<CreateProgramDayExerciseResponse>(
+    API.PROGRAM.CREATE_PROGRAM_DAY_EXERCISE(request.programId, request.dayId),
+    request,
+  );
+  return res;
+};
+
+export const getPrograms = async (filter: FILTER_PROPS): Promise<any> => {
+  const res = await axios.get<ProgramsResponse>(API.PROGRAM.GET_ALL, {
+    params: {
+      page: filter.page,
+      itemsPerPage: filter.itemsPerPage,
+      search: filter.search,
+    },
+  });
   return res;
 };
