@@ -344,3 +344,29 @@ export interface PTAssistSchedulesResponse {
   message: string;
   data: PTAssistSchedule[];
 }
+
+export interface CreateBranchRequest {
+  name: string;
+  address: string;
+  phone: string;
+}
+
+export interface CreateBranchResponse {
+  message: string;
+  data: Branch;
+}
+
+export interface UpdateBranchResponse {
+  message: string;
+  data: Branch;
+}
+
+export interface DeleteBranchResponse {
+  message: string;
+  data: Branch;
+}
+
+export interface BranchDetailResponse {
+  message: string;
+  data: Branch;
+}

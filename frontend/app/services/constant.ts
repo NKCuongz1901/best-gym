@@ -24,6 +24,10 @@ export interface API_PROPS {
   };
   BRANCH: {
     GET_ALL: string;
+    GET_BY_ID: (branchId: string) => string;
+    CREATE_BRANCH: string;
+    UPDATE_BRANCH: (branchId: string) => string;
+    DELETE_BRANCH: (branchId: string) => string;
   };
   ADMIN: {
     GET_ACCOUNT_USER: string;
@@ -32,6 +36,7 @@ export interface API_PROPS {
   EXERCISE: {
     GET_ALL: string;
     GET_BY_ID: (exerciseId: string) => string;
+    CREATE_EXERCISE: string;
   };
   PROGRAM: {
     GET_ALL: string;
@@ -69,6 +74,10 @@ export const API: API_PROPS = {
   },
   BRANCH: {
     GET_ALL: '/branch',
+    GET_BY_ID: (branchId: string) => `/branch/${branchId}`,
+    CREATE_BRANCH: '/branch',
+    UPDATE_BRANCH: (branchId: string) => `/branch/${branchId}`,
+    DELETE_BRANCH: (branchId: string) => `/branch/${branchId}`,
   },
   ADMIN: {
     GET_ACCOUNT_USER: '/account/user-accounts',
@@ -77,6 +86,7 @@ export const API: API_PROPS = {
   EXERCISE: {
     GET_ALL: '/exercise',
     GET_BY_ID: (exerciseId: string) => `/exercise/${exerciseId}`,
+    CREATE_EXERCISE: '/exercise',
   },
   PROGRAM: {
     GET_ALL: '/program',

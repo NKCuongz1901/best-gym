@@ -6,6 +6,7 @@ export const appRoute = {
     pt: '/admin/Pt',
     exercise: '/admin/exercise',
     program: '/admin/program',
+    branch: '/admin/branch',
   },
   user: {
     root: '/my-packages',
@@ -13,6 +14,7 @@ export const appRoute = {
   home: {
     root: '/',
     packages: '/packages',
+    profile: '/profile',
   },
   pt: {
     root: '/pt',

@@ -8,8 +8,11 @@ import {
   AcceptPTAssistRequestResponse,
   ApproveTraineeRequestRequest,
   ApproveTraineeRequestResponse,
+  BranchDetailResponse,
   BranchesResponse,
   CheckInHistoryResponse,
+  CreateBranchRequest,
+  CreateBranchResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   CreateProgramDayExerciseRequest,
@@ -17,6 +20,7 @@ import {
   CreateProgramDayRequest,
   CreateProgramDayResponse,
   CreateProgramResponse,
+  DeleteBranchResponse,
   ExerciseDetailResponse,
   ExercisesResponse,
   MyPurchasePackagesResponse,
@@ -32,6 +36,7 @@ import {
   RejectTraineeRequestRequest,
   RejectTraineeRequestResponse,
   TraineeRequestsResponse,
+  UpdateBranchResponse,
   UserAccountsResponse,
 } from '../types/types';
 import axios from './axios.customize';
@@ -265,5 +270,40 @@ export const getPTAssistSchedule = async (
       to: filter.to,
     },
   });
+  return res;
+};
+
+export const createBranch = async (
+  request: CreateBranchRequest,
+): Promise<any> => {
+  const res = await axios.post<CreateBranchResponse>(
+    API.BRANCH.CREATE_BRANCH,
+    request,
+  );
+  return res;
+};
+
+export const updateBranch = async (
+  branchId: string,
+  request: CreateBranchRequest,
+): Promise<any> => {
+  const res = await axios.put<UpdateBranchResponse>(
+    API.BRANCH.UPDATE_BRANCH(branchId),
+    request,
+  );
+  return res;
+};
+
+export const deleteBranch = async (branchId: string): Promise<any> => {
+  const res = await axios.delete<DeleteBranchResponse>(
+    API.BRANCH.DELETE_BRANCH(branchId),
+  );
+  return res;
+};
+
+export const getBranchById = async (branchId: string): Promise<any> => {
+  const res = await axios.get<BranchDetailResponse>(
+    API.BRANCH.GET_BY_ID(branchId),
+  );
   return res;
 };

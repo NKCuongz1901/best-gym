@@ -9,6 +9,7 @@ import {
   UserOutlined,
   VideoCameraOutlined,
   FolderOpenFilled,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { Button, Layout, Menu, theme } from 'antd';
 import Link from 'next/link';
@@ -59,6 +60,11 @@ export default function AdminLayout({
       key: appRoute.admin.program,
       icon: <FolderOpenFilled />,
       label: <Link href={appRoute.admin.program}>Program</Link>,
+    },
+    {
+      key: appRoute.admin.branch,
+      icon: <GlobalOutlined />,
+      label: <Link href={appRoute.admin.branch}>Chi nhánh</Link>,
     },
   ];
 

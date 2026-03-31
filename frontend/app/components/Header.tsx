@@ -94,6 +94,7 @@ export default function Header() {
     ...(user?.role === 'ADMIN'
       ? [{ key: 'admin', label: <Link href="/admin">Admin page</Link> }]
       : []),
+    { key: 'profile', label: <Link href="/profile">Thông tin cá nhân</Link> },
     { key: 'logout', label: 'Đăng xuất', danger: true, onClick: handleLogout },
   ];
 
