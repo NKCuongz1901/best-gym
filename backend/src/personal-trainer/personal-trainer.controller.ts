@@ -54,6 +54,13 @@ export class PersonalTrainerController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)
+  @Get('assist-schedule')
+  async getAssistPtSchedule(@Req() req: any) {
+    return this.personalTrainerService.getAssistPtSchedule(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
   @Get('requested-packages')
   async getRequestedPackages(@Req() req: any) {
     return this.personalTrainerService.getRequestedPackages(req.user.userId);

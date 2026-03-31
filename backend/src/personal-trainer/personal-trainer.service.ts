@@ -260,4 +260,58 @@ export class PersonalTrainerService {
       data: requestedPackage,
     };
   }
+
+  async getAssistPtSchedule(ptAccountId: string) {
+    const requests = await this.prisma.ptAssistRequest.findMany({
+      where: {
+        ptAccountId,
+        status: PtAssistRequestStatus.ACCEPTED,
+      },
+      orderBy: { startTime: 'asc' },
+      include: {
+        account: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, phone: true } },
+          },
+        },
+        branch: {
+          select: { id: true, name: true, address: true },
+        },
+        userPackage: {
+          include: {
+            package: {
+              select: {
+                id: true,
+                name: true,
+                hasPt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const events = requests.map((r) => ({
+      id: r.id,
+      title: `${r.account.profile?.name || r.account.email} - ${r.branch.name}`,
+      start: r.startTime.toISOString(),
+      end: r.endTime.toISOString(),
+      allDay: false,
+      extendedProps: {
+        status: r.status,
+        note: r.note,
+        rejectReason: r.rejectReason,
+        account: r.account,
+        branch: r.branch,
+        userPackage: r.userPackage,
+      },
+    }));
+
+    return {
+      message: 'Get PT assist schedule successfully',
+      data: events,
+    };
+  }
 }
