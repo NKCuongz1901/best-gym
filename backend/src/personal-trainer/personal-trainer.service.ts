@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   PtAssistRequestStatus,
   UserPackageStatus,
@@ -261,12 +265,36 @@ export class PersonalTrainerService {
     };
   }
 
-  async getAssistPtSchedule(ptAccountId: string) {
+  async getAssistPtSchedule(ptAccountId: string, from?: string, to?: string) {
+    const where: {
+      ptAccountId: string;
+      status: PtAssistRequestStatus;
+      startTime?: { gte?: Date; lte?: Date };
+    } = {
+      ptAccountId,
+      status: PtAssistRequestStatus.ACCEPTED,
+    };
+
+    if (from || to) {
+      where.startTime = {};
+      if (from) {
+        const fromDate = new Date(from);
+        if (Number.isNaN(fromDate.getTime())) {
+          throw new BadRequestException('Invalid from date');
+        }
+        where.startTime.gte = fromDate;
+      }
+      if (to) {
+        const toDate = new Date(to);
+        if (Number.isNaN(toDate.getTime())) {
+          throw new BadRequestException('Invalid to date');
+        }
+        where.startTime.lte = toDate;
+      }
+    }
+
     const requests = await this.prisma.ptAssistRequest.findMany({
-      where: {
-        ptAccountId,
-        status: PtAssistRequestStatus.ACCEPTED,
-      },
+      where,
       orderBy: { startTime: 'asc' },
       include: {
         account: {

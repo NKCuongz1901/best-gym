@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -55,8 +56,16 @@ export class PersonalTrainerController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)
   @Get('assist-schedule')
-  async getAssistPtSchedule(@Req() req: any) {
-    return this.personalTrainerService.getAssistPtSchedule(req.user.userId);
+  async getAssistPtSchedule(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.personalTrainerService.getAssistPtSchedule(
+      req.user.userId,
+      from,
+      to,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
