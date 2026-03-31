@@ -17,7 +17,7 @@ export class PersonalTrainerService {
 
   async getPtAssistRequests(ptAccountId: string) {
     const requests = await this.prisma.ptAssistRequest.findMany({
-      where: { ptAccountId },
+      where: { ptAccountId, status: PtAssistRequestStatus.PENDING },
       orderBy: { createdAt: 'desc' },
       include: {
         account: {
