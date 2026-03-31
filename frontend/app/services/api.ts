@@ -1,6 +1,11 @@
-import { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '../types/filters';
+import {
+  FILTER_PACKAGE_PROPS,
+  FILTER_PROPS,
+  FILTER_PT_ASSIST_SCHEDULE_PROPS,
+} from '../types/filters';
 import {
   AcceptedTraineeRequestsResponse,
+  AcceptPTAssistRequestResponse,
   ApproveTraineeRequestRequest,
   ApproveTraineeRequestResponse,
   BranchesResponse,
@@ -19,8 +24,11 @@ import {
   ProgramRequest,
   ProgramsResponse,
   PtAccountsResponse,
+  PTAssistRequestsResponse,
+  PTAssistSchedulesResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
+  RejectPTAssistRequestResponse,
   RejectTraineeRequestRequest,
   RejectTraineeRequestResponse,
   TraineeRequestsResponse,
@@ -221,4 +229,41 @@ export const getCheckInHistory = async (): Promise<any> => {
     API.USER.GET_CHECK_IN_HISTORY,
   );
   return res as unknown as CheckInHistoryResponse;
+};
+
+export const getPTAssistRequests = async (): Promise<any> => {
+  const res = await axios.get<PTAssistRequestsResponse>(
+    API.PT.GET_ASSIST_REQUEST,
+  );
+  return res;
+};
+
+export const acceptPTAssistRequest = async (
+  requestId: string,
+): Promise<any> => {
+  const res = await axios.post<AcceptPTAssistRequestResponse>(
+    API.PT.ACCEPT_ASSIST_REQUEST(requestId),
+  );
+  return res;
+};
+
+export const rejectPTAssistRequest = async (
+  requestId: string,
+): Promise<any> => {
+  const res = await axios.post<RejectPTAssistRequestResponse>(
+    API.PT.REJECT_ASSIST_REQUEST(requestId),
+  );
+  return res;
+};
+
+export const getPTAssistSchedule = async (
+  filter: FILTER_PT_ASSIST_SCHEDULE_PROPS,
+): Promise<any> => {
+  const res = await axios.get<PTAssistSchedulesResponse>(API.PT.GET_SCHEDULE, {
+    params: {
+      from: filter.from,
+      to: filter.to,
+    },
+  });
+  return res;
 };

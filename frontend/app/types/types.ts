@@ -290,3 +290,57 @@ export interface CheckInHistoryResponse {
   message: string;
   data: Record<string, CheckInHistoryItem[]>;
 }
+
+export interface PTAssistRequest {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  branchId: string;
+  ptAccountId: string;
+  startTime: string;
+  endTime: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  note: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  account: UserAccount;
+  branch: Branch;
+  userPackage: MyPurchasePackage;
+}
+
+export interface PTAssistRequestsResponse {
+  message: string;
+  data: PTAssistRequest[];
+}
+
+export interface AcceptPTAssistRequestResponse {
+  message: string;
+  data: any;
+}
+
+export interface RejectPTAssistRequestResponse {
+  message: string;
+  data: any;
+}
+
+export interface PTAssistSchedule {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  extendedProps: {
+    status: 'ACCEPTED' | 'REJECTED';
+    note: string | null;
+    rejectReason: string | null;
+    account: UserAccount;
+    branch: Branch;
+    userPackage: MyPurchasePackage;
+  };
+}
+
+export interface PTAssistSchedulesResponse {
+  message: string;
+  data: PTAssistSchedule[];
+}

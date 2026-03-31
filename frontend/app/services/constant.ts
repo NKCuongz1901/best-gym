@@ -17,6 +17,10 @@ export interface API_PROPS {
     GET_ACCEPTED_REQUESTS_LIST: string;
     APPROVE_REQUEST: (requestId: string) => string;
     REJECT_REQUEST: (requestId: string) => string;
+    GET_ASSIST_REQUEST: string;
+    ACCEPT_ASSIST_REQUEST: (requestId: string) => string;
+    REJECT_ASSIST_REQUEST: (requestId: string) => string;
+    GET_SCHEDULE: string;
   };
   BRANCH: {
     GET_ALL: string;
@@ -56,6 +60,12 @@ export const API: API_PROPS = {
     GET_ACCEPTED_REQUESTS_LIST: '/pt/accepted-packages',
     APPROVE_REQUEST: (requestId: string) => `/pt/accepted-request/${requestId}`,
     REJECT_REQUEST: (requestId: string) => `/pt/rejected-request/${requestId}`,
+    GET_ASSIST_REQUEST: '/pt/pt-assist-requests',
+    ACCEPT_ASSIST_REQUEST: (requestId: string) =>
+      `/pt/pt-assist-requests/${requestId}/accept`,
+    REJECT_ASSIST_REQUEST: (requestId: string) =>
+      `/pt/pt-assist-requests/${requestId}/reject`,
+    GET_SCHEDULE: '/pt/assist-schedule',
   },
   BRANCH: {
     GET_ALL: '/branch',

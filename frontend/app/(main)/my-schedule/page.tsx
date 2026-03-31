@@ -1,11 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Calendar, Spin, Typography } from 'antd';
-import type { Dayjs } from 'dayjs';
+import { Spin, Typography } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
-import viCalendar from 'antd/es/calendar/locale/vi_VN';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import viLocale from '@fullcalendar/core/locales/vi';
+import type { DayCellMountArg, EventInput } from '@fullcalendar/core';
 
 dayjs.locale('vi');
 import { useQuery } from '@tanstack/react-query';
@@ -40,7 +42,9 @@ function formatCheckInTime(iso: string): string {
 }
 
 export default function MySchedulePage() {
-  const [selectedDate, setSelectedDate] = useState<Dayjs>(() => dayjs());
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    dayjs().format('YYYY-MM-DD'),
+  );
 
   const { data, isLoading, isError } = useQuery<CheckInHistoryResponse>({
     queryKey: ['check-in-history'],
@@ -58,13 +62,25 @@ export default function MySchedulePage() {
     return map;
   }, [data]);
 
-  const checkInDateSet = useMemo(
-    () => new Set(checkInMap.keys()),
+  const calendarEvents = useMemo<EventInput[]>(
+    () =>
+      Array.from(checkInMap.entries()).map(([date, items]) => ({
+        id: date,
+        title: items.length > 1 ? `Đã check-in (${items.length})` : 'Đã check-in',
+        start: date,
+        allDay: true,
+        classNames: ['my-checkin-event'],
+      })),
     [checkInMap],
   );
 
-  const selectedKey = selectedDate.format('YYYY-MM-DD');
-  const selectedItems = checkInMap.get(selectedKey) ?? [];
+  const selectedItems = checkInMap.get(selectedDate) ?? [];
+
+  const onDayCellMount = (arg: DayCellMountArg) => {
+    const key = dayjs(arg.date).format('YYYY-MM-DD');
+    arg.el.style.cursor = 'pointer';
+    arg.el.onclick = () => setSelectedDate(key);
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-16 pt-8 md:pt-12">
@@ -98,36 +114,54 @@ export default function MySchedulePage() {
               <Spin size="large" />
             </div>
           ) : (
-            <Calendar
-              value={selectedDate}
-              onSelect={(d) => setSelectedDate(d)}
-              locale={viCalendar}
-              fullscreen={false}
-              className="my-schedule-calendar p-2 sm:p-4"
-              cellRender={(date, info) => {
-                if (info.type !== 'date') return info.originNode;
-                const key = date.format('YYYY-MM-DD');
-                const hasCheckIn = checkInDateSet.has(key);
-                return (
-                  <div className="flex min-h-17 flex-col gap-1 py-0.5">
-                    <span className="text-sm font-medium leading-none text-neutral-900">
-                      {date.date()}
-                    </span>
-                    {hasCheckIn ? (
-                      <span className="inline-flex items-center justify-center rounded-sm bg-emerald-100 px-1.5 py-1 text-center text-[10px] font-semibold leading-tight text-emerald-800">
-                        Đã check-in
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              }}
-            />
+            <div className="my-schedule-fullcalendar p-3 sm:p-5">
+              <FullCalendar
+                plugins={[dayGridPlugin]}
+                locale={viLocale}
+                initialView="dayGridMonth"
+                initialDate={selectedDate}
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: '',
+                }}
+                height="auto"
+                events={calendarEvents}
+                dayCellDidMount={onDayCellMount}
+                dayCellClassNames={(arg) => {
+                  const key = dayjs(arg.date).format('YYYY-MM-DD');
+                  return key === selectedDate ? ['selected-day-cell'] : [];
+                }}
+                eventDisplay="block"
+                dayMaxEvents
+              />
+            </div>
           )}
         </div>
 
+        <style jsx global>{`
+          .my-schedule-fullcalendar .fc .fc-toolbar-title {
+            font-size: 1rem;
+            font-weight: 600;
+          }
+          .my-schedule-fullcalendar .fc .fc-button {
+            border-radius: 6px;
+          }
+          .my-schedule-fullcalendar .fc .selected-day-cell {
+            background-color: rgba(16, 185, 129, 0.06);
+            box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.45);
+          }
+          .my-schedule-fullcalendar .fc .my-checkin-event {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #065f46;
+            font-weight: 600;
+          }
+        `}</style>
+
         <div className="mt-8 rounded-sm border border-neutral-200 bg-white p-5 shadow-sm">
           <Title level={5} className="mb-3! mt-0! text-neutral-900!">
-            Chi tiết ngày {selectedDate.format('DD/MM/YYYY')}
+            Chi tiết ngày {dayjs(selectedDate).format('DD/MM/YYYY')}
           </Title>
           {selectedItems.length === 0 ? (
             <Text type="secondary">
