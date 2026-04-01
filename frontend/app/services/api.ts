@@ -13,6 +13,8 @@ import {
   CheckInHistoryResponse,
   CreateBranchRequest,
   CreateBranchResponse,
+  CreateExerciseRequest,
+  CreateExerciseResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   CreateProgramDayExerciseRequest,
@@ -304,6 +306,16 @@ export const deleteBranch = async (branchId: string): Promise<any> => {
 export const getBranchById = async (branchId: string): Promise<any> => {
   const res = await axios.get<BranchDetailResponse>(
     API.BRANCH.GET_BY_ID(branchId),
+  );
+  return res;
+};
+
+export const createExercise = async (
+  request: CreateExerciseRequest,
+): Promise<any> => {
+  const res = await axios.post<CreateExerciseResponse>(
+    API.EXERCISE.CREATE_EXERCISE,
+    request,
   );
   return res;
 };

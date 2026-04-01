@@ -370,3 +370,28 @@ export interface BranchDetailResponse {
   message: string;
   data: Branch;
 }
+
+export interface CreateExerciseRequest {
+  name: string;
+  description: string;
+  content: string;
+  muscleGroup:
+    | 'CHEST'
+    | 'BACK'
+    | 'ARMS'
+    | 'LEGS'
+    | 'ABS'
+    | ' SHOULDERS'
+    | 'FULL_BODY';
+  level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  equipments: string;
+  thumbnail: string;
+  videoUrl: string;
+  suggestion?: string;
+  isActive?: boolean;
+}
+
+export interface CreateExerciseResponse {
+  message: string;
+  data: Exercise;
+}

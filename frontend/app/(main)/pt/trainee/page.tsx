@@ -84,7 +84,8 @@ export default function TraineePage() {
 
   const { mutate: acceptAssistRequest, isPending: isAcceptingAssist } =
     useMutation({
-      mutationFn: (request: PTAssistRequest) => acceptPTAssistRequest(request.id),
+      mutationFn: (request: PTAssistRequest) =>
+        acceptPTAssistRequest(request.id),
       onSuccess: (_res, req) => {
         queryClient.invalidateQueries({ queryKey: ['pt-assist-requests'] });
         const name = req.account.profile?.name ?? req.account.email;
@@ -94,7 +95,8 @@ export default function TraineePage() {
 
   const { mutate: rejectAssistRequest, isPending: isRejectingAssist } =
     useMutation({
-      mutationFn: (request: PTAssistRequest) => rejectPTAssistRequest(request.id),
+      mutationFn: (request: PTAssistRequest) =>
+        rejectPTAssistRequest(request.id),
       onSuccess: (_res, req) => {
         queryClient.invalidateQueries({ queryKey: ['pt-assist-requests'] });
         const name = req.account.profile?.name ?? req.account.email;
@@ -142,7 +144,7 @@ export default function TraineePage() {
             },
             {
               key: 'active',
-              label: `Đang hoạt động (${activeList.length})`,
+              label: `Học viên của tôi (${activeList.length})`,
               children: isLoadingActive ? (
                 <div className="flex justify-center py-10">
                   <Spin />
