@@ -21,6 +21,7 @@ export interface API_PROPS {
     ACCEPT_ASSIST_REQUEST: (requestId: string) => string;
     REJECT_ASSIST_REQUEST: (requestId: string) => string;
     GET_SCHEDULE: string;
+    ASSIGN_PROGRAM_TO_USER: () => string;
   };
   BRANCH: {
     GET_ALL: string;
@@ -71,6 +72,7 @@ export const API: API_PROPS = {
     REJECT_ASSIST_REQUEST: (requestId: string) =>
       `/pt/pt-assist-requests/${requestId}/reject`,
     GET_SCHEDULE: '/pt/assist-schedule',
+    ASSIGN_PROGRAM_TO_USER: () => `/pt/assign-program-to-user`,
   },
   BRANCH: {
     GET_ALL: '/branch',

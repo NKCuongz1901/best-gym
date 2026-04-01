@@ -6,6 +6,7 @@ import {
   PhoneOutlined,
   EnvironmentOutlined,
   CalendarOutlined,
+  BookOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import type { TraineeRequest } from '@/app/types/types';
@@ -25,6 +26,7 @@ interface TraineeCardProps {
   mode: 'pending' | 'active';
   onApprove?: (trainee: TraineeRequest) => void;
   onReject?: (trainee: TraineeRequest) => void;
+  onOpenDetail?: (trainee: TraineeRequest) => void;
 }
 
 export default function TraineeCard({
@@ -32,17 +34,25 @@ export default function TraineeCard({
   mode,
   onApprove,
   onReject,
+  onOpenDetail,
 }: TraineeCardProps) {
   const statusTag = statusTagMap[trainee.status];
 
   const planLabel = trainee.package.name;
+  const programLabel = trainee.program?.name ?? 'Chưa có chương trình';
   const locationLabel = trainee.branch.name;
   const userName = trainee.account.profile?.name ?? trainee.account.email;
   const email = trainee.account.email;
   const phone = (trainee.account as any).profile?.phone ?? undefined;
+  const clickable = mode === 'active' && Boolean(onOpenDetail);
 
   return (
-    <Card className={mode === 'pending' ? 'border-primary/20' : undefined}>
+    <Card
+      className={`${mode === 'pending' ? 'border-primary/20' : ''} ${
+        clickable ? 'cursor-pointer transition-shadow hover:shadow-md' : ''
+      }`}
+      onClick={clickable ? () => onOpenDetail?.(trainee) : undefined}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
@@ -83,6 +93,10 @@ export default function TraineeCard({
           <EnvironmentOutlined className="text-primary" />
           <span>{locationLabel}</span>
         </div>
+        <div className="flex items-center gap-2">
+          <BookOutlined className="text-primary" />
+          <span>Chương trình: {programLabel}</span>
+        </div>
         {trainee.createdAt && (
           <div className="flex items-center gap-2">
             <CalendarOutlined className="text-primary" />
@@ -97,12 +111,26 @@ export default function TraineeCard({
       {mode === 'pending' && (onApprove || onReject) && (
         <div className="mt-4 flex gap-2">
           {onApprove && (
-            <Button type="primary" block onClick={() => onApprove(trainee)}>
+            <Button
+              type="primary"
+              block
+              onClick={(e) => {
+                e.stopPropagation();
+                onApprove(trainee);
+              }}
+            >
               Duyệt
             </Button>
           )}
           {onReject && (
-            <Button danger block onClick={() => onReject(trainee)}>
+            <Button
+              danger
+              block
+              onClick={(e) => {
+                e.stopPropagation();
+                onReject(trainee);
+              }}
+            >
               Từ chối
             </Button>
           )}

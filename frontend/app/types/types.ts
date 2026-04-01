@@ -124,12 +124,18 @@ export interface MyPurchasePackagesResponse {
   data: MyPurchasePackage[];
 }
 
+export interface Program {
+  id: string;
+  name: string;
+}
+
 export interface TraineeRequest {
   id: string;
   accountId: string;
   packageId: string;
   branchId: string;
   ptAccountId: string;
+  programId: string | null;
   status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
   startAt: string | null;
   endAt: string | null;
@@ -141,6 +147,7 @@ export interface TraineeRequest {
   package: Package;
   account: UserAccount;
   branch: Branch;
+  program: Program | null;
 }
 
 export interface TraineeRequestsResponse {
@@ -394,4 +401,29 @@ export interface CreateExerciseRequest {
 export interface CreateExerciseResponse {
   message: string;
   data: Exercise;
+}
+
+export interface AssignProgramToUserRequest {
+  userPackageId: string;
+  programId: string;
+}
+
+export interface AssignProgramToUserResponse {
+  message: string;
+  data: {
+    id: string;
+    accountId: string;
+    packageId: string;
+    branchId: string;
+    ptAccountId: string;
+    status: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
+    startAt: string;
+    endAt: string;
+    activatedAt: string;
+    cancelledAt: string | null;
+    expiredAt: string;
+    createdAt: string;
+    updatedAt: string;
+    programId: string;
+  };
 }

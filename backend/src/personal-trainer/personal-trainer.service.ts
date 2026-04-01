@@ -206,6 +206,12 @@ export class PersonalTrainerService {
             address: true,
           },
         },
+        program: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
     return {
@@ -340,6 +346,27 @@ export class PersonalTrainerService {
     return {
       message: 'Get PT assist schedule successfully',
       data: events,
+    };
+  }
+
+  async assignProgramToUser(userPackageId: string, programId: string) {
+    const userPackage = await this.prisma.userPackage.findUnique({
+      where: {
+        id: userPackageId,
+        status: UserPackageStatus.ACTIVE,
+      },
+    });
+    if (!userPackage) {
+      throw new NotFoundException('User package is invalid or not ACTIVE');
+    }
+
+    const updatedUserPackage = await this.prisma.userPackage.update({
+      where: { id: userPackageId },
+      data: { programId },
+    });
+    return {
+      message: 'Assign program to user successfully',
+      data: updatedUserPackage,
     };
   }
 }

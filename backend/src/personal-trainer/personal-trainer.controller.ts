@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PersonalTrainerService } from './personal-trainer.service';
+import { AssignProgramToUserDto } from './dto/assign-program-to-user.dto';
 import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -94,5 +95,15 @@ export class PersonalTrainerController {
   @Post('rejected-request/:id')
   async rejectedRequest(@Req() req: any, @Param('id') id: string) {
     return this.personalTrainerService.rejectedRequest(req.user.userId, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Post('assign-program-to-user')
+  async assignProgramToUser(@Body() dto: AssignProgramToUserDto) {
+    return this.personalTrainerService.assignProgramToUser(
+      dto.userPackageId,
+      dto.programId,
+    );
   }
 }

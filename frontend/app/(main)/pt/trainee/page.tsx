@@ -1,20 +1,37 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Tabs, Spin } from 'antd';
+import {
+  Button,
+  Descriptions,
+  Form,
+  Modal,
+  Select,
+  Spin,
+  Tabs,
+  Tag,
+} from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 
 import {
   acceptPTAssistRequest,
+  assignProgramToUser,
   getAcceptedTraineeRequests,
   getPTAssistRequests,
+  getPrograms,
   getTraineeRequests,
   approveTraineeRequest,
   rejectPTAssistRequest,
   rejectTraineeRequest,
 } from '@/app/services/api';
-import type { PTAssistRequest, TraineeRequest } from '@/app/types/types';
+import type {
+  AssignProgramToUserRequest,
+  PTAssistRequest,
+  Program,
+  ProgramsResponse,
+  TraineeRequest,
+} from '@/app/types/types';
 import TraineeCard from '@/app/components/pt/TraineeCard';
 import PTAssistRequestCard from '@/app/components/pt/PTAssistRequestCard';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -22,9 +39,15 @@ import { useAuthStore } from '@/app/stores/authStore';
 export default function TraineePage() {
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuthStore();
+  const [assignForm] = Form.useForm<{ programId: string }>();
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'assist'>(
     'pending',
   );
+  const [selectedTrainee, setSelectedTrainee] = useState<TraineeRequest | null>(
+    null,
+  );
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const { data: pendingData, isLoading: isLoadingPending } = useQuery({
     queryKey: ['pt-trainee-pending'],
@@ -58,6 +81,19 @@ export default function TraineePage() {
     () => assistData?.data ?? [],
     [assistData],
   );
+
+  const { data: programsRes, isLoading: isLoadingPrograms } =
+    useQuery<ProgramsResponse>({
+      queryKey: ['pt-programs-for-assign'],
+      queryFn: () => getPrograms({ page: 1, itemsPerPage: 100 }),
+      enabled: detailOpen || assignOpen,
+    });
+
+  const programs: Program[] = programsRes?.data ?? [];
+  const programOptions = programs.map((program) => ({
+    label: program.name,
+    value: program.id,
+  }));
 
   const { mutate: approveRequest, isPending: isApproving } = useMutation({
     mutationFn: (trainee: TraineeRequest) =>
@@ -103,6 +139,49 @@ export default function TraineePage() {
         message.info(`Đã từ chối yêu cầu hỗ trợ của ${name}.`);
       },
     });
+
+  const { mutate: submitAssignProgram, isPending: isAssigningProgram } =
+    useMutation({
+      mutationFn: (payload: AssignProgramToUserRequest) =>
+        assignProgramToUser(payload),
+      onSuccess: () => {
+        message.success('Đã định hướng chương trình tập cho học viên.');
+        setAssignOpen(false);
+        assignForm.resetFields();
+        queryClient.invalidateQueries({ queryKey: ['pt-trainee-active'] });
+      },
+      onError: () => {
+        message.error('Không thể gán chương trình. Vui lòng thử lại.');
+      },
+    });
+
+  const openTraineeDetail = (trainee: TraineeRequest) => {
+    setSelectedTrainee(trainee);
+    setDetailOpen(true);
+  };
+
+  const closeTraineeDetail = () => {
+    setDetailOpen(false);
+    setSelectedTrainee(null);
+  };
+
+  const openAssignProgramModal = () => {
+    assignForm.setFieldsValue({ programId: undefined });
+    setAssignOpen(true);
+  };
+
+  const handleAssignProgram = async () => {
+    try {
+      const values = await assignForm.validateFields();
+      if (!selectedTrainee) return;
+      submitAssignProgram({
+        userPackageId: selectedTrainee.id,
+        programId: values.programId,
+      });
+    } catch {
+      // validation failed
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-16 pt-10">
@@ -160,6 +239,7 @@ export default function TraineePage() {
                       key={trainee.id}
                       trainee={trainee}
                       mode="active"
+                      onOpenDetail={openTraineeDetail}
                     />
                   ))}
                 </div>
@@ -193,6 +273,98 @@ export default function TraineePage() {
           ]}
         />
       </div>
+
+      <Modal
+        title="Chi tiết học viên"
+        open={detailOpen}
+        onCancel={closeTraineeDetail}
+        footer={[
+          <Button key="close" onClick={closeTraineeDetail}>
+            Đóng
+          </Button>,
+          <Button
+            key="assign"
+            type="primary"
+            onClick={openAssignProgramModal}
+            disabled={!selectedTrainee}
+          >
+            Định hướng luyện tập
+          </Button>,
+        ]}
+        width={720}
+        destroyOnClose
+      >
+        {selectedTrainee ? (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Tên">
+              {selectedTrainee.account.profile?.name ??
+                selectedTrainee.account.email}
+            </Descriptions.Item>
+            <Descriptions.Item label="Email">
+              {selectedTrainee.account.email}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag
+                color={selectedTrainee.status === 'ACTIVE' ? 'green' : 'gold'}
+              >
+                {selectedTrainee.status}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Gói tập">
+              {selectedTrainee.package.name}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chi nhánh">
+              {selectedTrainee.branch.name}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chương trình luyện tập">
+              {selectedTrainee.program?.name ?? 'Chưa có chương trình'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Bắt đầu">
+              {selectedTrainee.startAt
+                ? new Date(selectedTrainee.startAt).toLocaleDateString('vi-VN')
+                : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Kết thúc">
+              {selectedTrainee.endAt
+                ? new Date(selectedTrainee.endAt).toLocaleDateString('vi-VN')
+                : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày tham gia">
+              {new Date(selectedTrainee.createdAt).toLocaleDateString('vi-VN')}
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="Định hướng luyện tập"
+        open={assignOpen}
+        onOk={handleAssignProgram}
+        onCancel={() => {
+          setAssignOpen(false);
+          assignForm.resetFields();
+        }}
+        okText="Gán chương trình"
+        cancelText="Hủy"
+        confirmLoading={isAssigningProgram}
+        destroyOnClose
+      >
+        <Form form={assignForm} layout="vertical" className="mt-2">
+          <Form.Item
+            name="programId"
+            label="Chương trình tập"
+            rules={[{ required: true, message: 'Chọn chương trình tập' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Chọn chương trình phù hợp"
+              loading={isLoadingPrograms}
+              options={programOptions}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

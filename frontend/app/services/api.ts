@@ -8,6 +8,8 @@ import {
   AcceptPTAssistRequestResponse,
   ApproveTraineeRequestRequest,
   ApproveTraineeRequestResponse,
+  AssignProgramToUserRequest,
+  AssignProgramToUserResponse,
   BranchDetailResponse,
   BranchesResponse,
   CheckInHistoryResponse,
@@ -315,6 +317,16 @@ export const createExercise = async (
 ): Promise<any> => {
   const res = await axios.post<CreateExerciseResponse>(
     API.EXERCISE.CREATE_EXERCISE,
+    request,
+  );
+  return res;
+};
+
+export const assignProgramToUser = async (
+  request: AssignProgramToUserRequest,
+): Promise<any> => {
+  const res = await axios.post<AssignProgramToUserResponse>(
+    API.PT.ASSIGN_PROGRAM_TO_USER(),
     request,
   );
   return res;

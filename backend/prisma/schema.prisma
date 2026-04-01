@@ -77,6 +77,11 @@ enum PtAssistRequestStatus {
   CANCELLED
 }
 
+enum WorkoutHistoryStatus {
+  COMPLETED
+  SKIPPED
+}
+
 model Account {
   id                     String        @id @default(uuid())
   email                  String        @unique
@@ -89,6 +94,8 @@ model Account {
   updatedAt              DateTime      @updatedAt
 
   profile Profile?
+
+  workoutHistories WorkoutHistory[]
 
   // 1) user mua gói
   userPackages UserPackage[] @relation("UserPackagesOwner")
@@ -186,6 +193,14 @@ model UserPackage {
   checkins CheckIn[]
   ptAssistRequests PtAssistRequest[]
 
+
+  programId String?
+  program   Program? @relation(fields: [programId], references: [id])
+
+  workoutHistories WorkoutHistory[]
+
+  @@index([programId])
+
   @@index([accountId, status])
   @@index([ptAccountId])
   @@index([branchId])
@@ -251,6 +266,9 @@ model Program {
   updatedAt  DateTime @updatedAt
 
   days ProgramDay[]
+  userPackages UserPackage[]
+
+  workoutHistories WorkoutHistory[]
 
   @@index([level])
   @@index([isActive])
@@ -269,6 +287,7 @@ model ProgramDay {
   updatedAt DateTime @updatedAt
 
   exercises ProgramDayExercise[]
+  workoutHistories WorkoutHistory[]
 
   @@unique([programId, dayOfWeek])
   @@index([programId])
@@ -323,4 +342,34 @@ model PtAssistRequest {
   @@index([userPackageId, startTime])
 
   @@unique([accountId, ptAccountId, startTime, endTime])
+}
+
+model WorkoutHistory {
+  id String @id @default(uuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  userPackageId String
+  userPackage   UserPackage @relation(fields: [userPackageId], references: [id], onDelete: Cascade)
+
+  programId String
+  program   Program @relation(fields: [programId], references: [id])
+
+  programDayId String
+  programDay   ProgramDay @relation(fields: [programDayId], references: [id])
+
+  workoutAt DateTime @default(now())
+
+  status WorkoutHistoryStatus @default(COMPLETED)
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, workoutAt])
+  @@index([userPackageId, workoutAt])
+  @@index([programId, workoutAt])
+  @@index([programDayId, workoutAt])
+
+  @@unique([accountId, programDayId, workoutAt])
 }
