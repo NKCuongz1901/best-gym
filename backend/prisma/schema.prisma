@@ -82,6 +82,12 @@ enum WorkoutHistoryStatus {
   SKIPPED
 }
 
+enum SessionCompletion {
+  COMPLETED
+  PARTIAL
+  NO_SHOW
+}
+
 model Account {
   id                     String        @id @default(uuid())
   email                  String        @unique
@@ -111,6 +117,8 @@ model Account {
 
   // PT request: request gửi đến PT
   ptIncomingAssistRequests PtAssistRequest[] @relation("PtAssistRequestsPT")
+   ptSessionReportsWritten PtSessionReport[] @relation("PtSessionReportsPT")
+  ptSessionReportsReceived PtSessionReport[] @relation("PtSessionReportsUser")
 }
 
 model Profile {
@@ -336,6 +344,8 @@ model PtAssistRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sessionReport PtSessionReport?
+
   @@index([ptAccountId, status])
   @@index([accountId, startTime])
   @@index([branchId, startTime])
@@ -372,4 +382,33 @@ model WorkoutHistory {
   @@index([programDayId, workoutAt])
 
   @@unique([accountId, programDayId, workoutAt])
+}
+
+model PtSessionReport {
+  id               String @id @default(uuid())
+
+  ptAssistRequestId String @unique
+  ptAssistRequest   PtAssistRequest @relation(fields: [ptAssistRequestId], references: [id], onDelete: Cascade)
+
+  ptAccountId       String
+  ptAccount         Account @relation("PtSessionReportsPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  accountId         String
+  account           Account @relation("PtSessionReportsUser", fields: [accountId], references: [id], onDelete: Cascade)
+
+  completion        SessionCompletion @default(COMPLETED)
+
+  summary           String?   
+  techniqueNote     String?   
+  improvement       String?   
+  nextSessionPlan   String?   
+
+  weightKg          Float?
+  bodyNote          String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([ptAccountId, createdAt])
+  @@index([accountId, createdAt])
 }

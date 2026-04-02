@@ -15,6 +15,7 @@ import {
 } from 'generated/prisma/enums';
 import { calcEndAt } from 'src/utils/helpers';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
+import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
 import { formatInTimeZone } from 'date-fns-tz';
 
 @Injectable()
@@ -192,6 +193,58 @@ export class UserPackageService {
     return {
       message: 'Checkin package successfully',
       data: checkin,
+    };
+  }
+
+  async getPtTrainingHistory(
+    accountId: string,
+    filter?: FilterPtTrainingHistoryDto,
+  ) {
+    const { from, to } = filter ?? {};
+
+    const where: {
+      accountId: string;
+      startTime?: { gte?: Date; lte?: Date };
+    } = { accountId };
+
+    if (from || to) {
+      where.startTime = {};
+      if (from) {
+        where.startTime.gte = new Date(`${from}T00:00:00.000Z`);
+      }
+      if (to) {
+        where.startTime.lte = new Date(`${to}T23:59:59.999Z`);
+      }
+    }
+
+    const items = await this.prisma.ptAssistRequest.findMany({
+      where,
+      orderBy: { startTime: 'desc' },
+      include: {
+        branch: {
+          select: { id: true, name: true, address: true },
+        },
+        ptAccount: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, phone: true } },
+          },
+        },
+        userPackage: {
+          include: {
+            package: {
+              select: { id: true, name: true, hasPt: true },
+            },
+          },
+        },
+        sessionReport: true,
+      },
+    });
+
+    return {
+      message: 'Get PT training history successfully',
+      data: items,
     };
   }
 

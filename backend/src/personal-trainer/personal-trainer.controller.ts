@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PersonalTrainerService } from './personal-trainer.service';
 import { AssignProgramToUserDto } from './dto/assign-program-to-user.dto';
+import { CreatePtSessionReportDto } from './dto/create-pt-session-report.dto';
 import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -105,5 +106,15 @@ export class PersonalTrainerController {
       dto.userPackageId,
       dto.programId,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Post('session-reports')
+  async upsertSessionReport(
+    @Req() req: any,
+    @Body() dto: CreatePtSessionReportDto,
+  ) {
+    return this.personalTrainerService.upsertSessionReport(req.user.userId, dto);
   }
 }

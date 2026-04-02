@@ -9,6 +9,7 @@ import {
 } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { calcEndAt } from 'src/utils/helpers';
+import { CreatePtSessionReportDto } from './dto/create-pt-session-report.dto';
 import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 
 @Injectable()
@@ -367,6 +368,82 @@ export class PersonalTrainerService {
     return {
       message: 'Assign program to user successfully',
       data: updatedUserPackage,
+    };
+  }
+
+  async upsertSessionReport(
+    ptAccountId: string,
+    dto: CreatePtSessionReportDto,
+  ) {
+    const assist = await this.prisma.ptAssistRequest.findFirst({
+      where: {
+        id: dto.ptAssistRequestId,
+        ptAccountId,
+        status: PtAssistRequestStatus.ACCEPTED,
+      },
+    });
+
+    if (!assist) {
+      throw new NotFoundException(
+        'PT assist request not found, not accepted, or not assigned to you',
+      );
+    }
+
+    const {
+      completion,
+      summary,
+      techniqueNote,
+      improvement,
+      nextSessionPlan,
+      weightKg,
+      bodyNote,
+    } = dto;
+
+    const report = await this.prisma.ptSessionReport.upsert({
+      where: { ptAssistRequestId: assist.id },
+      create: {
+        ptAssistRequestId: assist.id,
+        ptAccountId,
+        accountId: assist.accountId,
+        completion,
+        summary,
+        techniqueNote,
+        improvement,
+        nextSessionPlan,
+        weightKg,
+        bodyNote,
+      },
+      update: {
+        completion,
+        summary,
+        techniqueNote,
+        improvement,
+        nextSessionPlan,
+        weightKg,
+        bodyNote,
+      },
+      include: {
+        ptAssistRequest: {
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+          },
+        },
+        account: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, phone: true } },
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Save PT session report successfully',
+      data: report,
     };
   }
 }
