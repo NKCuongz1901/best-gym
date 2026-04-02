@@ -42,9 +42,13 @@ import {
   RejectTraineeRequestResponse,
   ReportUserSessionRequest,
   ReportUserSessionResponse,
+  SignUpRequest,
+  SignUpResponse,
   TraineeRequestsResponse,
   UpdateBranchResponse,
   UserAccountsResponse,
+  VerifyAccountRequest,
+  VerifyAccountResponse,
 } from '../types/types';
 import axios from './axios.customize';
 import { API } from './constant';
@@ -58,6 +62,24 @@ export const signin = async (
     password,
   });
   return res as unknown as { access_token: string };
+};
+
+export const signUp = async (request: SignUpRequest): Promise<any> => {
+  const res = await axios.post<SignUpResponse>(
+    API.AUTHENTICATION.SIGN_UP,
+    request,
+  );
+  return res;
+};
+
+export const verifyAccount = async (
+  request: VerifyAccountRequest,
+): Promise<any> => {
+  const res = await axios.post<VerifyAccountResponse>(
+    API.AUTHENTICATION.VERIFY_ACCOUNT,
+    request,
+  );
+  return res;
 };
 
 export const getMe = async (): Promise<{

@@ -5,9 +5,9 @@ import type { MenuProps } from 'antd';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { getMe, signin } from '../services/api';
+import { getMe, signUp, signin, verifyAccount } from '../services/api';
 import { appRoute } from '../config/appRoute';
 
 const menuItems = [
@@ -27,6 +27,23 @@ export default function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false);
+  const [signUpLoading, setSignUpLoading] = useState(false);
+  const [signUpStep, setSignUpStep] = useState<'signUp' | 'verifyAccount'>(
+    'signUp',
+  );
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [verificationCodeDraft, setVerificationCodeDraft] = useState('');
+  const [signUpForm] = Form.useForm();
+  const [verifyForm] = Form.useForm();
+  const verificationCodeInputRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (signUpStep === 'verifyAccount' && signUpEmail) {
+      verifyForm.setFieldsValue({ email: signUpEmail });
+    }
+  }, [signUpStep, signUpEmail, verifyForm]);
 
   const handleSignIn = () => {
     setIsModalOpen(true);
@@ -60,6 +77,91 @@ export default function Header() {
   const handleModalCancel = () => {
     form.resetFields();
     setIsModalOpen(false);
+  };
+
+  const handleOpenSignUp = () => {
+    setSignUpStep('signUp');
+    setSignUpEmail('');
+    setVerificationCodeDraft('');
+    signUpForm.resetFields();
+    verifyForm.resetFields();
+    setIsSignUpOpen(true);
+  };
+
+  const handleSignUpCancel = () => {
+    setIsSignUpOpen(false);
+    setSignUpStep('signUp');
+    setSignUpEmail('');
+    setVerificationCodeDraft('');
+    signUpForm.resetFields();
+    verifyForm.resetFields();
+  };
+
+  const handleSignUpSubmit = async () => {
+    try {
+      const values = await signUpForm.validateFields();
+      setSignUpLoading(true);
+      await signUp({
+        email: values.email,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+      });
+
+      setSignUpEmail(values.email);
+      setVerificationCodeDraft('');
+      verifyForm.setFieldsValue({
+        email: values.email,
+      });
+      setSignUpStep('verifyAccount');
+      message.success('Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.');
+    } catch (err: unknown) {
+      let msg = 'Đăng ký thất bại. Vui lòng thử lại.';
+      if (err && typeof err === 'object') {
+        const obj = err as { message?: unknown };
+        if (typeof obj.message === 'string') msg = obj.message;
+      }
+      message.error(msg);
+    } finally {
+      setSignUpLoading(false);
+    }
+  };
+
+  const handleVerifyAccountSubmit = async () => {
+    try {
+      // validate để show error UI, nhưng luôn ưu tiên đọc mã xác thực từ state local
+      const values = await verifyForm.validateFields();
+      setSignUpLoading(true);
+      const email = values.email || signUpEmail;
+      const rawCode =
+        values.verificationCode ??
+        verifyForm.getFieldValue('verificationCode') ??
+        verificationCodeDraft ??
+        verificationCodeInputRef.current?.value;
+      const verificationCode = String(rawCode ?? '').trim();
+
+      if (!email) {
+        message.error('Email không hợp lệ');
+        return;
+      }
+      if (!verificationCode) {
+        message.error('Vui lòng nhập mã xác thực');
+        return;
+      }
+
+      await verifyAccount({ email, verificationCode });
+
+      message.success('Xác minh tài khoản thành công');
+      handleSignUpCancel();
+    } catch (err: unknown) {
+      let msg = 'Xác minh thất bại. Vui lòng thử lại.';
+      if (err && typeof err === 'object') {
+        const obj = err as { message?: unknown };
+        if (typeof obj.message === 'string') msg = obj.message;
+      }
+      message.error(msg);
+    } finally {
+      setSignUpLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -144,8 +246,13 @@ export default function Header() {
             >
               Sign in
             </Button>
-            <Button type="primary" shape="square" size="large">
-              Register
+            <Button
+              type="primary"
+              shape="square"
+              size="large"
+              onClick={handleOpenSignUp}
+            >
+              Sign up
             </Button>
           </>
         )}
@@ -179,6 +286,122 @@ export default function Header() {
             <Input.Password placeholder="••••••••" size="large" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={signUpStep === 'signUp' ? 'Sign up' : 'Verify account'}
+        open={isSignUpOpen}
+        onCancel={handleSignUpCancel}
+        footer={null}
+        confirmLoading={signUpLoading}
+        destroyOnClose
+      >
+        {signUpStep === 'signUp' ? (
+          <Form form={signUpForm} layout="vertical" className="mt-4">
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: 'Vui lòng nhập email' },
+                { type: 'email', message: 'Email không hợp lệ' },
+              ]}
+            >
+              <Input type="email" placeholder="example@email.com" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label="Mật khẩu"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mật khẩu' },
+                { min: 6, message: 'Mật khẩu phải từ 6 ký tự trở lên' },
+              ]}
+            >
+              <Input.Password placeholder="••••••••" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              name="confirmPassword"
+              label="Nhập lại mật khẩu"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: 'Vui lòng nhập lại mật khẩu' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(
+                      new Error('Mật khẩu nhập lại không khớp'),
+                    );
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="••••••••" size="large" />
+            </Form.Item>
+
+            <div className="flex justify-end gap-3">
+              <Button onClick={handleSignUpCancel}>Hủy</Button>
+              <Button
+                type="primary"
+                onClick={handleSignUpSubmit}
+                loading={signUpLoading}
+              >
+                Đăng ký
+              </Button>
+            </div>
+          </Form>
+        ) : (
+          <Form form={verifyForm} layout="vertical" className="mt-4">
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[{ required: true, message: 'Email không được để trống' }]}
+            >
+              <Input readOnly />
+            </Form.Item>
+
+            <Form.Item
+              name="verificationCode"
+              label="Mã xác thực"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mã xác thực' },
+              ]}
+            >
+              <Input
+                placeholder="Nhập mã từ email"
+                size="large"
+                onChange={(e) => {
+                  setVerificationCodeDraft(e.target.value);
+                  verifyForm.setFieldsValue({
+                    verificationCode: e.target.value,
+                  });
+                }}
+                ref={verificationCodeInputRef}
+              />
+            </Form.Item>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={() => {
+                  setSignUpStep('signUp');
+                  verifyForm.resetFields();
+                  signUpForm.setFieldsValue({ email: signUpEmail });
+                }}
+              >
+                Quay lại
+              </Button>
+              <Button
+                type="primary"
+                onClick={handleVerifyAccountSubmit}
+                loading={signUpLoading}
+              >
+                Xác minh
+              </Button>
+            </div>
+          </Form>
+        )}
       </Modal>
     </header>
   );

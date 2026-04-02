@@ -480,3 +480,24 @@ export interface PTTrainingHistoriesResponse {
   message: string;
   data: PTTrainingHistory[];
 }
+
+export interface SignUpRequest {
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface SignUpResponse {
+  message: string;
+  data: any;
+}
+
+export interface VerifyAccountRequest {
+  email: string;
+  verificationCode: string;
+}
+
+export interface VerifyAccountResponse {
+  message: string;
+  data: any;
+}
