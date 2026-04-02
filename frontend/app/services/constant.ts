@@ -7,6 +7,7 @@ export interface API_PROPS {
     PURCHASE_PACKAGE: string;
     GET_PURCHASE_PACKAGE: string;
     GET_CHECK_IN_HISTORY: string;
+    GET_PT_TRAINING_HISTORY: string;
   };
   PACKAGE: {
     GET_ALL: string;
@@ -22,6 +23,7 @@ export interface API_PROPS {
     REJECT_ASSIST_REQUEST: (requestId: string) => string;
     GET_SCHEDULE: string;
     ASSIGN_PROGRAM_TO_USER: () => string;
+    REPORT_USER_SESSION: () => string;
   };
   BRANCH: {
     GET_ALL: string;
@@ -56,6 +58,7 @@ export const API: API_PROPS = {
     PURCHASE_PACKAGE: '/user-package/purchase',
     GET_PURCHASE_PACKAGE: '/user-package/my-packages',
     GET_CHECK_IN_HISTORY: '/user-package/checkins/grouped',
+    GET_PT_TRAINING_HISTORY: '/user-package/pt-training-history',
   },
   PACKAGE: {
     GET_ALL: '/package',
@@ -73,6 +76,7 @@ export const API: API_PROPS = {
       `/pt/pt-assist-requests/${requestId}/reject`,
     GET_SCHEDULE: '/pt/assist-schedule',
     ASSIGN_PROGRAM_TO_USER: () => `/pt/assign-program-to-user`,
+    REPORT_USER_SESSION: () => `/pt/session-reports`,
   },
   BRANCH: {
     GET_ALL: '/branch',

@@ -427,3 +427,56 @@ export interface AssignProgramToUserResponse {
     programId: string;
   };
 }
+
+export interface ReportUserSessionRequest {
+  ptAssistRequestId: string;
+  completion: 'COMPLETED' | 'INCOMPLETE';
+  summary: string;
+  techniqueNote: string;
+  improvement: string;
+  nextSessionPlan: string;
+  weightKg: number;
+  bodyNote: string;
+}
+
+export interface ReportUserSessionResponse {
+  message: string;
+  data: any;
+}
+
+export interface SessionReport {
+  id: string;
+  ptAssistRequestId?: string;
+  ptTrainingHistoryId?: string;
+  completion: 'COMPLETED' | 'INCOMPLETE';
+  summary: string | null;
+  techniqueNote: string | null;
+  improvement: string | null;
+  nextSessionPlan: string | null;
+  weightKg?: number | null;
+  bodyNote?: string | null;
+}
+
+export interface PTTrainingHistory {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  branchId: string;
+  ptAccountId: string;
+  startTime: string;
+  endTime: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  note: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  branch: Branch;
+  ptAccount: PtAccount;
+  userPackage: MyPurchasePackage;
+  sessionReport: SessionReport | null;
+}
+
+export interface PTTrainingHistoriesResponse {
+  message: string;
+  data: PTTrainingHistory[];
+}

@@ -34,11 +34,14 @@ import {
   PtAccountsResponse,
   PTAssistRequestsResponse,
   PTAssistSchedulesResponse,
+  PTTrainingHistoriesResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
   RejectPTAssistRequestResponse,
   RejectTraineeRequestRequest,
   RejectTraineeRequestResponse,
+  ReportUserSessionRequest,
+  ReportUserSessionResponse,
   TraineeRequestsResponse,
   UpdateBranchResponse,
   UserAccountsResponse,
@@ -240,6 +243,17 @@ export const getCheckInHistory = async (): Promise<any> => {
   return res as unknown as CheckInHistoryResponse;
 };
 
+export const getPTTrainingHistory = async (params?: {
+  from?: string;
+  to?: string;
+}): Promise<any> => {
+  const res = await axios.get<PTTrainingHistoriesResponse>(
+    API.USER.GET_PT_TRAINING_HISTORY,
+    { params },
+  );
+  return res as unknown as PTTrainingHistoriesResponse;
+};
+
 export const getPTAssistRequests = async (): Promise<any> => {
   const res = await axios.get<PTAssistRequestsResponse>(
     API.PT.GET_ASSIST_REQUEST,
@@ -327,6 +341,16 @@ export const assignProgramToUser = async (
 ): Promise<any> => {
   const res = await axios.post<AssignProgramToUserResponse>(
     API.PT.ASSIGN_PROGRAM_TO_USER(),
+    request,
+  );
+  return res;
+};
+
+export const reportUserSession = async (
+  request: ReportUserSessionRequest,
+): Promise<any> => {
+  const res = await axios.post<ReportUserSessionResponse>(
+    API.PT.REPORT_USER_SESSION(),
     request,
   );
   return res;

@@ -5,16 +5,36 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import viLocale from '@fullcalendar/core/locales/vi';
-import type { DatesSetArg, EventContentArg, EventInput } from '@fullcalendar/core';
-import { useQuery } from '@tanstack/react-query';
-import { Spin } from 'antd';
+import type {
+  DatesSetArg,
+  EventClickArg,
+  EventContentArg,
+  EventInput,
+} from '@fullcalendar/core';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Button,
+  Descriptions,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Spin,
+  Tag,
+  message,
+} from 'antd';
 import dayjs from 'dayjs';
 
-import { getPTAssistSchedule } from '@/app/services/api';
+import { getPTAssistSchedule, reportUserSession } from '@/app/services/api';
 import type {
   FILTER_PT_ASSIST_SCHEDULE_PROPS,
 } from '@/app/types/filters';
-import type { PTAssistSchedule, PTAssistSchedulesResponse } from '@/app/types/types';
+import type {
+  PTAssistSchedule,
+  PTAssistSchedulesResponse,
+  ReportUserSessionRequest,
+} from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
 
 function renderEventContent(arg: EventContentArg) {
@@ -38,7 +58,15 @@ function renderEventContent(arg: EventContentArg) {
 }
 
 export default function PTSchedulePage() {
+  const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuthStore();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<PTAssistSchedule | null>(
+    null,
+  );
+  const [feedbackForm] = Form.useForm<ReportUserSessionRequest>();
+
   const [range, setRange] = useState<FILTER_PT_ASSIST_SCHEDULE_PROPS>(() => {
     const start = dayjs().startOf('week').add(1, 'day');
     const end = start.add(6, 'day').endOf('day');
@@ -53,6 +81,26 @@ export default function PTSchedulePage() {
     queryFn: () => getPTAssistSchedule(range),
     enabled: isLoggedIn && user?.role === 'PT',
   });
+
+  const scheduleById = useMemo(() => {
+    const list = data?.data ?? [];
+    return new Map(list.map((s) => [s.id, s]));
+  }, [data?.data]);
+
+  const { mutate: submitSessionReport, isPending: isSubmittingReport } =
+    useMutation({
+      mutationFn: (payload: ReportUserSessionRequest) =>
+        reportUserSession(payload),
+      onSuccess: () => {
+        message.success('Đã gửi nhận xét buổi tập');
+        queryClient.invalidateQueries({ queryKey: ['pt-assist-schedule'] });
+        setFeedbackOpen(false);
+        feedbackForm.resetFields();
+      },
+      onError: () => {
+        message.error('Không thể gửi nhận xét. Vui lòng thử lại.');
+      },
+    });
 
   const events = useMemo<EventInput[]>(() => {
     const schedules: PTAssistSchedule[] = data?.data ?? [];
@@ -72,6 +120,42 @@ export default function PTSchedulePage() {
       };
     });
   }, [data]);
+
+  const handleEventClick = (info: EventClickArg) => {
+    const schedule = scheduleById.get(info.event.id);
+    if (schedule) {
+      setSelectedSchedule(schedule);
+      setDetailOpen(true);
+    }
+  };
+
+  const openFeedbackModal = () => {
+    feedbackForm.setFieldsValue({
+      ptAssistRequestId: selectedSchedule?.id ?? '',
+      completion: 'COMPLETED',
+      summary: '',
+      techniqueNote: '',
+      improvement: '',
+      nextSessionPlan: '',
+      weightKg: undefined,
+      bodyNote: '',
+    });
+    setFeedbackOpen(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    try {
+      const values = await feedbackForm.validateFields();
+      if (!selectedSchedule) return;
+      submitSessionReport({
+        ...values,
+        ptAssistRequestId: selectedSchedule.id,
+        weightKg: Number(values.weightKg),
+      });
+    } catch {
+      // validation failed
+    }
+  };
 
   const handleDatesSet = (arg: DatesSetArg) => {
     setRange({
@@ -108,6 +192,7 @@ export default function PTSchedulePage() {
                 }}
                 events={events}
                 datesSet={handleDatesSet}
+                eventClick={handleEventClick}
                 allDaySlot
                 slotMinTime="06:00:00"
                 slotMaxTime="22:00:00"
@@ -150,6 +235,9 @@ export default function PTSchedulePage() {
             .pt-schedule-calendar .fc .fc-button:hover {
               background: #27272a;
             }
+            .pt-schedule-calendar .fc .fc-event {
+              cursor: pointer;
+            }
           `}</style>
           {isError ? (
             <p className="px-3 pb-2 pt-3 text-sm text-red-300">
@@ -158,6 +246,149 @@ export default function PTSchedulePage() {
           ) : null}
         </div>
       </div>
+
+      <Modal
+        title="Chi tiết buổi tập"
+        open={detailOpen}
+        onCancel={() => {
+          setDetailOpen(false);
+          setSelectedSchedule(null);
+        }}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => {
+              setDetailOpen(false);
+              setSelectedSchedule(null);
+            }}
+          >
+            Đóng
+          </Button>,
+          <Button key="feedback" type="primary" onClick={openFeedbackModal}>
+            Nhận xét
+          </Button>,
+        ]}
+        width={640}
+        destroyOnClose
+      >
+        {selectedSchedule ? (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Tiêu đề">
+              {selectedSchedule.title}
+            </Descriptions.Item>
+            <Descriptions.Item label="Thời gian">
+              {dayjs(selectedSchedule.start).format('DD/MM/YYYY HH:mm')} —{' '}
+              {dayjs(selectedSchedule.end).format('HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag
+                color={
+                  selectedSchedule.extendedProps.status === 'ACCEPTED'
+                    ? 'green'
+                    : 'red'
+                }
+              >
+                {selectedSchedule.extendedProps.status}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Học viên">
+              {selectedSchedule.extendedProps.account.profile?.name ??
+                selectedSchedule.extendedProps.account.email}
+            </Descriptions.Item>
+            <Descriptions.Item label="Email">
+              {selectedSchedule.extendedProps.account.email}
+            </Descriptions.Item>
+            <Descriptions.Item label="Chi nhánh">
+              {selectedSchedule.extendedProps.branch.name}
+            </Descriptions.Item>
+            <Descriptions.Item label="Gói tập">
+              {selectedSchedule.extendedProps.userPackage.package.name}
+            </Descriptions.Item>
+            {selectedSchedule.extendedProps.note ? (
+              <Descriptions.Item label="Ghi chú">
+                {selectedSchedule.extendedProps.note}
+              </Descriptions.Item>
+            ) : null}
+            {selectedSchedule.extendedProps.rejectReason ? (
+              <Descriptions.Item label="Lý do từ chối">
+                {selectedSchedule.extendedProps.rejectReason}
+              </Descriptions.Item>
+            ) : null}
+          </Descriptions>
+        ) : null}
+      </Modal>
+
+      <Modal
+        title="Nhận xét buổi tập"
+        open={feedbackOpen}
+        onOk={handleSubmitFeedback}
+        onCancel={() => {
+          setFeedbackOpen(false);
+          feedbackForm.resetFields();
+        }}
+        confirmLoading={isSubmittingReport}
+        okText="Gửi"
+        cancelText="Hủy"
+        width={560}
+        destroyOnClose
+      >
+        <Form form={feedbackForm} layout="vertical" className="mt-2">
+          <Form.Item
+            name="completion"
+            label="Hoàn thành buổi"
+            rules={[{ required: true, message: 'Chọn trạng thái' }]}
+          >
+            <Select
+              options={[
+                { value: 'COMPLETED', label: 'Hoàn thành' },
+                { value: 'INCOMPLETE', label: 'Chưa hoàn thành' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="summary"
+            label="Tóm tắt buổi tập"
+            rules={[{ required: true, message: 'Nhập tóm tắt' }]}
+          >
+            <Input.TextArea rows={3} placeholder="Tổng quan buổi tập..." />
+          </Form.Item>
+          <Form.Item
+            name="techniqueNote"
+            label="Kỹ thuật"
+            rules={[{ required: true, message: 'Nhập nhận xét kỹ thuật' }]}
+          >
+            <Input.TextArea rows={2} placeholder="Điểm cần lưu ý về kỹ thuật..." />
+          </Form.Item>
+          <Form.Item
+            name="improvement"
+            label="Cần cải thiện"
+            rules={[{ required: true, message: 'Nhập mục cải thiện' }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="nextSessionPlan"
+            label="Kế hoạch buổi sau"
+            rules={[{ required: true, message: 'Nhập kế hoạch' }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="weightKg"
+            label="Cân nặng (kg)"
+            rules={[{ required: true, message: 'Nhập cân nặng' }]}
+          >
+            <InputNumber min={0} step={0.1} className="w-full" placeholder="70" />
+          </Form.Item>
+          <Form.Item
+            name="bodyNote"
+            label="Ghi chú cơ thể"
+            rules={[{ required: true, message: 'Nhập ghi chú' }]}
+          >
+            <Input.TextArea rows={2} placeholder="Tình trạng sức khỏe, đau nhức..." />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
