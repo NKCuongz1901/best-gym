@@ -49,6 +49,9 @@ export interface API_PROPS {
     CREATE_PROGRAM_DAY: (programId: string) => string;
     CREATE_PROGRAM_DAY_EXERCISE: (programId: string, dayId: string) => string;
   };
+  AI: {
+    RECOMMEND_PROGRAM: string;
+  };
 }
 
 export const API: API_PROPS = {
@@ -104,5 +107,8 @@ export const API: API_PROPS = {
     CREATE_PROGRAM_DAY: (programId: string) => `/program/${programId}/days`,
     CREATE_PROGRAM_DAY_EXERCISE: (programId: string, dayId: string) =>
       `/program/${programId}/days/${dayId}/exercises`,
+  },
+  AI: {
+    RECOMMEND_PROGRAM: '/ai/recommend-packages',
   },
 };

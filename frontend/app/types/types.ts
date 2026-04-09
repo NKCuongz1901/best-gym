@@ -501,3 +501,13 @@ export interface VerifyAccountResponse {
   message: string;
   data: any;
 }
+
+export interface RecommendProgramRequest {
+  conversationId: string;
+  userMessage: string;
+}
+
+export interface RecommendProgramResponse {
+  message: string;
+  data: any;
+}

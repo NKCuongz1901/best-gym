@@ -1,3 +1,4 @@
+import ChatBot from "../components/ChatBot";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 
@@ -11,6 +12,7 @@ export default function MainLayout({
       <Header />
       <main>{children}</main>
       <Footer />
+      <ChatBot />
     </>
   );
 }
