@@ -521,3 +521,47 @@ export interface RecommendNutritionResponse {
   message: string;
   data: any;
 }
+
+export interface Profile {
+  id: string;
+  accountId: string;
+  name: string | null;
+  gender: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  avatar: string | null;
+  height: number | null;
+  weight: number | null;
+  fitnessGoal: string | null;
+  createdAt: string;
+  updatedAt: string;
+  email: string;
+}
+
+export interface ProfileResponse {
+  message: string;
+  data: Profile;
+}
+
+export type Gender = 'MALE' | 'FEMALE';
+export type FitnessGoal =
+  | 'LOSE_WEIGHT'
+  | 'GAIN_MUSCLE'
+  | 'IMPROVE_HEALTH'
+  | 'MAINTAIN_WEIGHT';
+
+export interface UpdateProfileRequest {
+  name?: string;
+  gender?: Gender;
+  phone?: string;
+  dateOfBirth?: string;
+  avatar?: string;
+  height?: number;
+  weight?: number;
+  fitnessGoal?: FitnessGoal;
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  data: Profile;
+}

@@ -4,6 +4,8 @@ export interface API_PROPS {
     SIGN_UP: string;
     PROFILE: string;
     VERIFY_ACCOUNT: string;
+    GET_PROFILE: string;
+    UPDATE_PROFILE: string;
   };
   USER: {
     PURCHASE_PACKAGE: string;
@@ -61,6 +63,8 @@ export const API: API_PROPS = {
     SIGN_UP: '/account/sign-up',
     PROFILE: '/auth/profile',
     VERIFY_ACCOUNT: '/account/verify-account',
+    GET_PROFILE: '/account/profile',
+    UPDATE_PROFILE: '/account/profile',
   },
   USER: {
     PURCHASE_PACKAGE: '/user-package/purchase',

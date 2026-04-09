@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import {
@@ -11,6 +15,7 @@ import { VerifyAccountDto } from './dto/verify-account.dto';
 import { AccountStatus, Role } from 'generated/prisma/enums';
 import { FilterPtDto } from './dto/filter-pt.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AccountService {
@@ -69,6 +74,55 @@ export class AccountService {
       email,
     );
     return account;
+  }
+
+  async getMyProfile(accountId: string) {
+    const profile = await this.prisma.profile.findUnique({
+      where: { accountId },
+      include: {
+        account: { select: { email: true } },
+      },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profile not found');
+    }
+    const { account, ...profileFields } = profile;
+    return {
+      message: 'Get profile successfully',
+      data: {
+        ...profileFields,
+        email: account.email,
+      },
+    };
+  }
+
+  async updateMyProfile(accountId: string, updateProfileDto: UpdateProfileDto) {
+    const { dateOfBirth, ...rest } = updateProfileDto;
+
+    const profile = await this.prisma.profile.upsert({
+      where: { accountId },
+      create: {
+        accountId,
+        ...rest,
+        ...(dateOfBirth ? { dateOfBirth: new Date(dateOfBirth) } : {}),
+      },
+      update: {
+        ...rest,
+        ...(dateOfBirth ? { dateOfBirth: new Date(dateOfBirth) } : {}),
+      },
+      include: {
+        account: { select: { email: true } },
+      },
+    });
+
+    const { account, ...profileFields } = profile;
+    return {
+      message: 'Update profile successfully',
+      data: {
+        ...profileFields,
+        email: account.email,
+      },
+    };
   }
 
   async verifyAccount(verifyAccountDto: VerifyAccountDto) {

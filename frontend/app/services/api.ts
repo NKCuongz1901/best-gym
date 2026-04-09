@@ -29,6 +29,7 @@ import {
   ExercisesResponse,
   MyPurchasePackagesResponse,
   PackagesResponse,
+  ProfileResponse,
   ProgramRequest,
   ProgramsResponse,
   PtAccountsResponse,
@@ -50,6 +51,8 @@ import {
   SignUpResponse,
   TraineeRequestsResponse,
   UpdateBranchResponse,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
   UserAccountsResponse,
   VerifyAccountRequest,
   VerifyAccountResponse,
@@ -83,6 +86,11 @@ export const verifyAccount = async (
     API.AUTHENTICATION.VERIFY_ACCOUNT,
     request,
   );
+  return res;
+};
+
+export const getProfile = async (): Promise<any> => {
+  const res = await axios.get<ProfileResponse>(API.AUTHENTICATION.GET_PROFILE);
   return res;
 };
 
@@ -397,6 +405,16 @@ export const recommendNutrition = async (
 ): Promise<any> => {
   const res = await axios.post<RecommendNutritionResponse>(
     API.AI.RECOMMEND_NUTRITION,
+    request,
+  );
+  return res;
+};
+
+export const updateProfile = async (
+  request: UpdateProfileRequest,
+): Promise<any> => {
+  const res = await axios.patch<UpdateProfileResponse>(
+    API.AUTHENTICATION.UPDATE_PROFILE,
     request,
   );
   return res;

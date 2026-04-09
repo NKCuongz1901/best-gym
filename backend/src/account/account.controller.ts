@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AccountService } from './account.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { VerifyAccountDto } from './dto/verify-account.dto';
@@ -8,6 +17,7 @@ import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'generated/prisma/enums';
 import { FilterPtDto } from './dto/filter-pt.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Controller('account')
 export class AccountController {
@@ -21,6 +31,18 @@ export class AccountController {
   @Post('verify-account')
   async verifyAccount(@Body() verifyAccountDto: VerifyAccountDto) {
     return this.accountService.verifyAccount(verifyAccountDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getMyProfile(@Req() req: any) {
+    return this.accountService.getMyProfile(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateMyProfile(@Req() req: any, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.accountService.updateMyProfile(req.user.userId, updateProfileDto);
   }
 
   @Get('pt-accounts')
