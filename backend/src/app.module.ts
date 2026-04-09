@@ -12,6 +12,7 @@ import { UserPackageModule } from './user-package/user-package.module';
 import { PersonalTrainerModule } from './personal-trainer/personal-trainer.module';
 import { ExcerciseModule } from './excercise/excercise.module';
 import { ProgramModule } from './program/program.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ProgramModule } from './program/program.module';
     PersonalTrainerModule,
     ExcerciseModule,
     ProgramModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

@@ -24,7 +24,9 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.48.0",
     "@nestjs-modules/mailer": "^2.0.2",
+    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -36,6 +38,7 @@
     "@prisma/client": "^7.4.1",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
+    "cache-manager": "^7.2.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
     "date-fns": "^4.1.0",
