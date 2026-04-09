@@ -17,8 +17,12 @@ export class AiService {
     this.aiToolHandlers = new AiToolHandlers(prisma);
   }
 
-  private buildHistoryKey(accountId: string, conversationId: string) {
-    return `ai:history:${accountId}:${conversationId}`;
+  private buildHistoryKey(
+    accountId: string,
+    conversationId: string,
+    scope: 'packages' | 'nutrition',
+  ) {
+    return `ai:history:${scope}:${accountId}:${conversationId}`;
   }
 
   async recommendPackages(
@@ -26,7 +30,7 @@ export class AiService {
     conversationId: string,
     userMessage: string,
   ) {
-    const key = this.buildHistoryKey(accountId, conversationId);
+    const key = this.buildHistoryKey(accountId, conversationId, 'packages');
     const systemPrompt = `
   Bạn là trợ lý gợi ý gói tập của BestGym.
   Nhiệm vụ:
@@ -123,6 +127,112 @@ export class AiService {
       }
 
       // 5) Append tool responses to history for model to reason further
+      contents.push({
+        role: 'tool',
+        parts: toolResponseParts,
+      });
+    }
+
+    await this.cache.set(key, contents, 300);
+    throw new Error('Model exceeded tool-call loop limit');
+  }
+
+  async recommendNutrition(
+    accountId: string,
+    conversationId: string,
+    userMessage: string,
+  ) {
+    const key = this.buildHistoryKey(accountId, conversationId, 'nutrition');
+    const systemPrompt = `
+  Bạn là trợ lý gợi ý dinh dưỡng của BestGym.
+  Nhiệm vụ:
+  - Thu thập thông tin còn thiếu (mục tiêu, chiều cao, cân nặng, mức vận động).
+  - Ưu tiên dùng tool calcNutritionMacros để tính calories/macros.
+  - Có thể dùng getUserProfile để lấy dữ liệu hồ sơ hiện có.
+  - Trả lời ngắn gọn, thực tế, an toàn; nêu tổng calories và macros rõ ràng.
+  - Khi đã đủ dữ liệu, đề xuất thực đơn 1 ngày đơn giản (3-4 bữa) theo mục tiêu.
+  `;
+
+    const cached = (await this.cache.get<any[]>(key)) ?? [];
+    let contents: any[] = [...cached];
+    if (!contents.length) {
+      contents.push({
+        role: 'user',
+        parts: [{ text: systemPrompt }],
+      });
+    }
+    contents.push({
+      role: 'user',
+      parts: [{ text: userMessage }],
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const res = await this.gemini.generate(contents, [
+        { functionDeclarations: TOOL_DECLS },
+      ]);
+
+      const parts = res.candidates?.[0]?.content?.parts ?? [];
+      const functionCalls = parts
+        .map((p: any) => p.functionCall)
+        .filter(Boolean);
+
+      if (!functionCalls.length) {
+        contents.push({
+          role: 'model',
+          parts: parts.filter((p: any) => p.text),
+        });
+        await this.cache.set(key, contents, 300);
+        return {
+          message: 'Recommend nutrition successfully',
+          data: {
+            text:
+              res.text ??
+              parts
+                .map((p: any) => p.text)
+                .filter(Boolean)
+                .join('\n'),
+          },
+        };
+      }
+
+      contents.push({
+        role: 'model',
+        parts: functionCalls.map((fc: any) => ({ functionCall: fc })),
+      });
+
+      const toolResponseParts: any[] = [];
+      for (const fc of functionCalls) {
+        const name = fc.name as string;
+        const args = fc.args ?? {};
+
+        let result: any;
+        switch (name) {
+          case 'getUserProfile':
+            result = await this.aiToolHandlers.getUserProfile(accountId);
+            break;
+          case 'listPackages':
+            result = await this.aiToolHandlers.listPackages(args);
+            break;
+          case 'listPrograms':
+            result = await this.aiToolHandlers.listPrograms(args);
+            break;
+          case 'calcNutritionMacros':
+            result = this.aiToolHandlers.calcNutritionMacros(args);
+            break;
+          default:
+            result = { error: `Unknown function: ${name}` };
+        }
+
+        toolResponseParts.push({
+          functionResponse: {
+            name,
+            response: {
+              output: result,
+            },
+          },
+        });
+      }
+
       contents.push({
         role: 'tool',
         parts: toolResponseParts,
