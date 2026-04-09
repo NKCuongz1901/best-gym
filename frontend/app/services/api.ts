@@ -24,6 +24,8 @@ import {
   CreateProgramDayRequest,
   CreateProgramDayResponse,
   CreateProgramResponse,
+  CreateWorkoutHistoryRequest,
+  CreateWorkoutHistoryResponse,
   DeleteBranchResponse,
   ExerciseDetailResponse,
   ExercisesResponse,
@@ -424,6 +426,16 @@ export const updateProfile = async (
 export const getTodayExercise = async (): Promise<any> => {
   const res = await axios.get<TodayExcerciseResponse>(
     API.USER.GET_TODAY_EXERCISE,
+  );
+  return res;
+};
+
+export const createWorkoutHistory = async (
+  request: CreateWorkoutHistoryRequest,
+): Promise<any> => {
+  const res = await axios.post<CreateWorkoutHistoryResponse>(
+    API.USER.CREATE_WORKOUT_HISTORY,
+    request,
   );
   return res;
 };

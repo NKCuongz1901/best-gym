@@ -12,11 +12,13 @@ import {
   PtAssistRequestStatus,
   Role,
   UserPackageStatus,
+  WorkoutHistoryStatus,
 } from 'generated/prisma/enums';
 import { calcEndAt } from 'src/utils/helpers';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
 import { formatInTimeZone } from 'date-fns-tz';
+import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 
 @Injectable()
 export class UserPackageService {
@@ -108,6 +110,90 @@ export class UserPackageService {
           exercise: pde.exercise,
         })),
       },
+    };
+  }
+
+  async createWorkoutHistory(
+    accountId: string,
+    createWorkoutHistoryDto: CreateWorkoutHistoryDto,
+  ) {
+    const { userPackageId, programDayId, workoutAt, status, note } =
+      createWorkoutHistoryDto;
+
+    const userPackage = await this.prisma.userPackage.findFirst({
+      where: {
+        id: userPackageId,
+        accountId,
+        status: UserPackageStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        programId: true,
+        startAt: true,
+        endAt: true,
+        expiredAt: true,
+      },
+    });
+
+    if (!userPackage) {
+      throw new NotFoundException('Active user package not found');
+    }
+
+    if (!userPackage.programId) {
+      throw new BadRequestException('This user package has no program assigned');
+    }
+
+    const programDay = await this.prisma.programDay.findFirst({
+      where: {
+        id: programDayId,
+        programId: userPackage.programId,
+      },
+      select: { id: true, programId: true, dayOfWeek: true, title: true },
+    });
+
+    if (!programDay) {
+      throw new NotFoundException(
+        'Program day not found or does not belong to the package program',
+      );
+    }
+
+    const workoutDate = workoutAt ? new Date(workoutAt) : new Date();
+    if (Number.isNaN(workoutDate.getTime())) {
+      throw new BadRequestException('Invalid workoutAt');
+    }
+
+    const endAt = userPackage.endAt ?? userPackage.expiredAt ?? undefined;
+    if (endAt && workoutDate > endAt) {
+      throw new BadRequestException('Workout time is outside package validity');
+    }
+
+    if (userPackage.startAt && workoutDate < userPackage.startAt) {
+      throw new BadRequestException('Workout time is before package start time');
+    }
+
+    const created = await this.prisma.workoutHistory.create({
+      data: {
+        accountId,
+        userPackageId: userPackage.id,
+        programId: userPackage.programId,
+        programDayId: programDay.id,
+        workoutAt: workoutDate,
+        status: status ?? WorkoutHistoryStatus.COMPLETED,
+        note,
+      },
+      include: {
+        program: {
+          select: { id: true, name: true, level: true },
+        },
+        programDay: {
+          select: { id: true, dayOfWeek: true, title: true },
+        },
+      },
+    });
+
+    return {
+      message: 'Create workout history successfully',
+      data: created,
     };
   }
 

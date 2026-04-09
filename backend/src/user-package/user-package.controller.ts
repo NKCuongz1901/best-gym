@@ -17,6 +17,7 @@ import { Role } from 'generated/prisma/enums';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { CreatePtAssistRequestDto } from './dto/create-pt-assist-request.dto';
 import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
+import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -67,6 +68,19 @@ export class UserPackageController {
   @Get('today-exercises')
   async getTodayExercises(@Req() req: any) {
     return this.userPackageService.getTodayExercises(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Post('workout-history')
+  async createWorkoutHistory(
+    @Req() req: any,
+    @Body() createWorkoutHistoryDto: CreateWorkoutHistoryDto,
+  ) {
+    return this.userPackageService.createWorkoutHistory(
+      req.user.userId,
+      createWorkoutHistoryDto,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

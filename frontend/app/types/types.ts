@@ -106,6 +106,7 @@ export interface MyPurchasePackage {
   packageId: string;
   branchId: string;
   ptAccountId: string;
+  programId?: string | null;
   status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
   startAt: string | null;
   endAt: string | null;
@@ -585,4 +586,17 @@ export interface TodayExcercise {
 export interface TodayExcerciseResponse {
   message: string;
   data: TodayExcercise;
+}
+
+export interface CreateWorkoutHistoryRequest {
+  userPackageId: string;
+  programDayId: string;
+  workoutAt: string;
+  status: 'COMPLETED' | 'INCOMPLETE';
+  note: string | null;
+}
+
+export interface CreateWorkoutHistoryResponse {
+  message: string;
+  data: any;
 }

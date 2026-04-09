@@ -306,8 +306,13 @@ export default function ProfilePage() {
 
   const openTodayProgramLearning = () => {
     const pid = todayProgramDay?.programId;
+    const dayId = todayProgramDay?.id;
     if (!pid) return;
-    router.push(appRoute.home.programLearn(pid));
+    router.push(
+      dayId
+        ? `${appRoute.home.programLearn(pid)}?dayId=${dayId}`
+        : appRoute.home.programLearn(pid),
+    );
   };
 
   return (
