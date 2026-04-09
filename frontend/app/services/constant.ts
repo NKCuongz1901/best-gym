@@ -51,6 +51,7 @@ export interface API_PROPS {
   };
   AI: {
     RECOMMEND_PROGRAM: string;
+    RECOMMEND_NUTRITION: string;
   };
 }
 
@@ -110,5 +111,6 @@ export const API: API_PROPS = {
   },
   AI: {
     RECOMMEND_PROGRAM: '/ai/recommend-packages',
+    RECOMMEND_NUTRITION: '/ai/recommend-nutrition',
   },
 };

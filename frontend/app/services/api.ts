@@ -37,6 +37,8 @@ import {
   PTTrainingHistoriesResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
+  RecommendNutritionRequest,
+  RecommendNutritionResponse,
   RecommendProgramRequest,
   RecommendProgramResponse,
   RejectPTAssistRequestResponse,
@@ -385,6 +387,16 @@ export const recommendProgram = async (
 ): Promise<any> => {
   const res = await axios.post<RecommendProgramResponse>(
     API.AI.RECOMMEND_PROGRAM,
+    request,
+  );
+  return res;
+};
+
+export const recommendNutrition = async (
+  request: RecommendNutritionRequest,
+): Promise<any> => {
+  const res = await axios.post<RecommendNutritionResponse>(
+    API.AI.RECOMMEND_NUTRITION,
     request,
   );
   return res;

@@ -511,3 +511,13 @@ export interface RecommendProgramResponse {
   message: string;
   data: any;
 }
+
+export interface RecommendNutritionRequest {
+  conversationId: string;
+  userMessage: string;
+}
+
+export interface RecommendNutritionResponse {
+  message: string;
+  data: any;
+}

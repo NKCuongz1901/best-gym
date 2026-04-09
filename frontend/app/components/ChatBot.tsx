@@ -13,10 +13,11 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { Button, Input, Spin, message } from 'antd';
 
-import { recommendProgram } from '../services/api';
+import { recommendNutrition, recommendProgram } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 
 type View = 'menu' | 'chat';
+type ChatScope = 'packages' | 'nutrition';
 
 type ChatMessage = {
   id: string;
@@ -80,6 +81,7 @@ export default function ChatBot() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState(() => createId());
+  const [chatScope, setChatScope] = useState<ChatScope>('packages');
 
   const welcomeText = useMemo(
     () =>
@@ -93,6 +95,7 @@ export default function ChatBot() {
     setMessages([]);
     setInput('');
     setConversationId(createId());
+    setChatScope('packages');
   };
 
   const handleClose = () => {
@@ -103,13 +106,18 @@ export default function ChatBot() {
     }, 200);
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, scope?: ChatScope) => {
     const text = content.trim();
     if (!text) return;
 
     if (!isLoggedIn) {
       message.warning('Vui lòng đăng nhập để sử dụng bot tư vấn.');
       return;
+    }
+
+    const currentScope = scope ?? chatScope;
+    if (scope) {
+      setChatScope(scope);
     }
 
     const userMessage: ChatMessage = {
@@ -124,10 +132,16 @@ export default function ChatBot() {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const res = await recommendProgram({
-        conversationId,
-        userMessage: text,
-      });
+      const res =
+        currentScope === 'nutrition'
+          ? await recommendNutrition({
+              conversationId,
+              userMessage: text,
+            })
+          : await recommendProgram({
+              conversationId,
+              userMessage: text,
+            });
 
       if (res?.statusCode && res.statusCode >= 400) {
         throw res;
@@ -230,7 +244,12 @@ export default function ChatBot() {
                       <button
                         key={item.key}
                         type="button"
-                        onClick={() => sendMessage(item.prompt)}
+                        onClick={() =>
+                          sendMessage(
+                            item.prompt,
+                            item.key === 'diet' ? 'nutrition' : 'packages',
+                          )
+                        }
                         className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:shadow-sm"
                       >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-lg">
@@ -298,7 +317,11 @@ export default function ChatBot() {
                       }
                     }}
                     autoSize={{ minRows: 1, maxRows: 4 }}
-                    placeholder="Hỏi tiếp về gói tập hoặc dinh dưỡng..."
+                    placeholder={
+                      chatScope === 'nutrition'
+                        ? 'Hỏi tiếp về chế độ ăn, calories, macro...'
+                        : 'Hỏi tiếp về gói tập hoặc chương trình tập...'
+                    }
                     disabled={isLoading || !isLoggedIn}
                   />
                   <Button
