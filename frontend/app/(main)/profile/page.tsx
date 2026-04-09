@@ -20,6 +20,7 @@ import dayjs from 'dayjs';
 import {
   getCheckInHistory,
   getProfile,
+  getTodayExercise,
   getPTTrainingHistory,
   updateProfile,
 } from '@/app/services/api';
@@ -30,9 +31,11 @@ import type {
   ProfileResponse,
   PTTrainingHistoriesResponse,
   PTTrainingHistory,
+  TodayExcerciseResponse,
   UpdateProfileRequest,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
+import { appRoute } from '@/app/config/appRoute';
 
 function BentoCard({
   children,
@@ -184,6 +187,12 @@ export default function ProfilePage() {
     enabled: isLoggedIn && user?.role === 'USER',
   });
 
+  const { data: todayExerciseRes } = useQuery<TodayExcerciseResponse>({
+    queryKey: ['profile-today-exercises'],
+    queryFn: () => getTodayExercise(),
+    enabled: isLoggedIn && user?.role === 'USER',
+  });
+
   const profile: Profile | undefined = profileRes?.data;
 
   const checkInGrouped = checkInRes?.data ?? {};
@@ -210,6 +219,8 @@ export default function ProfilePage() {
   );
 
   const recentPt = useMemo(() => ptSessions.slice(0, 5), [ptSessions]);
+  const todayProgramDay = todayExerciseRes?.data?.programDay;
+  const todayExercises = todayExerciseRes?.data?.exercises ?? [];
 
   const displayName =
     profile?.name?.trim() || profile?.email?.split('@')[0] || 'Thành viên';
@@ -291,6 +302,12 @@ export default function ProfilePage() {
     } catch {
       // validation error
     }
+  };
+
+  const openTodayProgramLearning = () => {
+    const pid = todayProgramDay?.programId;
+    if (!pid) return;
+    router.push(appRoute.home.programLearn(pid));
   };
 
   return (
@@ -378,6 +395,55 @@ export default function ProfilePage() {
             {totalCheckIns === 0 ? (
               <p className="mt-2 text-sm text-neutral-400">Đang cập nhật</p>
             ) : null}
+          </BentoCard>
+
+          <BentoCard className="md:col-span-2">
+            <div className="mb-4 flex items-center gap-2">
+              <ThunderboltOutlined className="text-neutral-900" />
+              <span className="text-sm font-semibold text-neutral-900">
+                Lịch tập hôm nay
+              </span>
+            </div>
+            {user?.role !== 'USER' ? (
+              <p className="text-sm text-neutral-400">Đang cập nhật</p>
+            ) : !todayProgramDay || todayExercises.length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                Hôm nay bạn chưa có bài tập.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-xl bg-neutral-50 p-3">
+                  <p className="text-sm font-semibold text-neutral-900">
+                    {todayProgramDay.title}
+                  </p>
+                  {todayProgramDay.note ? (
+                    <p className="mt-1 text-xs text-neutral-600">
+                      {todayProgramDay.note}
+                    </p>
+                  ) : null}
+                </div>
+                {todayExercises.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl bg-neutral-50 p-3"
+                  >
+                    <p className="text-sm font-medium text-neutral-900">
+                      {item.sortOrder}. {item.exercise.name}
+                    </p>
+                    <p className="text-xs text-neutral-600">
+                      {item.exercise.muscleGroup} · {item.exercise.level}
+                    </p>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={openTodayProgramLearning}
+                  className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                >
+                  Bắt đầu học ngay
+                </button>
+              </div>
+            )}
           </BentoCard>
 
           <BentoCard>

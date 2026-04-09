@@ -49,6 +49,7 @@ import {
   ReportUserSessionResponse,
   SignUpRequest,
   SignUpResponse,
+  TodayExcerciseResponse,
   TraineeRequestsResponse,
   UpdateBranchResponse,
   UpdateProfileRequest,
@@ -416,6 +417,13 @@ export const updateProfile = async (
   const res = await axios.patch<UpdateProfileResponse>(
     API.AUTHENTICATION.UPDATE_PROFILE,
     request,
+  );
+  return res;
+};
+
+export const getTodayExercise = async (): Promise<any> => {
+  const res = await axios.get<TodayExcerciseResponse>(
+    API.USER.GET_TODAY_EXERCISE,
   );
   return res;
 };

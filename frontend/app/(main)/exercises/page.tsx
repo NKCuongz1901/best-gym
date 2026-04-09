@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import {
   SearchOutlined,
   FireOutlined,
@@ -19,10 +20,12 @@ import ExerciseVideoModal from '@/app/components/exercises/ExerciseVideoModal';
 import FilterChip from '@/app/components/exercises/FilterChip';
 import ProgramCard from '@/app/components/exercises/ProgramCard';
 import ProgramExercisesModal from '@/app/components/exercises/ProgramExercisesModal';
+import { appRoute } from '@/app/config/appRoute';
 
 type TabKey = 'library' | 'programs';
 
 export default function ExercisesPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<TabKey>('library');
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<
@@ -372,6 +375,9 @@ export default function ExercisesPage() {
                     key={program.id}
                     program={program}
                     onPreviewExercises={() => setPreviewProgram(program)}
+                    onStartLearning={() =>
+                      router.push(appRoute.home.programLearn(program.id))
+                    }
                   />
                 ))
               )}

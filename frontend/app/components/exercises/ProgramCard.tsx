@@ -15,6 +15,7 @@ import { formatDayOfWeekVietnamese } from '@/app/utils/common';
 type ProgramCardProps = {
   program: Program;
   onPreviewExercises?: () => void;
+  onStartLearning?: () => void;
 };
 
 function sortDayExercises(items: ProgramDayExercise[]) {
@@ -24,6 +25,7 @@ function sortDayExercises(items: ProgramDayExercise[]) {
 export default function ProgramCard({
   program,
   onPreviewExercises,
+  onStartLearning,
 }: ProgramCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -74,10 +76,22 @@ export default function ProgramCard({
             </span>
           </div>
         </div>
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex flex-wrap gap-3">
           <span className="rounded-sm bg-neutral-100 px-3 py-1 text-sm text-neutral-800">
             {levelLabels[program.level]}
           </span>
+          {onStartLearning ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartLearning();
+              }}
+              className="rounded-sm bg-neutral-900 px-3 py-1 text-sm font-semibold text-white transition hover:bg-neutral-700"
+            >
+              Bắt đầu học
+            </button>
+          ) : null}
         </div>
         <button
           type="button"

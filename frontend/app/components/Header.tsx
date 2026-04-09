@@ -1,14 +1,34 @@
 'use client';
 
-import { Menu, Button, Modal, Form, Input, message, Dropdown } from 'antd';
+import {
+  Menu,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Dropdown,
+  Badge,
+  Popover,
+  Spin,
+} from 'antd';
 import type { MenuProps } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
-import { getMe, signUp, signin, verifyAccount } from '../services/api';
+import {
+  getMe,
+  getTodayExercise,
+  signUp,
+  signin,
+  verifyAccount,
+} from '../services/api';
 import { appRoute } from '../config/appRoute';
+import type { TodayExcerciseResponse } from '../types/types';
 
 const menuItems = [
   { key: '/', label: <Link href="/">Home</Link> },
@@ -38,6 +58,16 @@ export default function Header() {
   const [signUpForm] = Form.useForm();
   const [verifyForm] = Form.useForm();
   const verificationCodeInputRef = useRef<any>(null);
+
+  const { data: todayExerciseRes, isLoading: isTodayLoading } =
+    useQuery<TodayExcerciseResponse>({
+      queryKey: ['header-today-exercises'],
+      queryFn: () => getTodayExercise(),
+      enabled: isLoggedIn && user?.role === 'USER',
+    });
+
+  const todayExercises = todayExerciseRes?.data?.exercises ?? [];
+  const todayProgramDay = todayExerciseRes?.data?.programDay;
 
   useEffect(() => {
     if (signUpStep === 'verifyAccount' && signUpEmail) {
@@ -113,7 +143,9 @@ export default function Header() {
         email: values.email,
       });
       setSignUpStep('verifyAccount');
-      message.success('Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.');
+      message.success(
+        'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.',
+      );
     } catch (err: unknown) {
       let msg = 'Đăng ký thất bại. Vui lòng thử lại.';
       if (err && typeof err === 'object') {
@@ -226,15 +258,80 @@ export default function Header() {
         </div>
 
         {isLoggedIn ? (
-          <Dropdown
-            menu={{ items: userMenuItems }}
-            trigger={['hover']}
-            placement="bottomRight"
-          >
-            <span className="cursor-pointer text-white hover:underline">
-              {user?.email}
-            </span>
-          </Dropdown>
+          <div className="flex items-center gap-3">
+            {user?.role === 'USER' ? (
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                content={
+                  <div className="w-80">
+                    <div className="mb-2 text-sm font-semibold">
+                      Lịch tập hôm nay
+                    </div>
+                    {isTodayLoading ? (
+                      <div className="py-3 text-center">
+                        <Spin size="small" />
+                      </div>
+                    ) : !todayProgramDay || todayExercises.length === 0 ? (
+                      <p className="text-sm text-neutral-500">
+                        Hôm nay bạn chưa có bài tập.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2.5">
+                          <p className="text-sm font-semibold text-neutral-900">
+                            {todayProgramDay.title}
+                          </p>
+                          {todayProgramDay.note ? (
+                            <p className="mt-0.5 text-xs text-neutral-600">
+                              {todayProgramDay.note}
+                            </p>
+                          ) : null}
+                        </div>
+                        {todayExercises.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-lg border border-neutral-200 bg-neutral-50 p-2.5"
+                          >
+                            <p className="text-sm font-medium text-neutral-900">
+                              {item.sortOrder}. {item.exercise.name}
+                            </p>
+                            <p className="text-xs text-neutral-600">
+                              {item.exercise.muscleGroup} ·{' '}
+                              {item.exercise.level}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                }
+              >
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-white transition hover:bg-white/10 hover:text-white"
+                >
+                  <Badge
+                    count={todayExercises.length}
+                    size="small"
+                    offset={[-1, 2]}
+                  >
+                    <BellOutlined className="text-lg text-white!" />
+                  </Badge>
+                </button>
+              </Popover>
+            ) : null}
+
+            <Dropdown
+              menu={{ items: userMenuItems }}
+              trigger={['hover']}
+              placement="bottomRight"
+            >
+              <span className="cursor-pointer text-white hover:underline">
+                {user?.email}
+              </span>
+            </Dropdown>
+          </div>
         ) : (
           <>
             <Button
@@ -306,7 +403,11 @@ export default function Header() {
                 { type: 'email', message: 'Email không hợp lệ' },
               ]}
             >
-              <Input type="email" placeholder="example@email.com" size="large" />
+              <Input
+                type="email"
+                placeholder="example@email.com"
+                size="large"
+              />
             </Form.Item>
 
             <Form.Item
@@ -365,9 +466,7 @@ export default function Header() {
             <Form.Item
               name="verificationCode"
               label="Mã xác thực"
-              rules={[
-                { required: true, message: 'Vui lòng nhập mã xác thực' },
-              ]}
+              rules={[{ required: true, message: 'Vui lòng nhập mã xác thực' }]}
             >
               <Input
                 placeholder="Nhập mã từ email"

@@ -565,3 +565,24 @@ export interface UpdateProfileResponse {
   message: string;
   data: Profile;
 }
+
+export interface TodayExcercise {
+  dayOfWeek: number;
+  programDay: {
+    id: string;
+    programId: string;
+    dayOfWeek: number;
+    title: string;
+    note: string | null;
+  };
+  exercises: Array<{
+    id: string;
+    sortOrder: number;
+    exercise: Exercise;
+  }>;
+}
+
+export interface TodayExcerciseResponse {
+  message: string;
+  data: TodayExcercise;
+}
