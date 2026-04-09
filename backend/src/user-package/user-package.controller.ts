@@ -64,6 +64,13 @@ export class UserPackageController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.USER)
+  @Get('today-exercises')
+  async getTodayExercises(@Req() req: any) {
+    return this.userPackageService.getTodayExercises(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
   @Post('pt-assist-request')
   async createPtAssistRequest(
     @Req() req: any,

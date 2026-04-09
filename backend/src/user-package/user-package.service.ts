@@ -22,6 +22,95 @@ import { formatInTimeZone } from 'date-fns-tz';
 export class UserPackageService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private getProgramDayOfWeekToday(): number {
+    // ProgramDay.dayOfWeek is 1..7 (based on CreateProgramDayDto validation)
+    // JS getDay(): 0..6 with Sunday=0 => map Sunday -> 7, others keep 1..6
+    const jsDay = new Date().getDay();
+    return jsDay === 0 ? 7 : jsDay;
+  }
+
+  async getTodayExercises(accountId: string) {
+    const userPackage = await this.prisma.userPackage.findFirst({
+      where: {
+        accountId,
+        status: UserPackageStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+        programId: true,
+        startAt: true,
+        endAt: true,
+        expiredAt: true,
+      },
+      orderBy: {
+        activatedAt: 'desc',
+      },
+    });
+
+    if (!userPackage) {
+      throw new NotFoundException('Active user package not found');
+    }
+
+    const now = new Date();
+    const endAt = userPackage.endAt ?? userPackage.expiredAt ?? undefined;
+    if (endAt && now > endAt) {
+      throw new BadRequestException('User package has expired');
+    }
+
+    if (!userPackage.programId) {
+      throw new BadRequestException('This user package has no program assigned');
+    }
+
+    const dayOfWeek = this.getProgramDayOfWeekToday();
+
+    const programDay = await this.prisma.programDay.findUnique({
+      where: {
+        programId_dayOfWeek: {
+          programId: userPackage.programId,
+          dayOfWeek,
+        },
+      },
+      include: {
+        exercises: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            exercise: true,
+          },
+        },
+      },
+    });
+
+    if (!programDay) {
+      return {
+        message: 'No workout scheduled for today',
+        data: {
+          dayOfWeek,
+          programDay: null,
+          exercises: [],
+        },
+      };
+    }
+
+    return {
+      message: 'Get today exercises successfully',
+      data: {
+        dayOfWeek,
+        programDay: {
+          id: programDay.id,
+          programId: programDay.programId,
+          dayOfWeek: programDay.dayOfWeek,
+          title: programDay.title,
+          note: programDay.note,
+        },
+        exercises: programDay.exercises.map((pde) => ({
+          id: pde.id,
+          sortOrder: pde.sortOrder,
+          exercise: pde.exercise,
+        })),
+      },
+    };
+  }
+
   async purchasePackage(
     accountId: string,
     purchasePackageDto: PurchasePackageDto,
