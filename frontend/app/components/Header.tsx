@@ -211,6 +211,10 @@ export default function Header() {
             key: 'my-schedule',
             label: <Link href="/my-schedule">Lịch tập</Link>,
           },
+          {
+            key: 'my-workout-history',
+            label: <Link href="/my-workout-history">Lịch sử tập</Link>,
+          },
         ]
       : []),
     ...(user?.role === 'PT'

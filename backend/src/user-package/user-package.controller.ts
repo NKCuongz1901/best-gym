@@ -18,6 +18,7 @@ import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { CreatePtAssistRequestDto } from './dto/create-pt-assist-request.dto';
 import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
 import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
+import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -81,6 +82,16 @@ export class UserPackageController {
       req.user.userId,
       createWorkoutHistoryDto,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Get('workout-history')
+  async getWorkoutHistory(
+    @Req() req: any,
+    @Query() filter: FilterWorkoutHistoryDto,
+  ) {
+    return this.userPackageService.getWorkoutHistory(req.user.userId, filter);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -29,6 +29,7 @@ import {
   DeleteBranchResponse,
   ExerciseDetailResponse,
   ExercisesResponse,
+  ListWorkoutHistoryResponse,
   MyPurchasePackagesResponse,
   PackagesResponse,
   ProfileResponse,
@@ -436,6 +437,16 @@ export const createWorkoutHistory = async (
   const res = await axios.post<CreateWorkoutHistoryResponse>(
     API.USER.CREATE_WORKOUT_HISTORY,
     request,
+  );
+  return res;
+};
+
+export const getListWorkoutHistory = async (
+  filter?: { from?: string; to?: string },
+): Promise<any> => {
+  const res = await axios.get<ListWorkoutHistoryResponse>(
+    API.USER.GET_LIST_WORKOUT_HISTORY,
+    { params: { from: filter?.from, to: filter?.to } },
   );
   return res;
 };

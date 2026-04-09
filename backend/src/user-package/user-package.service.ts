@@ -19,6 +19,7 @@ import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
 import { formatInTimeZone } from 'date-fns-tz';
 import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
+import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 
 @Injectable()
 export class UserPackageService {
@@ -194,6 +195,51 @@ export class UserPackageService {
     return {
       message: 'Create workout history successfully',
       data: created,
+    };
+  }
+
+  async getWorkoutHistory(accountId: string, filter?: FilterWorkoutHistoryDto) {
+    const { from, to } = filter ?? {};
+
+    const where: {
+      accountId: string;
+      workoutAt?: { gte?: Date; lte?: Date };
+    } = { accountId };
+
+    if (from || to) {
+      where.workoutAt = {};
+      if (from) {
+        where.workoutAt.gte = new Date(`${from}T00:00:00.000Z`);
+      }
+      if (to) {
+        where.workoutAt.lte = new Date(`${to}T23:59:59.999Z`);
+      }
+    }
+
+    const items = await this.prisma.workoutHistory.findMany({
+      where,
+      orderBy: { workoutAt: 'desc' },
+      include: {
+        userPackage: {
+          select: {
+            id: true,
+            package: {
+              select: { id: true, name: true, hasPt: true },
+            },
+          },
+        },
+        program: {
+          select: { id: true, name: true, level: true },
+        },
+        programDay: {
+          select: { id: true, dayOfWeek: true, title: true, note: true },
+        },
+      },
+    });
+
+    return {
+      message: 'Get workout history successfully',
+      data: items,
     };
   }
 

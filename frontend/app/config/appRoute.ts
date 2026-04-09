@@ -15,6 +15,7 @@ export const appRoute = {
     root: '/',
     packages: '/packages',
     profile: '/profile',
+    workoutHistory: '/my-workout-history',
     programLearn: (programId: string) => `/programs/${programId}/learn`,
   },
   pt: {

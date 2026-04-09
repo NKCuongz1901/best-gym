@@ -592,11 +592,43 @@ export interface CreateWorkoutHistoryRequest {
   userPackageId: string;
   programDayId: string;
   workoutAt: string;
-  status: 'COMPLETED' | 'INCOMPLETE';
+  status: 'COMPLETED' | 'SKIPPED';
   note: string | null;
 }
 
 export interface CreateWorkoutHistoryResponse {
   message: string;
   data: any;
+}
+
+export interface WorkoutHistory {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  programId: string;
+  programDayId: string;
+  workoutAt: string;
+  status: 'COMPLETED' | 'SKIPPED';
+  note: string | null;
+  createdAt: string;
+  userPackage: {
+    id: string;
+    package: Package;
+  };
+  program: {
+    id: string;
+    name: string;
+    level: ProgramLevel;
+  };
+  programDay: {
+    id: string;
+    dayOfWeek: number;
+    title: string;
+    note: string | null;
+  };
+}
+
+export interface ListWorkoutHistoryResponse {
+  message: string;
+  data: WorkoutHistory[];
 }

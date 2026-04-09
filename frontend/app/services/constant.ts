@@ -14,6 +14,7 @@ export interface API_PROPS {
     GET_PT_TRAINING_HISTORY: string;
     GET_TODAY_EXERCISE: string;
     CREATE_WORKOUT_HISTORY: string;
+    GET_LIST_WORKOUT_HISTORY: string;
   };
   PACKAGE: {
     GET_ALL: string;
@@ -75,6 +76,7 @@ export const API: API_PROPS = {
     GET_PT_TRAINING_HISTORY: '/user-package/pt-training-history',
     GET_TODAY_EXERCISE: '/user-package/today-exercises',
     CREATE_WORKOUT_HISTORY: '/user-package/workout-history',
+    GET_LIST_WORKOUT_HISTORY: '/user-package/workout-history',
   },
   PACKAGE: {
     GET_ALL: '/package',
