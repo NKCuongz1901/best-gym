@@ -13,13 +13,15 @@ import { PersonalTrainerModule } from './personal-trainer/personal-trainer.modul
 import { ExcerciseModule } from './excercise/excercise.module';
 import { ProgramModule } from './program/program.module';
 import { AiModule } from './ai/ai.module';
-
+import { CronjobModule } from './cronjob/cronjob.module';
+import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     AccountModule,
     AuthModule,
     MailModule,
@@ -30,6 +32,7 @@ import { AiModule } from './ai/ai.module';
     ExcerciseModule,
     ProgramModule,
     AiModule,
+    CronjobModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
