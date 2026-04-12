@@ -1,11 +1,11 @@
 import PackageContractCard from "@/components/card/PackageContractCard";
 import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
-import { createPtAssistRequest } from "@/services/api";
+import { createPtAssistRequest, getPTAssistSchedule } from "@/services/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useMyPurchasePackages } from "@/stores/useMyPurchasePackages";
-import { MyPurchasePackage } from "@/types/types";
-import { useMutation } from "@tanstack/react-query";
+import { MyPurchasePackage, PTAssistSchedule } from "@/types/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -93,9 +93,80 @@ const getUpcomingDateOptions = (days = 7) =>
     };
   });
 
+const getHomeScheduleRange = () => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 14);
+  end.setHours(23, 59, 59, 999);
+
+  return {
+    from: start.toISOString(),
+    to: end.toISOString(),
+  };
+};
+
+const getPtScheduleStatusLabel = (status: PTAssistSchedule["extendedProps"]["status"]) => {
+  switch (status) {
+    case "ACCEPTED":
+      return "Đã xác nhận";
+    case "PENDING":
+      return "Chờ xác nhận";
+    case "REJECTED":
+      return "Đã từ chối";
+    case "CANCELLED":
+      return "Đã hủy";
+    default:
+      return status;
+  }
+};
+
+const getPtScheduleStatusColor = (status: PTAssistSchedule["extendedProps"]["status"]) => {
+  switch (status) {
+    case "ACCEPTED":
+      return "#22C55E";
+    case "PENDING":
+      return "#F59E0B";
+    case "REJECTED":
+      return "#EF4444";
+    case "CANCELLED":
+      return "#64748B";
+    default:
+      return "#22C55E";
+  }
+};
+
+const formatPtScheduleTime = (start: string, end: string) => {
+  const startTime = new Date(start).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endTime = new Date(end).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const dateText = new Date(start).toLocaleDateString("vi-VN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+
+  return `${dateText} • ${startTime} - ${endTime}`;
+};
+
+const getTraineeName = (item: PTAssistSchedule) =>
+  item.extendedProps.account.profile?.name || item.extendedProps.account.email;
+
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
-  const { data, isLoading, isRefetching, refetch } = useMyPurchasePackages();
+  const isPt = user?.role === "PT";
+  const { data, isLoading, isRefetching, refetch } = useMyPurchasePackages(!isPt);
+  const { data: ptScheduleData, isLoading: isLoadingPtSchedule } = useQuery({
+    queryKey: ["home", "pt-assist-schedule"],
+    queryFn: () => getPTAssistSchedule(getHomeScheduleRange()),
+    enabled: isPt,
+  });
   const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
     null,
   );
@@ -106,6 +177,15 @@ export default function HomeScreen() {
   const [note, setNote] = useState("");
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
+  const upcomingPtSchedules = useMemo(() => {
+    const schedules = ptScheduleData?.data ?? [];
+    const now = Date.now();
+
+    return [...schedules]
+      .filter((item) => new Date(item.end).getTime() >= now)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .slice(0, 5);
+  }, [ptScheduleData]);
   const ptRequestMutation = useMutation({
     mutationFn: createPtAssistRequest,
     onSuccess: async (response) => {
@@ -201,7 +281,79 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.contractSection}>
-            {isLoading ? (
+            {isPt ? (
+              isLoadingPtSchedule ? (
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="large" color="#22C55E" />
+                </View>
+              ) : upcomingPtSchedules.length ? (
+                <FlatList
+                  data={upcomingPtSchedules}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => {
+                    const statusColor = getPtScheduleStatusColor(item.extendedProps.status);
+
+                    return (
+                      <View style={styles.ptScheduleCard}>
+                        <View style={styles.ptScheduleHeader}>
+                          <Text style={styles.ptScheduleTitle}>Lịch hẹn tập</Text>
+                          <View
+                            style={[
+                              styles.ptScheduleStatusBadge,
+                              { backgroundColor: `${statusColor}22` },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.ptScheduleStatusText,
+                                { color: statusColor },
+                              ]}
+                            >
+                              {getPtScheduleStatusLabel(item.extendedProps.status)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <Text style={styles.ptScheduleName}>{getTraineeName(item)}</Text>
+                        <Text style={styles.ptSchedulePackage}>
+                          {item.extendedProps.userPackage.package.name}
+                        </Text>
+
+                        <View style={styles.ptScheduleDetailRow}>
+                          <Ionicons name="time-outline" size={18} color="#22C55E" />
+                          <Text style={styles.ptScheduleDetailText}>
+                            {formatPtScheduleTime(item.start, item.end)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.ptScheduleDetailRow}>
+                          <Ionicons name="location-outline" size={18} color="#22C55E" />
+                          <Text style={styles.ptScheduleDetailText}>
+                            {item.extendedProps.branch.name}
+                          </Text>
+                        </View>
+
+                        {item.extendedProps.note ? (
+                          <Text style={styles.ptScheduleNote} numberOfLines={2}>
+                            Ghi chú: {item.extendedProps.note}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  }}
+                  contentContainerStyle={styles.contractListContent}
+                />
+              ) : (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyTitle}>Lịch hẹn tập</Text>
+                  <Text style={styles.emptyText}>
+                    Bạn chưa có lịch hẹn với trainee trong thời gian tới
+                  </Text>
+                </View>
+              )
+            ) : isLoading ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="large" color="#22C55E" />
               </View>
@@ -526,6 +678,66 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#8A93A5",
     fontSize: 16,
+  },
+  ptScheduleCard: {
+    width: 340,
+    marginLeft: 24,
+    marginRight: 8,
+    borderRadius: 28,
+    backgroundColor: "#101826",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 20,
+  },
+  ptScheduleHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 14,
+  },
+  ptScheduleTitle: {
+    color: "#F8FAFC",
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  ptScheduleStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  ptScheduleStatusText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  ptScheduleName: {
+    color: "#F8FAFC",
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+  ptSchedulePackage: {
+    color: "#CBD5E1",
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  ptScheduleDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  ptScheduleDetailText: {
+    flex: 1,
+    color: "#CBD5E1",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  ptScheduleNote: {
+    marginTop: 6,
+    color: "#94A3B8",
+    fontSize: 13,
+    lineHeight: 20,
   },
   sectionHeader: {
     marginTop: 8,

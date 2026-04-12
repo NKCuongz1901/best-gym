@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { useEffect, useMemo } from "react";
 import Toast from "react-native-toast-message";
 
+import ChatBot from "@/components/ChatBot";
 import { useAuthStore } from "@/stores/auth.store";
 import { APP_ROUTES } from "@/constants/appRoute";
 
@@ -28,6 +29,7 @@ export default function RootLayout() {
       </Stack>
 
       <Toast />
+      <ChatBot />
     </QueryClientProvider>
   );
 }

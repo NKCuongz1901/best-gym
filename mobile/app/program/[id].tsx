@@ -1,6 +1,6 @@
 import { APP_ROUTES } from "@/constants/appRoute";
 import { getPrograms } from "@/services/api";
-import { Exercise, Program, ProgramDay } from "@/types/types";
+import { Exercise, Program, ProgramDay, ProgramDayExercise } from "@/types/types";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -8,7 +8,6 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,10 +16,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const durationOptions = [30, 45, 60];
-
 const getStringParam = (param?: string | string[]) =>
   Array.isArray(param) ? (param[0] ?? "") : (param ?? "");
+
+const sortDays = (days: ProgramDay[]) => [...days].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+const sortExercises = (items: ProgramDayExercise[]) =>
+  [...items].sort((a, b) => a.sortOrder - b.sortOrder);
 
 const getLevelLabel = (level: Program["level"] | Exercise["level"]) => {
   switch (level) {
@@ -70,37 +71,12 @@ const getDayLabel = (dayOfWeek: number) => {
   return map[dayOfWeek] || `Ngày ${dayOfWeek}`;
 };
 
-function ExerciseItem({ item }: { item: Exercise }) {
-  return (
-    <Pressable
-      style={styles.exerciseItem}
-      onPress={() =>
-        router.push({
-          pathname: APP_ROUTES.EXERCISE_DETAIL,
-          params: { id: item.id },
-        })
-      }
-    >
-      <Image source={{ uri: item.thumbnail }} style={styles.exerciseThumbnail} contentFit="cover" />
-      <View style={styles.exerciseContent}>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        <Text style={styles.exerciseMeta}>
-          {getLevelLabel(item.level)} • {getMuscleGroupLabel(item.muscleGroup)}
-        </Text>
-        <Text style={styles.exerciseDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-      </View>
-      <Ionicons name="play-circle-outline" size={28} color="#22C55E" />
-    </Pressable>
-  );
-}
+const estimateDayMinutes = (rows: ProgramDayExercise[]) => rows.length * 10;
 
 export default function ProgramDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const programId = getStringParam(params.id);
-  const [selectedDayId, setSelectedDayId] = useState("");
-  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [expandedDayId, setExpandedDayId] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["programs", "detail-source"],
@@ -113,30 +89,18 @@ export default function ProgramDetailScreen() {
     [programId, programs],
   );
 
-  const sortedDays = useMemo(
-    () =>
-      [...(program?.days ?? [])].sort((a, b) => a.dayOfWeek - b.dayOfWeek),
-    [program?.days],
+  const sortedDays = useMemo(() => sortDays(program?.days ?? []), [program?.days]);
+  const totalLessons = useMemo(
+    () => sortedDays.reduce((count, day) => count + day.exercises.length, 0),
+    [sortedDays],
   );
-
-  const selectedDay = useMemo<ProgramDay | undefined>(
-    () => sortedDays.find((day) => day.id === selectedDayId) ?? sortedDays[0],
-    [selectedDayId, sortedDays],
-  );
-
-  const selectedExercises = useMemo(
-    () =>
-      [...(selectedDay?.exercises ?? [])]
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((item) => item.exercise),
-    [selectedDay],
-  );
+  const previewDay = sortedDays[0] ?? null;
 
   useEffect(() => {
-    if (sortedDays.length && !selectedDayId) {
-      setSelectedDayId(sortedDays[0].id);
+    if (sortedDays.length && !expandedDayId) {
+      setExpandedDayId(sortedDays[0].id);
     }
-  }, [selectedDayId, sortedDays]);
+  }, [expandedDayId, sortedDays]);
 
   if (isLoading) {
     return (
@@ -168,22 +132,24 @@ export default function ProgramDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable onPress={() => router.back()} style={styles.headerButton}>
             <Ionicons name="arrow-back" size={22} color="#F8FAFC" />
           </Pressable>
           <Text style={styles.headerTitle}>Chương trình tập</Text>
+          <View style={styles.headerButtonPlaceholder} />
         </View>
 
         <View style={styles.heroCard}>
           <Image source={{ uri: program.thumbnail }} style={styles.heroImage} contentFit="cover" />
+          <View style={styles.heroOverlay} />
           <View style={styles.heroBody}>
-            <View style={styles.badgeRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{getLevelLabel(program.level)}</Text>
+            <View style={styles.heroBadgeRow}>
+              <View style={styles.primaryBadge}>
+                <Text style={styles.primaryBadgeText}>{getLevelLabel(program.level)}</Text>
               </View>
-              <View style={styles.badgeMuted}>
-                <Text style={styles.badgeMutedText}>
-                  {program.daysPerWeek} buổi / tuần
+              <View style={styles.secondaryBadge}>
+                <Text style={styles.secondaryBadgeText}>
+                  {program.daysPerWeek} ngày / tuần
                 </Text>
               </View>
             </View>
@@ -191,135 +157,162 @@ export default function ProgramDetailScreen() {
             <Text style={styles.programName}>{program.name}</Text>
             <Text style={styles.programDescription}>{program.description}</Text>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{sortedDays.length}</Text>
-                <Text style={styles.statLabel}>Ngày tập</Text>
+            <View style={styles.heroStatsRow}>
+              <View style={styles.heroStatItem}>
+                <Text style={styles.heroStatValue}>{sortedDays.length}</Text>
+                <Text style={styles.heroStatLabel}>Chương</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {sortedDays.reduce((total, day) => total + day.exercises.length, 0)}
-                </Text>
-                <Text style={styles.statLabel}>Bài tập</Text>
+              <View style={styles.heroStatItem}>
+                <Text style={styles.heroStatValue}>{totalLessons}</Text>
+                <Text style={styles.heroStatLabel}>Bài học</Text>
+              </View>
+              <View style={styles.heroStatItem}>
+                <Text style={styles.heroStatValue}>{totalLessons * 10}p</Text>
+                <Text style={styles.heroStatLabel}>Ước tính</Text>
               </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Chọn ngày tập</Text>
-          <FlatList
-            data={sortedDays}
-            horizontal
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const isActive = item.id === selectedDay?.id;
-
-              return (
-                <Pressable
-                  onPress={() => setSelectedDayId(item.id)}
-                  style={[styles.dayChip, isActive && styles.dayChipActive]}
-                >
-                  <Text style={[styles.dayChipText, isActive && styles.dayChipTextActive]}>
-                    {getDayLabel(item.dayOfWeek)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayChipSubtext,
-                      isActive && styles.dayChipSubtextActive,
-                    ]}
-                  >
-                    {item.exercises.length} bài
-                  </Text>
-                </Pressable>
-              );
-            }}
-            contentContainerStyle={styles.daysListContent}
-          />
-        </View>
-
-        {selectedDay && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{selectedDay.title}</Text>
-            {!!selectedDay.note && (
-              <Text style={styles.dayNote}>{selectedDay.note}</Text>
-            )}
-
-            <View style={styles.durationCard}>
-              <Text style={styles.durationTitle}>Thời lượng mỗi bài tập</Text>
-              <View style={styles.durationOptions}>
-                {durationOptions.map((option) => {
-                  const isActive = option === selectedDuration;
-
-                  return (
-                    <Pressable
-                      key={option}
-                      style={[
-                        styles.durationOption,
-                        isActive && styles.durationOptionActive,
-                      ]}
-                      onPress={() => setSelectedDuration(option)}
-                    >
-                      <Text
-                        style={[
-                          styles.durationOptionText,
-                          isActive && styles.durationOptionTextActive,
-                        ]}
-                      >
-                        {option < 60 ? `${option}s` : `${option / 60}p`}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={styles.durationHint}>
-                Mỗi bài tập trong ngày này sẽ chạy theo thời lượng bạn chọn.
+        {previewDay && (
+          <View style={styles.calloutCard}>
+            <View style={styles.calloutHeader}>
+              <Text style={styles.calloutEyebrow}>Bắt đầu với</Text>
+              <Text style={styles.calloutTitle}>
+                {getDayLabel(previewDay.dayOfWeek)} - {previewDay.title}
+              </Text>
+              <Text style={styles.calloutSubtitle}>
+                {previewDay.exercises.length} bài tập • khoảng{" "}
+                {estimateDayMinutes(previewDay.exercises)} phút
               </Text>
             </View>
 
-            <View style={styles.startCard}>
-              <View>
-                <Text style={styles.startTitle}>Sẵn sàng cho buổi tập?</Text>
-                <Text style={styles.startSubtitle}>
-                  Bắt đầu chạy lần lượt {selectedExercises.length} bài của{" "}
-                  {getDayLabel(selectedDay.dayOfWeek)}.
-                </Text>
-              </View>
-
-              <Pressable
-                style={styles.startButton}
-                onPress={() =>
-                  router.push({
-                    pathname: APP_ROUTES.PROGRAM_SESSION,
-                    params: {
-                      programId,
-                      dayId: selectedDay.id,
-                      durationSeconds: String(selectedDuration),
-                    },
-                  })
-                }
-              >
-                <Text style={styles.startButtonText}>Bắt đầu tập luyện</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={styles.primaryCta}
+              onPress={() =>
+                router.push({
+                  pathname: APP_ROUTES.PROGRAM_SESSION,
+                  params: { programId, dayId: previewDay.id },
+                })
+              }
+            >
+              <Text style={styles.primaryCtaText}>Bắt đầu học ngay</Text>
+            </Pressable>
           </View>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bài tập của ngày đã chọn</Text>
-          {selectedExercises.length ? (
-            selectedExercises.map((exercise) => (
-              <ExerciseItem key={exercise.id} item={exercise} />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Chưa có bài tập</Text>
-              <Text style={styles.emptyText}>
-                Ngày tập này hiện chưa có bài tập nào được cấu hình.
+          <Text style={styles.sectionTitle}>Bạn sẽ học được gì</Text>
+          <View style={styles.learnCard}>
+            <View style={styles.learnRow}>
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              <Text style={styles.learnText}>
+                Theo dõi giáo án theo ngày như một khóa học mobile.
               </Text>
             </View>
-          )}
+            <View style={styles.learnRow}>
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              <Text style={styles.learnText}>
+                Xem video từng bài, đếm thời gian tập và đánh dấu hoàn thành.
+              </Text>
+            </View>
+            <View style={styles.learnRow}>
+              <Ionicons name="checkmark-circle" size={18} color="#22C55E" />
+              <Text style={styles.learnText}>
+                Học theo từng buổi với nội dung rõ ràng và tiến độ trực quan.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.curriculumHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Nội dung khóa học</Text>
+              <Text style={styles.curriculumSubtitle}>
+                {sortedDays.length} chương • {totalLessons} bài học
+              </Text>
+            </View>
+          </View>
+
+          {sortedDays.map((day) => {
+            const rows = sortExercises(day.exercises ?? []);
+            const isExpanded = expandedDayId === day.id;
+
+            return (
+              <View key={day.id} style={styles.dayCard}>
+                <Pressable
+                  style={styles.dayHeader}
+                  onPress={() =>
+                    setExpandedDayId((current) => (current === day.id ? "" : day.id))
+                  }
+                >
+                  <View style={styles.dayHeaderContent}>
+                    <Text style={styles.dayTitle}>
+                      {getDayLabel(day.dayOfWeek)} - {day.title}
+                    </Text>
+                    <Text style={styles.dayMeta}>
+                      {rows.length} bài • {estimateDayMinutes(rows)} phút
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#CBD5E1"
+                  />
+                </Pressable>
+
+                {isExpanded && (
+                  <View style={styles.lessonList}>
+                    {day.note ? <Text style={styles.dayNote}>{day.note}</Text> : null}
+
+                    {rows.map((row) => (
+                      <Pressable
+                        key={row.id}
+                        style={styles.lessonItem}
+                        onPress={() =>
+                          router.push({
+                            pathname: APP_ROUTES.PROGRAM_SESSION,
+                            params: {
+                              programId,
+                              dayId: day.id,
+                              lessonId: row.id,
+                            },
+                          })
+                        }
+                      >
+                        <View style={styles.lessonIndex}>
+                          <Text style={styles.lessonIndexText}>{row.sortOrder}</Text>
+                        </View>
+
+                        <View style={styles.lessonContent}>
+                          <Text style={styles.lessonName}>{row.exercise.name}</Text>
+                          <Text style={styles.lessonMeta}>
+                            {getMuscleGroupLabel(row.exercise.muscleGroup)} •{" "}
+                            {getLevelLabel(row.exercise.level)} • 10 phút
+                          </Text>
+                        </View>
+
+                        <Ionicons name="play-circle-outline" size={24} color="#22C55E" />
+                      </Pressable>
+                    ))}
+
+                    <Pressable
+                      style={styles.outlineCta}
+                      onPress={() =>
+                        router.push({
+                          pathname: APP_ROUTES.PROGRAM_SESSION,
+                          params: { programId, dayId: day.id },
+                        })
+                      }
+                    >
+                      <Text style={styles.outlineCtaText}>Học ngày này</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -332,16 +325,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#020817",
   },
   contentContainer: {
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  backButton: {
+  headerButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -349,92 +342,143 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerButtonPlaceholder: {
+    width: 44,
+    height: 44,
+  },
   headerTitle: {
     color: "#F8FAFC",
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
   },
   heroCard: {
     marginHorizontal: 20,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: "hidden",
     backgroundColor: "#101826",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 18,
   },
   heroImage: {
     width: "100%",
-    height: 220,
+    height: 260,
     backgroundColor: "#111827",
   },
-  heroBody: {
-    padding: 18,
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,8,23,0.30)",
   },
-  badgeRow: {
+  heroBody: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 18,
+  },
+  heroBadgeRow: {
     flexDirection: "row",
     gap: 10,
-    flexWrap: "wrap",
     marginBottom: 14,
+    flexWrap: "wrap",
   },
-  badge: {
+  primaryBadge: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: "#22C55E",
   },
-  badgeText: {
+  primaryBadgeText: {
     color: "#08110A",
     fontSize: 12,
     fontWeight: "800",
   },
-  badgeMuted: {
+  secondaryBadge: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: "#182235",
+    backgroundColor: "rgba(15,23,42,0.72)",
   },
-  badgeMutedText: {
-    color: "#CBD5E1",
+  secondaryBadgeText: {
+    color: "#F8FAFC",
     fontSize: 12,
     fontWeight: "700",
   },
   programName: {
     color: "#F8FAFC",
-    fontSize: 24,
-    fontWeight: "800",
-    marginBottom: 10,
+    fontSize: 28,
+    fontWeight: "900",
+    marginBottom: 8,
   },
   programDescription: {
-    color: "#CBD5E1",
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 16,
+    color: "#E2E8F0",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 14,
   },
-  statsRow: {
+  heroStatsRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
-  statCard: {
+  heroStatItem: {
     flex: 1,
-    backgroundColor: "#182235",
     borderRadius: 18,
-    paddingVertical: 14,
+    backgroundColor: "rgba(15,23,42,0.72)",
+    paddingVertical: 12,
     alignItems: "center",
   },
-  statValue: {
+  heroStatValue: {
     color: "#F8FAFC",
     fontSize: 18,
-    fontWeight: "800",
+    fontWeight: "900",
     marginBottom: 4,
   },
-  statLabel: {
-    color: "#94A3B8",
-    fontSize: 12,
+  heroStatLabel: {
+    color: "#CBD5E1",
+    fontSize: 11,
     fontWeight: "700",
   },
+  calloutCard: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: "#111827",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 18,
+    marginBottom: 18,
+  },
+  calloutHeader: {
+    marginBottom: 16,
+  },
+  calloutEyebrow: {
+    color: "#22C55E",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  calloutTitle: {
+    color: "#F8FAFC",
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  calloutSubtitle: {
+    color: "#94A3B8",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  primaryCta: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "#A435F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryCtaText: {
+    color: "#F8FAFC",
+    fontSize: 16,
+    fontWeight: "800",
+  },
   section: {
-    marginTop: 22,
     paddingHorizontal: 20,
+    marginTop: 6,
   },
   sectionTitle: {
     color: "#F8FAFC",
@@ -442,177 +486,122 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 14,
   },
-  daysListContent: {
-    paddingRight: 20,
-  },
-  dayChip: {
-    minWidth: 108,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 18,
-    backgroundColor: "#111827",
+  learnCard: {
+    borderRadius: 22,
+    backgroundColor: "#101826",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
-    marginRight: 12,
+    padding: 18,
   },
-  dayChipActive: {
-    backgroundColor: "#22C55E",
-    borderColor: "#22C55E",
+  learnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+    alignItems: "flex-start",
   },
-  dayChipText: {
+  learnText: {
+    flex: 1,
+    color: "#CBD5E1",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  curriculumHeader: {
+    marginBottom: 12,
+  },
+  curriculumSubtitle: {
+    color: "#94A3B8",
+    fontSize: 13,
+  },
+  dayCard: {
+    borderRadius: 22,
+    backgroundColor: "#101826",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 14,
+    overflow: "hidden",
+  },
+  dayHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  dayHeaderContent: {
+    flex: 1,
+  },
+  dayTitle: {
     color: "#F8FAFC",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     marginBottom: 4,
   },
-  dayChipTextActive: {
-    color: "#08110A",
-  },
-  dayChipSubtext: {
+  dayMeta: {
     color: "#94A3B8",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 13,
   },
-  dayChipSubtextActive: {
-    color: "rgba(8,17,10,0.72)",
+  lessonList: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)",
+    padding: 16,
   },
   dayNote: {
     color: "#94A3B8",
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: -4,
+    fontSize: 13,
+    lineHeight: 20,
     marginBottom: 12,
   },
-  durationCard: {
-    borderRadius: 22,
-    backgroundColor: "#101826",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 18,
-    marginBottom: 16,
-  },
-  durationTitle: {
-    color: "#F8FAFC",
-    fontSize: 16,
-    fontWeight: "800",
-    marginBottom: 12,
-  },
-  durationOptions: {
+  lessonItem: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#182235",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     marginBottom: 10,
   },
-  durationOption: {
-    flex: 1,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#182235",
+  lessonIndex: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#0F172A",
     alignItems: "center",
     justifyContent: "center",
   },
-  durationOptionActive: {
-    backgroundColor: "#22C55E",
-  },
-  durationOptionText: {
-    color: "#CBD5E1",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  durationOptionTextActive: {
-    color: "#08110A",
-  },
-  durationHint: {
-    color: "#94A3B8",
+  lessonIndexText: {
+    color: "#F8FAFC",
     fontSize: 13,
-    lineHeight: 20,
-  },
-  startCard: {
-    borderRadius: 22,
-    backgroundColor: "#101826",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 18,
-  },
-  startTitle: {
-    color: "#F8FAFC",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  startSubtitle: {
-    color: "#94A3B8",
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 16,
-  },
-  startButton: {
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: "#22C55E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  startButtonText: {
-    color: "#08110A",
-    fontSize: 16,
     fontWeight: "800",
   },
-  exerciseItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    borderRadius: 20,
-    backgroundColor: "#101826",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 14,
-    marginBottom: 12,
-  },
-  exerciseThumbnail: {
-    width: 84,
-    height: 84,
-    borderRadius: 18,
-    backgroundColor: "#111827",
-  },
-  exerciseContent: {
+  lessonContent: {
     flex: 1,
   },
-  exerciseName: {
+  lessonName: {
     color: "#F8FAFC",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800",
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  exerciseMeta: {
-    color: "#22C55E",
+  lessonMeta: {
+    color: "#94A3B8",
     fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 6,
+    lineHeight: 18,
   },
-  exerciseDescription: {
-    color: "#94A3B8",
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  emptyState: {
-    borderRadius: 22,
-    backgroundColor: "#101826",
+  outlineCta: {
+    marginTop: 6,
+    height: 46,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 20,
+    borderColor: "#A435F0",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  emptyTitle: {
-    color: "#F8FAFC",
-    fontSize: 18,
+  outlineCtaText: {
+    color: "#E9D5FF",
+    fontSize: 14,
     fontWeight: "800",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptyText: {
-    color: "#94A3B8",
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
   },
   stateContainer: {
     flex: 1,

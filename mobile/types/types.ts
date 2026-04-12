@@ -106,6 +106,7 @@ export interface MyPurchasePackage {
   packageId: string;
   branchId: string;
   ptAccountId: string;
+  programId?: string | null;
   status: "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REJECTED";
   startAt: string | null;
   endAt: string | null;
@@ -203,6 +204,125 @@ export interface CreatePtAssistRequestResponse {
   data: PtAssistRequest;
 }
 
+export interface PTAssistSchedule {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  extendedProps: {
+    status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+    note: string | null;
+    rejectReason: string | null;
+    account: UserAccount;
+    branch: Branch;
+    userPackage: MyPurchasePackage;
+  };
+}
+
+export interface PTAssistSchedulesResponse {
+  message: string;
+  data: PTAssistSchedule[];
+}
+
+export interface ReportUserSessionRequest {
+  ptAssistRequestId: string;
+  completion: "COMPLETED" | "INCOMPLETE";
+  summary: string;
+  techniqueNote: string;
+  improvement: string;
+  nextSessionPlan: string;
+  weightKg: number;
+  bodyNote: string;
+}
+
+export interface ReportUserSessionResponse {
+  message: string;
+  data: any;
+}
+
+export interface SessionReport {
+  id: string;
+  ptAssistRequestId?: string;
+  ptTrainingHistoryId?: string;
+  completion: "COMPLETED" | "INCOMPLETE";
+  summary: string | null;
+  techniqueNote: string | null;
+  improvement: string | null;
+  nextSessionPlan: string | null;
+  weightKg?: number | null;
+  bodyNote?: string | null;
+}
+
+export interface PTTrainingHistory {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  branchId: string;
+  ptAccountId: string;
+  startTime: string;
+  endTime: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED";
+  note: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  branch: Branch;
+  ptAccount: PtAccount;
+  userPackage: MyPurchasePackage;
+  sessionReport: SessionReport | null;
+}
+
+export interface PTTrainingHistoriesResponse {
+  message: string;
+  data: PTTrainingHistory[];
+}
+
+export interface CreateWorkoutHistoryRequest {
+  userPackageId: string;
+  programDayId: string;
+  workoutAt: string;
+  status: "COMPLETED" | "SKIPPED";
+  note: string | null;
+}
+
+export interface CreateWorkoutHistoryResponse {
+  message: string;
+  data: any;
+}
+
+export interface WorkoutHistory {
+  id: string;
+  accountId: string;
+  userPackageId: string;
+  programId: string;
+  programDayId: string;
+  workoutAt: string;
+  status: "COMPLETED" | "SKIPPED";
+  note: string | null;
+  createdAt: string;
+  userPackage: {
+    id: string;
+    package: Package;
+  };
+  program: {
+    id: string;
+    name: string;
+    level: ProgramLevel;
+  };
+  programDay: {
+    id: string;
+    dayOfWeek: number;
+    title: string;
+    note: string | null;
+  };
+}
+
+export interface ListWorkoutHistoryResponse {
+  message: string;
+  data: WorkoutHistory[];
+}
+
 export interface CheckInRequest {
   userPackageId: string;
   branchId: string;
@@ -294,4 +414,95 @@ export interface ProgramsResponse {
   message: string;
   meta: PaginationMeta;
   data: Program[];
+}
+
+export interface Profile {
+  id: string;
+  accountId: string;
+  name: string | null;
+  gender: "MALE" | "FEMALE" | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  avatar: string | null;
+  height: number | null;
+  weight: number | null;
+  fitnessGoal:
+    | "LOSE_WEIGHT"
+    | "GAIN_MUSCLE"
+    | "IMPROVE_HEALTH"
+    | "MAINTAIN_WEIGHT"
+    | null;
+  createdAt: string;
+  updatedAt: string;
+  email: string;
+}
+
+export interface ProfileResponse {
+  message: string;
+  data: Profile;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  gender?: "MALE" | "FEMALE";
+  phone?: string;
+  dateOfBirth?: string;
+  avatar?: string;
+  height?: number;
+  weight?: number;
+  fitnessGoal?:
+    | "LOSE_WEIGHT"
+    | "GAIN_MUSCLE"
+    | "IMPROVE_HEALTH"
+    | "MAINTAIN_WEIGHT";
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  data: Profile;
+}
+
+export interface TodayExcercise {
+  dayOfWeek: number;
+  programDay: {
+    id: string;
+    programId: string;
+    dayOfWeek: number;
+    title: string;
+    note: string | null;
+  };
+  exercises: Array<{
+    id: string;
+    sortOrder: number;
+    exercise: Exercise;
+  }>;
+}
+
+export interface TodayExcerciseResponse {
+  message: string;
+  data: TodayExcercise | null;
+}
+
+export interface RecommendProgramRequest {
+  conversationId: string;
+  userMessage: string;
+}
+
+export interface RecommendProgramResponse {
+  message: string;
+  data: {
+    text: string;
+  };
+}
+
+export interface RecommendNutritionRequest {
+  conversationId: string;
+  userMessage: string;
+}
+
+export interface RecommendNutritionResponse {
+  message: string;
+  data: {
+    text: string;
+  };
 }

@@ -147,7 +147,7 @@ export default function CheckInScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.centeredScreen}>
-        <AntDesign name="camerao" size={56} color="#22C55E" />
+        <AntDesign name="camera" size={56} color="#22C55E" />
         <Text style={styles.permissionTitle}>Cần quyền truy cập camera</Text>
         <Text style={styles.permissionText}>
           Hãy cho phép ứng dụng dùng camera để quét mã QR check-in.

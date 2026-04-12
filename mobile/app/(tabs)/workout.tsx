@@ -106,7 +106,7 @@ function ProgramCard({ item }: { item: Program }) {
 
   return (
     <Pressable
-      style={styles.card}
+      style={styles.programCourseCard}
       onPress={() =>
         router.push({
           pathname: APP_ROUTES.PROGRAM_DETAIL,
@@ -114,39 +114,41 @@ function ProgramCard({ item }: { item: Program }) {
         })
       }
     >
-      <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} contentFit="cover" />
+      <Image source={{ uri: item.thumbnail }} style={styles.programHero} contentFit="cover" />
 
-      <View style={styles.cardBody}>
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{getLevelLabel(item.level)}</Text>
+      <View style={styles.programOverlay} />
+
+      <View style={styles.programCourseBody}>
+        <View style={styles.programTopMeta}>
+          <View style={styles.programBadge}>
+            <Text style={styles.programBadgeText}>{getLevelLabel(item.level)}</Text>
           </View>
-          <View style={styles.badgeMuted}>
-            <Text style={styles.badgeMutedText}>
+          <View style={styles.programBadgeMuted}>
+            <Text style={styles.programBadgeMutedText}>
               {item.daysPerWeek} buổi / tuần
             </Text>
           </View>
         </View>
 
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <Text style={styles.cardDescription} numberOfLines={2}>
+        <Text style={styles.programCourseTitle}>{item.name}</Text>
+        <Text style={styles.programCourseDescription} numberOfLines={2}>
           {item.description}
         </Text>
 
-        <View style={styles.programStatsRow}>
-          <View style={styles.programStatCard}>
-            <Text style={styles.programStatValue}>{item.days.length}</Text>
-            <Text style={styles.programStatLabel}>Ngày tập</Text>
+        <View style={styles.programCourseStats}>
+          <View style={styles.programCourseStatItem}>
+            <Text style={styles.programCourseStatValue}>{item.days.length}</Text>
+            <Text style={styles.programCourseStatLabel}>Chương</Text>
           </View>
-          <View style={styles.programStatCard}>
-            <Text style={styles.programStatValue}>{totalExercises}</Text>
-            <Text style={styles.programStatLabel}>Bài tập</Text>
+          <View style={styles.programCourseStatItem}>
+            <Text style={styles.programCourseStatValue}>{totalExercises}</Text>
+            <Text style={styles.programCourseStatLabel}>Bài học</Text>
           </View>
         </View>
 
         <View style={styles.programActionRow}>
-          <Text style={styles.footerLabel}>Chạm để xem lịch tập theo ngày</Text>
-          <Text style={styles.linkText}>Xem chi tiết</Text>
+          <Text style={styles.programAuthorText}>BestGym Coach Series</Text>
+          <Text style={styles.programLinkText}>Xem khóa học</Text>
         </View>
       </View>
     </Pressable>
@@ -413,6 +415,103 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     gap: 12,
+  },
+  programCourseCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#101826",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 16,
+  },
+  programHero: {
+    width: "100%",
+    height: 220,
+    backgroundColor: "#111827",
+  },
+  programOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2,8,23,0.28)",
+  },
+  programCourseBody: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 18,
+  },
+  programTopMeta: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+    marginBottom: 14,
+  },
+  programBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#A435F0",
+  },
+  programBadgeText: {
+    color: "#F8FAFC",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  programBadgeMuted: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "rgba(15,23,42,0.72)",
+  },
+  programBadgeMutedText: {
+    color: "#F8FAFC",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  programCourseTitle: {
+    color: "#F8FAFC",
+    fontSize: 24,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  programCourseDescription: {
+    color: "#E2E8F0",
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 14,
+  },
+  programCourseStats: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  programCourseStatItem: {
+    flex: 1,
+    borderRadius: 16,
+    backgroundColor: "rgba(15,23,42,0.72)",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  programCourseStatValue: {
+    color: "#F8FAFC",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  programCourseStatLabel: {
+    color: "#CBD5E1",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  programAuthorText: {
+    flex: 1,
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  programLinkText: {
+    color: "#E9D5FF",
+    fontSize: 14,
+    fontWeight: "800",
   },
   stateContainer: {
     flex: 1,
