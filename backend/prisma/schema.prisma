@@ -117,8 +117,9 @@ model Account {
 
   // PT request: request gửi đến PT
   ptIncomingAssistRequests PtAssistRequest[] @relation("PtAssistRequestsPT")
-   ptSessionReportsWritten PtSessionReport[] @relation("PtSessionReportsPT")
+  ptSessionReportsWritten PtSessionReport[] @relation("PtSessionReportsPT")
   ptSessionReportsReceived PtSessionReport[] @relation("PtSessionReportsUser")
+  ptTrainingSlots PtTrainingSlot[] @relation("PtTrainingSlots")
 }
 
 model Profile {
@@ -152,6 +153,7 @@ model Branch {
   userPackages      UserPackage[]
   checkins          CheckIn[]
   ptAssistRequests  PtAssistRequest[]
+  ptTrainingSlots   PtTrainingSlot[]
 }
 
 model Package {
@@ -318,6 +320,28 @@ model ProgramDayExercise {
   @@index([programDayId, sortOrder])
 }
 
+/// Ca tập do PT tạo cho một ngày cụ thể (startTime/endTime là DateTime đầy đủ).
+model PtTrainingSlot {
+  id String @id @default(uuid())
+
+  ptAccountId String
+  ptAccount   Account @relation("PtTrainingSlots", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  startTime DateTime
+  endTime   DateTime
+
+  capacity Int
+  note     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ptAccountId, startTime])
+  @@index([branchId, startTime])
+}
 
 model PtAssistRequest {
   id String @id @default(uuid())

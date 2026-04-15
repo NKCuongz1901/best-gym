@@ -11,6 +11,8 @@ import {
 import { PersonalTrainerService } from './personal-trainer.service';
 import { AssignProgramToUserDto } from './dto/assign-program-to-user.dto';
 import { CreatePtSessionReportDto } from './dto/create-pt-session-report.dto';
+import { CreatePtTrainingSlotDto } from './dto/create-pt-training-slot.dto';
+import { FilterPtTrainingSlotsDto } from './dto/filter-pt-training-slots.dto';
 import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -52,6 +54,29 @@ export class PersonalTrainerController {
       req.user.userId,
       id,
       rejectPtAssistRequestDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Post('training-slots')
+  async createPtTrainingSlot(
+    @Req() req: any,
+    @Body() dto: CreatePtTrainingSlotDto,
+  ) {
+    return this.personalTrainerService.createPtTrainingSlot(req.user.userId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
+  @Get('training-slots')
+  async getPtTrainingSlots(
+    @Req() req: any,
+    @Query() filter: FilterPtTrainingSlotsDto,
+  ) {
+    return this.personalTrainerService.getPtTrainingSlots(
+      req.user.userId,
+      filter,
     );
   }
 

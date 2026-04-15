@@ -23,6 +23,7 @@ import {
   CreateProgramDayExerciseResponse,
   CreateProgramDayRequest,
   CreateProgramDayResponse,
+  CreatePTTrainingSlotRequest,
   CreateProgramResponse,
   CreateWorkoutHistoryRequest,
   CreateWorkoutHistoryResponse,
@@ -38,6 +39,7 @@ import {
   PtAccountsResponse,
   PTAssistRequestsResponse,
   PTAssistSchedulesResponse,
+  PTTrainingSlotsResponse,
   PTTrainingHistoriesResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
@@ -327,6 +329,23 @@ export const getPTAssistSchedule = async (
     },
   });
   return res;
+};
+
+export const createPTTrainingSlot = async (
+  request: CreatePTTrainingSlotRequest,
+): Promise<any> => {
+  const res = await axios.post(API.PT.CREATE_TRAINING_SLOT, request);
+  return res;
+};
+
+export const getPTTrainingSlots = async (filter?: {
+  from?: string;
+  to?: string;
+}): Promise<any> => {
+  const res = await axios.get<PTTrainingSlotsResponse>(API.PT.GET_TRAINING_SLOTS, {
+    params: filter,
+  });
+  return res as unknown as PTTrainingSlotsResponse;
 };
 
 export const createBranch = async (

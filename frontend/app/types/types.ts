@@ -339,7 +339,7 @@ export interface PTAssistSchedule {
   end: string;
   allDay: boolean;
   extendedProps: {
-    status: 'ACCEPTED' | 'REJECTED';
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
     note: string | null;
     rejectReason: string | null;
     account: UserAccount;
@@ -351,6 +351,32 @@ export interface PTAssistSchedule {
 export interface PTAssistSchedulesResponse {
   message: string;
   data: PTAssistSchedule[];
+}
+
+export interface CreatePTTrainingSlotRequest {
+  branchId: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  note?: string;
+}
+
+export interface PTTrainingSlot {
+  id: string;
+  ptAccountId: string;
+  branchId: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  branch: Branch;
+}
+
+export interface PTTrainingSlotsResponse {
+  message: string;
+  data: PTTrainingSlot[];
 }
 
 export interface CreateBranchRequest {

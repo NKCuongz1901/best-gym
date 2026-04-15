@@ -4,12 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AccountStatus,
   PtAssistRequestStatus,
+  Role,
   UserPackageStatus,
 } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { calcEndAt } from 'src/utils/helpers';
 import { CreatePtSessionReportDto } from './dto/create-pt-session-report.dto';
+import { CreatePtTrainingSlotDto } from './dto/create-pt-training-slot.dto';
+import { FilterPtTrainingSlotsDto } from './dto/filter-pt-training-slots.dto';
 import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 
 @Injectable()
@@ -444,6 +448,104 @@ export class PersonalTrainerService {
     return {
       message: 'Save PT session report successfully',
       data: report,
+    };
+  }
+
+  async createPtTrainingSlot(
+    ptAccountId: string,
+    dto: CreatePtTrainingSlotDto,
+  ) {
+    const pt = await this.prisma.account.findFirst({
+      where: {
+        id: ptAccountId,
+        role: Role.PT,
+        status: AccountStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    if (!pt) {
+      throw new NotFoundException('PT account not found or inactive');
+    }
+
+    const start = new Date(dto.startTime);
+    const end = new Date(dto.endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid startTime or endTime');
+    }
+    if (end <= start) {
+      throw new BadRequestException('endTime must be after startTime');
+    }
+
+    const sameCalendarDay =
+      start.getUTCFullYear() === end.getUTCFullYear() &&
+      start.getUTCMonth() === end.getUTCMonth() &&
+      start.getUTCDate() === end.getUTCDate();
+    if (!sameCalendarDay) {
+      throw new BadRequestException(
+        'startTime and endTime must be on the same calendar day (UTC)',
+      );
+    }
+
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: dto.branchId, isActive: true },
+      select: { id: true },
+    });
+    if (!branch) {
+      throw new NotFoundException('Branch not found or inactive');
+    }
+
+    const slot = await this.prisma.ptTrainingSlot.create({
+      data: {
+        ptAccountId,
+        branchId: dto.branchId,
+        startTime: start,
+        endTime: end,
+        capacity: dto.capacity,
+        note: dto.note,
+      },
+      include: {
+        branch: { select: { id: true, name: true, address: true } },
+      },
+    });
+
+    return {
+      message: 'Create training slot successfully',
+      data: slot,
+    };
+  }
+
+  async getPtTrainingSlots(
+    ptAccountId: string,
+    filter?: FilterPtTrainingSlotsDto,
+  ) {
+    const { from, to } = filter ?? {};
+
+    const where: {
+      ptAccountId: string;
+      startTime?: { gte?: Date; lte?: Date };
+    } = { ptAccountId };
+
+    if (from || to) {
+      where.startTime = {};
+      if (from) {
+        where.startTime.gte = new Date(`${from}T00:00:00.000Z`);
+      }
+      if (to) {
+        where.startTime.lte = new Date(`${to}T23:59:59.999Z`);
+      }
+    }
+
+    const slots = await this.prisma.ptTrainingSlot.findMany({
+      where,
+      orderBy: { startTime: 'asc' },
+      include: {
+        branch: { select: { id: true, name: true, address: true } },
+      },
+    });
+
+    return {
+      message: 'Get training slots successfully',
+      data: slots,
     };
   }
 }
