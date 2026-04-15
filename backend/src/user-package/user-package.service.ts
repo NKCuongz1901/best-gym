@@ -20,6 +20,7 @@ import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto
 import { formatInTimeZone } from 'date-fns-tz';
 import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
+import { FilterPtTrainingSlotsForUserDto } from './dto/filter-pt-training-slots.dto';
 
 @Injectable()
 export class UserPackageService {
@@ -540,23 +541,6 @@ export class UserPackageService {
   }
 
   async createRequestPT(accountId: string, dto: CreatePtAssistRequestDto) {
-    const start = new Date(dto.startTime);
-    const end = new Date(dto.endTime);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Invalid startTime or endTime');
-    }
-    if (end <= start) {
-      throw new BadRequestException('endTime must be greater than startTime');
-    }
-
-    // const durationMinutes = (end.getTime() - start.getTime()) / 60000;
-    // if (durationMinutes < 30 || durationMinutes > 180) {
-    //   throw new BadRequestException(
-    //     'Session duration must be between 30 and 180 minutes',
-    //   );
-    // }
-
     return this.prisma.$transaction(async (tx) => {
       const userPackage = await tx.userPackage.findUnique({
         where: { id: dto.userPackageId },
@@ -592,33 +576,45 @@ export class UserPackageService {
         throw new BadRequestException('No PT assigned to this UserPackage');
       }
 
-      if (start < userPackage.startAt || start > userPackage.endAt) {
+      const selectedSlot = await tx.ptTrainingSlot.findUnique({
+        where: { id: dto.slotId },
+      });
+      if (!selectedSlot) {
+        throw new NotFoundException('PT training slot not found');
+      }
+
+      if (selectedSlot.ptAccountId !== userPackage.ptAccountId) {
+        throw new BadRequestException('Selected slot does not belong to your PT');
+      }
+
+      if (selectedSlot.startTime < userPackage.startAt || selectedSlot.startTime > userPackage.endAt) {
         throw new BadRequestException(
           'Requested time is outside package validity',
         );
       }
 
-      const conflict = await tx.ptAssistRequest.findFirst({
+      const usedSeats = await tx.ptAssistRequest.count({
         where: {
-          ptAccountId: userPackage.ptAccountId,
-          status: PtAssistRequestStatus.ACCEPTED,
-          startTime: { lt: end },
-          endTime: { gt: start },
+          ptAccountId: selectedSlot.ptAccountId,
+          branchId: selectedSlot.branchId,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
+          status: {
+            in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
+          },
         },
-        select: { id: true },
       });
-
-      if (conflict) {
-        throw new BadRequestException('PT is not available in this time slot');
+      if (usedSeats >= selectedSlot.capacity) {
+        throw new BadRequestException('Selected slot is full');
       }
 
       const dupPending = await tx.ptAssistRequest.findFirst({
         where: {
           accountId,
-          ptAccountId: userPackage.ptAccountId,
+          ptAccountId: selectedSlot.ptAccountId,
           status: PtAssistRequestStatus.PENDING,
-          startTime: { lt: end },
-          endTime: { gt: start },
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
         },
         select: { id: true },
       });
@@ -633,10 +629,10 @@ export class UserPackageService {
         data: {
           accountId,
           userPackageId: userPackage.id,
-          branchId: userPackage.branchId,
-          ptAccountId: userPackage.ptAccountId,
-          startTime: start,
-          endTime: end,
+          branchId: selectedSlot.branchId,
+          ptAccountId: selectedSlot.ptAccountId,
+          startTime: selectedSlot.startTime,
+          endTime: selectedSlot.endTime,
           note: dto.note,
           status: PtAssistRequestStatus.PENDING,
         },
@@ -651,5 +647,89 @@ export class UserPackageService {
         data: created,
       };
     });
+  }
+
+  async getPtTrainingSlotsForUser(
+    accountId: string,
+    filter: FilterPtTrainingSlotsForUserDto,
+  ) {
+    const userPackage = await this.prisma.userPackage.findUnique({
+      where: { id: filter.userPackageId },
+      include: { package: true },
+    });
+
+    if (!userPackage) {
+      throw new NotFoundException('UserPackage not found');
+    }
+    if (userPackage.accountId !== accountId) {
+      throw new ForbiddenException('Not your package');
+    }
+    if (!userPackage.package.hasPt) {
+      throw new BadRequestException('This package does not include PT');
+    }
+    if (!userPackage.ptAccountId) {
+      throw new BadRequestException('No PT assigned to this UserPackage');
+    }
+    if (!userPackage.startAt || !userPackage.endAt) {
+      throw new BadRequestException('UserPackage has no valid time range');
+    }
+
+    const now = new Date();
+    const rangeStart = filter.from
+      ? new Date(`${filter.from}T00:00:00.000Z`)
+      : userPackage.startAt > now
+        ? userPackage.startAt
+        : now;
+    const rangeEnd = filter.to
+      ? new Date(`${filter.to}T23:59:59.999Z`)
+      : userPackage.endAt;
+
+    if (Number.isNaN(rangeStart.getTime()) || Number.isNaN(rangeEnd.getTime())) {
+      throw new BadRequestException('Invalid from/to date');
+    }
+    if (rangeEnd < rangeStart) {
+      throw new BadRequestException('to must be greater than or equal to from');
+    }
+
+    const slots = await this.prisma.ptTrainingSlot.findMany({
+      where: {
+        ptAccountId: userPackage.ptAccountId,
+        startTime: { gte: rangeStart, lte: rangeEnd },
+      },
+      orderBy: { startTime: 'asc' },
+      include: {
+        branch: { select: { id: true, name: true, address: true } },
+      },
+    });
+
+    const withAvailability = await Promise.all(
+      slots.map(async (slot) => {
+        const usedSeats = await this.prisma.ptAssistRequest.count({
+          where: {
+            ptAccountId: slot.ptAccountId,
+            branchId: slot.branchId,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            status: {
+              in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
+            },
+          },
+        });
+
+        const availableSeats = Math.max(0, slot.capacity - usedSeats);
+
+        return {
+          ...slot,
+          usedSeats,
+          availableSeats,
+          isFull: availableSeats <= 0,
+        };
+      }),
+    );
+
+    return {
+      message: 'Get PT training slots for user successfully',
+      data: withAvailability,
+    };
   }
 }

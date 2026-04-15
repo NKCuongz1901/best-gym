@@ -1,10 +1,18 @@
 import PackageContractCard from "@/components/card/PackageContractCard";
 import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
-import { createPtAssistRequest, getPTAssistSchedule } from "@/services/api";
+import {
+  createPtAssistRequest,
+  getPTAssistSchedule,
+  getPtTrainingSlotsForUser,
+} from "@/services/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useMyPurchasePackages } from "@/stores/useMyPurchasePackages";
-import { MyPurchasePackage, PTAssistSchedule } from "@/types/types";
+import {
+  MyPurchasePackage,
+  PTAssistSchedule,
+  PtTrainingSlotForUser,
+} from "@/types/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -72,27 +80,6 @@ const featuredWorkouts = [
   },
 ];
 
-const durationOptions = [30, 60, 90];
-const timeSlotOptions = Array.from({ length: 15 }, (_, index) => {
-  const hour = index + 6;
-  return `${String(hour).padStart(2, "0")}:00`;
-});
-
-const getUpcomingDateOptions = (days = 7) =>
-  Array.from({ length: days }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() + index);
-
-    return {
-      value: date.toISOString().split("T")[0],
-      label: date.toLocaleDateString("vi-VN", {
-        weekday: "short",
-        day: "2-digit",
-        month: "2-digit",
-      }),
-    };
-  });
-
 const getHomeScheduleRange = () => {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -158,6 +145,26 @@ const formatPtScheduleTime = (start: string, end: string) => {
 const getTraineeName = (item: PTAssistSchedule) =>
   item.extendedProps.account.profile?.name || item.extendedProps.account.email;
 
+const formatSlotDateLabel = (value: string) =>
+  new Date(value).toLocaleDateString("vi-VN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+
+const formatSlotTimeLabel = (startTime: string, endTime: string) => {
+  const start = new Date(startTime).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const end = new Date(endTime).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${start} - ${end}`;
+};
+
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const isPt = user?.role === "PT";
@@ -170,11 +177,19 @@ export default function HomeScreen() {
   const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
     null,
   );
-  const upcomingDateOptions = useMemo(() => getUpcomingDateOptions(), []);
-  const [selectedDate, setSelectedDate] = useState(upcomingDateOptions[0]?.value ?? "");
-  const [selectedTime, setSelectedTime] = useState("09:00");
-  const [selectedDuration, setSelectedDuration] = useState(60);
+  const [selectedSlotId, setSelectedSlotId] = useState("");
   const [note, setNote] = useState("");
+  const {
+    data: ptSlotsData,
+    isLoading: isLoadingPtSlots,
+  } = useQuery({
+    queryKey: ["pt-training-slots-for-user", selectedPackage?.id],
+    queryFn: () =>
+      getPtTrainingSlotsForUser({
+        userPackageId: selectedPackage?.id ?? "",
+      }),
+    enabled: !!selectedPackage?.id,
+  });
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
   const upcomingPtSchedules = useMemo(() => {
@@ -195,6 +210,7 @@ export default function HomeScreen() {
         text2: response.message,
       });
       setSelectedPackage(null);
+      setSelectedSlotId("");
       setNote("");
       await refetch();
     },
@@ -209,9 +225,7 @@ export default function HomeScreen() {
 
   const handleOpenPtRequestModal = (item: MyPurchasePackage) => {
     setSelectedPackage(item);
-    setSelectedDate(upcomingDateOptions[0]?.value ?? "");
-    setSelectedTime("09:00");
-    setSelectedDuration(60);
+    setSelectedSlotId("");
     setNote("");
   };
 
@@ -221,23 +235,29 @@ export default function HomeScreen() {
     }
 
     setSelectedPackage(null);
+    setSelectedSlotId("");
   };
 
   const handleCreatePtRequest = () => {
-    if (!selectedPackage || !selectedDate || !selectedTime) {
+    if (!selectedPackage || !selectedSlotId) {
+      Toast.show({
+        type: "error",
+        text1: "Vui lòng chọn ca dạy của PT",
+      });
       return;
     }
 
-    const startTime = new Date(`${selectedDate}T${selectedTime}:00`);
-    const endTime = new Date(startTime.getTime() + selectedDuration * 60 * 1000);
-
     ptRequestMutation.mutate({
       userPackageId: selectedPackage.id,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
+      slotId: selectedSlotId,
       note: note.trim() || undefined,
     });
   };
+
+  const availablePtSlots = useMemo<PtTrainingSlotForUser[]>(() => {
+    const slots = ptSlotsData?.data ?? [];
+    return slots.filter((slot) => !slot.isFull);
+  }, [ptSlotsData]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -453,88 +473,55 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <Text style={styles.inputLabel}>Chọn ngày</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalSelectorContent}
-            >
-              {upcomingDateOptions.map((item) => {
-                const isActive = item.value === selectedDate;
-
-                return (
-                  <Pressable
-                    key={item.value}
-                    onPress={() => setSelectedDate(item.value)}
-                    style={[styles.selectorChip, isActive && styles.selectorChipActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.selectorChipText,
-                        isActive && styles.selectorChipTextActive,
-                      ]}
+            <Text style={styles.inputLabel}>Chọn ca dạy của PT</Text>
+            {isLoadingPtSlots ? (
+              <View style={styles.slotLoadingBox}>
+                <ActivityIndicator color="#22C55E" />
+                <Text style={styles.slotLoadingText}>Đang tải danh sách ca dạy...</Text>
+              </View>
+            ) : availablePtSlots.length ? (
+              <View style={styles.slotList}>
+                {availablePtSlots.map((slot) => {
+                  const isActive = slot.id === selectedSlotId;
+                  return (
+                    <Pressable
+                      key={slot.id}
+                      onPress={() => setSelectedSlotId(slot.id)}
+                      style={[styles.slotCard, isActive && styles.slotCardActive]}
                     >
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <Text style={styles.inputLabel}>Giờ bắt đầu</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalSelectorContent}
-            >
-              {timeSlotOptions.map((time) => {
-                const isActive = time === selectedTime;
-
-                return (
-                  <Pressable
-                    key={time}
-                    onPress={() => setSelectedTime(time)}
-                    style={[styles.selectorChip, isActive && styles.selectorChipActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.selectorChipText,
-                        isActive && styles.selectorChipTextActive,
-                      ]}
-                    >
-                      {time}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <Text style={styles.inputLabel}>Thời lượng buổi tập</Text>
-            <View style={styles.durationRow}>
-              {durationOptions.map((duration) => {
-                const isActive = duration === selectedDuration;
-
-                return (
-                  <Pressable
-                    key={duration}
-                    onPress={() => setSelectedDuration(duration)}
-                    style={[
-                      styles.durationChip,
-                      isActive && styles.durationChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.durationChipText,
-                        isActive && styles.durationChipTextActive,
-                      ]}
-                    >
-                      {duration} phút
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <View style={styles.slotCardHeader}>
+                        <Text style={[styles.slotDate, isActive && styles.slotDateActive]}>
+                          {formatSlotDateLabel(slot.startTime)}
+                        </Text>
+                        <Text style={[styles.slotSeats, isActive && styles.slotSeatsActive]}>
+                          {slot.availableSeats}/{slot.capacity} chỗ trống
+                        </Text>
+                      </View>
+                      <Text style={[styles.slotTime, isActive && styles.slotTimeActive]}>
+                        {formatSlotTimeLabel(slot.startTime, slot.endTime)}
+                      </Text>
+                      <Text style={[styles.slotBranch, isActive && styles.slotBranchActive]}>
+                        {slot.branch.name}
+                      </Text>
+                      {slot.note ? (
+                        <Text
+                          style={[styles.slotNote, isActive && styles.slotNoteActive]}
+                          numberOfLines={2}
+                        >
+                          {slot.note}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.slotEmptyBox}>
+                <Text style={styles.slotEmptyText}>
+                  PT chưa mở ca dạy phù hợp cho gói này.
+                </Text>
+              </View>
+            )}
 
             <Text style={styles.inputLabel}>Ghi chú</Text>
             <TextInput
@@ -548,7 +535,7 @@ export default function HomeScreen() {
             />
 
             <Text style={styles.helperText}>
-              Yêu cầu sẽ được gửi tới PT đã gán sẵn cho gói tập này.
+              Chỉ có thể đặt lịch theo các ca dạy PT đã mở từ hệ thống.
             </Text>
 
             <View style={styles.modalActions}>
@@ -862,6 +849,94 @@ const styles = StyleSheet.create({
   },
   durationChipTextActive: {
     color: "#08110A",
+  },
+  slotLoadingBox: {
+    borderRadius: 16,
+    backgroundColor: "#182235",
+    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+    gap: 8,
+  },
+  slotLoadingText: {
+    color: "#94A3B8",
+    fontSize: 13,
+  },
+  slotList: {
+    maxHeight: 260,
+    marginBottom: 14,
+    gap: 10,
+  },
+  slotCard: {
+    borderRadius: 16,
+    backgroundColor: "#182235",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    padding: 12,
+  },
+  slotCardActive: {
+    borderColor: "#22C55E",
+    backgroundColor: "rgba(34,197,94,0.12)",
+  },
+  slotCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  slotDate: {
+    color: "#F8FAFC",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  slotDateActive: {
+    color: "#BBF7D0",
+  },
+  slotSeats: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  slotSeatsActive: {
+    color: "#DCFCE7",
+  },
+  slotTime: {
+    color: "#CBD5E1",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  slotTimeActive: {
+    color: "#F0FDF4",
+  },
+  slotBranch: {
+    color: "#94A3B8",
+    fontSize: 12,
+  },
+  slotBranchActive: {
+    color: "#DCFCE7",
+  },
+  slotNote: {
+    color: "#94A3B8",
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  slotNoteActive: {
+    color: "#DCFCE7",
+  },
+  slotEmptyBox: {
+    borderRadius: 16,
+    backgroundColor: "#182235",
+    padding: 14,
+    marginBottom: 14,
+  },
+  slotEmptyText: {
+    color: "#94A3B8",
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
   },
   noteInput: {
     minHeight: 88,

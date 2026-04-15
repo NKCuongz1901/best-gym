@@ -12,6 +12,7 @@ import {
   ListWorkoutHistoryResponse,
   MyPurchasePackagesResponse,
   PTAssistSchedulesResponse,
+  PtTrainingSlotsForUserResponse,
   PTTrainingHistoriesResponse,
   ProfileResponse,
   ReportUserSessionRequest,
@@ -91,6 +92,20 @@ export const getPTTrainingHistory = async (params?: {
     { params },
   );
   return res as unknown as PTTrainingHistoriesResponse;
+};
+
+export const getPtTrainingSlotsForUser = async (params: {
+  userPackageId: string;
+  from?: string;
+  to?: string;
+}): Promise<PtTrainingSlotsForUserResponse> => {
+  const res = await axios.get<PtTrainingSlotsForUserResponse>(
+    API.USER.GET_PT_TRAINING_SLOTS,
+    {
+      params,
+    },
+  );
+  return res as unknown as PtTrainingSlotsForUserResponse;
 };
 
 export const getPTAssistSchedule = async (params: {

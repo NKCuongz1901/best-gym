@@ -1,5 +1,4 @@
 import {
-  IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -12,12 +11,8 @@ export class CreatePtAssistRequestDto {
   userPackageId: string;
 
   @IsNotEmpty()
-  @IsDateString()
-  startTime: string;
-
-  @IsNotEmpty()
-  @IsDateString()
-  endTime: string;
+  @IsUUID()
+  slotId: string;
 
   @IsOptional()
   @IsString()

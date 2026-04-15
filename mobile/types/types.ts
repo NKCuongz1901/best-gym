@@ -174,9 +174,31 @@ export interface AcceptedTraineeRequestsResponse {
 
 export interface CreatePtAssistRequest {
   userPackageId: string;
+  slotId: string;
+  note?: string;
+}
+
+export interface PtTrainingSlotForUser {
+  id: string;
+  ptAccountId: string;
+  branchId: string;
   startTime: string;
   endTime: string;
-  note?: string;
+  capacity: number;
+  note: string | null;
+  branch: {
+    id: string;
+    name: string;
+    address?: string;
+  };
+  usedSeats: number;
+  availableSeats: number;
+  isFull: boolean;
+}
+
+export interface PtTrainingSlotsForUserResponse {
+  message: string;
+  data: PtTrainingSlotForUser[];
 }
 
 export interface PtAssistRequest {
