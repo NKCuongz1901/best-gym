@@ -10,6 +10,7 @@ import {
   ApproveTraineeRequestResponse,
   AssignProgramToUserRequest,
   AssignProgramToUserResponse,
+  AvailablePtResponse,
   BranchDetailResponse,
   BranchesResponse,
   CheckInHistoryResponse,
@@ -184,6 +185,19 @@ export const getMyPurchasePackages = async (): Promise<any> => {
     API.USER.GET_PURCHASE_PACKAGE,
   );
   return res;
+};
+
+export const getAvailablePTs = async (filter: {
+  branchId: string;
+  shiftType?: 'MORNING' | 'AFTERNOON' | 'EVENING';
+  from?: string;
+  to?: string;
+  search?: string;
+}): Promise<any> => {
+  const res = await axios.get<AvailablePtResponse>(API.USER.GET_AVAILABLE_PTS, {
+    params: filter,
+  });
+  return res as unknown as AvailablePtResponse;
 };
 
 export const getTraineeRequests = async (): Promise<any> => {

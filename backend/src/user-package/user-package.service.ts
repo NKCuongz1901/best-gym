@@ -11,6 +11,7 @@ import {
   AccountStatus,
   PtAssistRequestStatus,
   Role,
+  ShiftType,
   UserPackageStatus,
   WorkoutHistoryStatus,
 } from 'generated/prisma/enums';
@@ -21,10 +22,96 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 import { FilterPtTrainingSlotsForUserDto } from './dto/filter-pt-training-slots.dto';
+import { FilterAvailablePtDto } from './dto/filter-available-pt.dto';
 
 @Injectable()
 export class UserPackageService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getAvailablePTs(filter: FilterAvailablePtDto) {
+    const { branchId, shiftType, from, to, search } = filter;
+
+    const scheduleWhere: {
+      branchId: string;
+      isActive: boolean;
+      shiftTemplate: { isActive: boolean; type?: ShiftType };
+      fromDate?: { lte: Date };
+      toDate?: { gte: Date };
+    } = {
+      branchId,
+      isActive: true,
+      shiftTemplate: {
+        isActive: true,
+        ...(shiftType ? { type: shiftType } : {}),
+      },
+    };
+
+    if (from) {
+      scheduleWhere.toDate = { gte: new Date(`${from}T00:00:00.000Z`) };
+    }
+    if (to) {
+      scheduleWhere.fromDate = { lte: new Date(`${to}T23:59:59.999Z`) };
+    }
+
+    const where: any = {
+      role: Role.PT,
+      status: AccountStatus.ACTIVE,
+      ptShiftSchedules: {
+        some: scheduleWhere,
+      },
+    };
+
+    if (search?.length) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { profile: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const pts = await this.prisma.account.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: {
+            name: true,
+            phone: true,
+            avatar: true,
+          },
+        },
+        ptShiftSchedules: {
+          where: scheduleWhere,
+          orderBy: [{ fromDate: 'asc' }, { shiftTemplate: { startTime: 'asc' } }],
+          select: {
+            id: true,
+            fromDate: true,
+            toDate: true,
+            maxStudents: true,
+            branch: {
+              select: { id: true, name: true, address: true },
+            },
+            shiftTemplate: {
+              select: {
+                id: true,
+                type: true,
+                startTime: true,
+                endTime: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      message: 'Get available PTs successfully',
+      data: pts,
+    };
+  }
 
   private getProgramDayOfWeekToday(): number {
     // ProgramDay.dayOfWeek is 1..7 (based on CreateProgramDayDto validation)

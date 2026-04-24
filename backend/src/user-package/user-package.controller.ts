@@ -20,6 +20,7 @@ import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto
 import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 import { FilterPtTrainingSlotsForUserDto } from './dto/filter-pt-training-slots.dto';
+import { FilterAvailablePtDto } from './dto/filter-available-pt.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -70,6 +71,13 @@ export class UserPackageController {
   @Get('today-exercises')
   async getTodayExercises(@Req() req: any) {
     return this.userPackageService.getTodayExercises(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Get('available-pts')
+  async getAvailablePTs(@Query() filter: FilterAvailablePtDto) {
+    return this.userPackageService.getAvailablePTs(filter);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -10,6 +10,7 @@ export interface API_PROPS {
   USER: {
     PURCHASE_PACKAGE: string;
     GET_PURCHASE_PACKAGE: string;
+    GET_AVAILABLE_PTS: string;
     GET_CHECK_IN_HISTORY: string;
     GET_PT_TRAINING_HISTORY: string;
     GET_TODAY_EXERCISE: string;
@@ -75,6 +76,7 @@ export const API: API_PROPS = {
   USER: {
     PURCHASE_PACKAGE: '/user-package/purchase',
     GET_PURCHASE_PACKAGE: '/user-package/my-packages',
+    GET_AVAILABLE_PTS: '/user-package/available-pts',
     GET_CHECK_IN_HISTORY: '/user-package/checkins/grouped',
     GET_PT_TRAINING_HISTORY: '/user-package/pt-training-history',
     GET_TODAY_EXERCISE: '/user-package/today-exercises',

@@ -1,15 +1,23 @@
 'use client';
 
-import { Avatar, Card, Col, Empty, Row, Skeleton, Tag } from 'antd';
+import { Avatar, Card, Col, DatePicker, Empty, Input, Row, Select, Skeleton, Tag } from 'antd';
 import { UserOutlined, CheckOutlined } from '@ant-design/icons';
 import { motion } from 'motion/react';
-import type { PtAccount } from '@/app/types/types';
+import dayjs from 'dayjs';
+import type { AvailablePtAccount } from '@/app/types/types';
 
 interface SelectPtStepProps {
   loading: boolean;
-  pts: PtAccount[];
+  pts: AvailablePtAccount[];
   selectedPtId: string | null;
-  onSelect: (pt: PtAccount) => void;
+  onSelect: (pt: AvailablePtAccount) => void;
+  search: string;
+  shiftType?: 'MORNING' | 'AFTERNOON' | 'EVENING';
+  fromDate?: string;
+  toDate?: string;
+  onSearchChange: (value: string) => void;
+  onShiftTypeChange: (value: 'MORNING' | 'AFTERNOON' | 'EVENING' | undefined) => void;
+  onDateRangeChange: (from?: string, to?: string) => void;
 }
 
 export default function SelectPtStep({
@@ -17,6 +25,13 @@ export default function SelectPtStep({
   pts,
   selectedPtId,
   onSelect,
+  search,
+  shiftType,
+  fromDate,
+  toDate,
+  onSearchChange,
+  onShiftTypeChange,
+  onDateRangeChange,
 }: SelectPtStepProps) {
   return (
     <div>
@@ -32,6 +47,42 @@ export default function SelectPtStep({
           Lựa chọn PT phù hợp để đồng hành cùng bạn trong quá trình tập luyện.
         </p>
       </motion.div>
+
+      <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-white p-3 md:grid-cols-3">
+        <Input
+          allowClear
+          placeholder="Tìm theo tên/email PT"
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        <Select
+          allowClear
+          placeholder="Lọc theo ca"
+          value={shiftType}
+          options={[
+            { value: 'MORNING', label: 'Ca sáng' },
+            { value: 'AFTERNOON', label: 'Ca chiều' },
+            { value: 'EVENING', label: 'Ca tối' },
+          ]}
+          onChange={(value) =>
+            onShiftTypeChange(value as 'MORNING' | 'AFTERNOON' | 'EVENING' | undefined)
+          }
+        />
+        <DatePicker.RangePicker
+          className="w-full"
+          format="DD/MM/YYYY"
+          value={[
+            fromDate ? dayjs(fromDate, 'YYYY-MM-DD') : null,
+            toDate ? dayjs(toDate, 'YYYY-MM-DD') : null,
+          ]}
+          onChange={(dates) =>
+            onDateRangeChange(
+              dates?.[0] ? dates[0].format('YYYY-MM-DD') : undefined,
+              dates?.[1] ? dates[1].format('YYYY-MM-DD') : undefined,
+            )
+          }
+        />
+      </div>
 
       {loading ? (
         <Row gutter={[16, 16]}>
@@ -100,6 +151,11 @@ export default function SelectPtStep({
                       {pt.profile?.fitnessGoal && (
                         <Tag color="blue">{pt.profile.fitnessGoal}</Tag>
                       )}
+                      {pt.ptShiftSchedules?.length ? (
+                        <Tag color="green">
+                          {pt.ptShiftSchedules.length} lịch dạy phù hợp
+                        </Tag>
+                      ) : null}
                     </div>
                   </Card>
                 </motion.div>

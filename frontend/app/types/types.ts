@@ -21,6 +21,29 @@ export interface PtAccount {
   };
 }
 
+export interface AvailablePtShiftSchedule {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  maxStudents: number;
+  branch: Branch;
+  shiftTemplate: {
+    id: string;
+    type: 'MORNING' | 'AFTERNOON' | 'EVENING';
+    startTime: string;
+    endTime: string;
+  };
+}
+
+export interface AvailablePtAccount extends PtAccount {
+  ptShiftSchedules: AvailablePtShiftSchedule[];
+}
+
+export interface AvailablePtResponse {
+  message: string;
+  data: AvailablePtAccount[];
+}
+
 export interface PaginationMeta {
   page: number;
   itemsPerPage: number;

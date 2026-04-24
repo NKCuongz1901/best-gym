@@ -34,14 +34,14 @@ export class ExcerciseController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.PT)
   async create(@Body() createExcerciseDto: CreateExcerciseDto) {
     return this.excerciseService.create(createExcerciseDto);
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.PT)
   async update(
     @Param('id') id: string,
     @Body() updateExcerciseDto: UpdateExcerciseDto,
@@ -51,7 +51,7 @@ export class ExcerciseController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.PT)
   async remove(@Param('id') id: string) {
     return this.excerciseService.remove(id);
   }

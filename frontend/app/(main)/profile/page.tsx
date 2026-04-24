@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar, Button, DatePicker, Form, Input, InputNumber, Modal, Result, Select, Spin, message } from 'antd';
 import {
   AimOutlined,
+  PlusOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
   ColumnHeightOutlined,
@@ -18,6 +19,8 @@ import {
 import dayjs from 'dayjs';
 
 import {
+  createExercise,
+  createProgram,
   getCheckInHistory,
   getProfile,
   getTodayExercise,
@@ -27,8 +30,10 @@ import {
 import type {
   CheckInHistoryItem,
   CheckInHistoryResponse,
+  CreateExerciseRequest,
   Profile,
   ProfileResponse,
+  ProgramRequest,
   PTTrainingHistoriesResponse,
   PTTrainingHistory,
   TodayExcerciseResponse,
@@ -118,6 +123,25 @@ function genderLabel(g: string | null): string | null {
   return g;
 }
 
+const exerciseMuscleGroupOptions: {
+  value: CreateExerciseRequest['muscleGroup'];
+  label: string;
+}[] = [
+  { value: 'CHEST', label: 'Ngực' },
+  { value: 'BACK', label: 'Lưng' },
+  { value: 'ARMS', label: 'Tay' },
+  { value: 'LEGS', label: 'Chân' },
+  { value: 'ABS', label: 'Bụng' },
+  { value: 'CORE', label: 'Core' },
+  { value: 'CARDIO', label: 'Cardio' },
+];
+
+const levelOptions: { value: ProgramRequest['level']; label: string }[] = [
+  { value: 'BEGINNER', label: 'Beginner' },
+  { value: 'INTERMEDIATE', label: 'Intermediate' },
+  { value: 'ADVANCED', label: 'Advanced' },
+];
+
 function renderUpdating(value: unknown, formatter?: (v: any) => React.ReactNode) {
   if (value === null || value === undefined || value === '') {
     return <span className="text-neutral-400">Đang cập nhật</span>;
@@ -146,6 +170,13 @@ export default function ProfilePage() {
   const { isLoggedIn, loading: authLoading, user } = useAuthStore();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm] = Form.useForm();
+  const [createExerciseOpen, setCreateExerciseOpen] = useState(false);
+  const [createProgramOpen, setCreateProgramOpen] = useState(false);
+  const [createExerciseForm] = Form.useForm<CreateExerciseRequest>();
+  const [createProgramForm] = Form.useForm<ProgramRequest>();
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
+  const [videoLoadOk, setVideoLoadOk] = useState(false);
+  const [videoCheckTriggered, setVideoCheckTriggered] = useState(false);
 
   const { mutate: submitUpdate, isPending: isUpdating } = useMutation({
     mutationFn: (payload: UpdateProfileRequest) => updateProfile(payload),
@@ -158,6 +189,35 @@ export default function ProfilePage() {
       message.error('Cập nhật thất bại. Vui lòng thử lại.');
     },
   });
+
+  const { mutate: submitCreateExercise, isPending: isCreatingExercise } =
+    useMutation({
+      mutationFn: (payload: CreateExerciseRequest) => createExercise(payload),
+      onSuccess: () => {
+        message.success('Đã tạo bài tập');
+        setCreateExerciseOpen(false);
+        setVideoPreviewUrl('');
+        setVideoLoadOk(false);
+        setVideoCheckTriggered(false);
+        createExerciseForm.resetFields();
+      },
+      onError: () => {
+        message.error('Không thể tạo bài tập. Vui lòng thử lại.');
+      },
+    });
+
+  const { mutate: submitCreateProgram, isPending: isCreatingProgram } =
+    useMutation({
+      mutationFn: (payload: ProgramRequest) => createProgram(payload),
+      onSuccess: () => {
+        message.success('Đã tạo chương trình');
+        setCreateProgramOpen(false);
+        createProgramForm.resetFields();
+      },
+      onError: () => {
+        message.error('Không thể tạo chương trình. Vui lòng thử lại.');
+      },
+    });
 
   useEffect(() => {
     if (!authLoading && !isLoggedIn) {
@@ -315,6 +375,77 @@ export default function ProfilePage() {
     );
   };
 
+  const openCreateExerciseModal = () => {
+    createExerciseForm.setFieldsValue({
+      level: 'BEGINNER',
+      muscleGroup: 'CHEST',
+      isActive: true,
+      suggestion: '',
+    });
+    setVideoPreviewUrl('');
+    setVideoLoadOk(false);
+    setVideoCheckTriggered(false);
+    setCreateExerciseOpen(true);
+  };
+
+  const openCreateProgramModal = () => {
+    createProgramForm.setFieldsValue({
+      name: '',
+      description: '',
+      level: 'BEGINNER',
+      daysPerWeek: 3,
+      thumbnail: '',
+    });
+    setCreateProgramOpen(true);
+  };
+
+  const triggerVideoCheck = async () => {
+    try {
+      const values = await createExerciseForm.validateFields(['videoUrl']);
+      setVideoCheckTriggered(true);
+      setVideoLoadOk(false);
+      setVideoPreviewUrl(values.videoUrl.trim());
+    } catch {
+      // validation
+    }
+  };
+
+  const handleCreateExercise = async () => {
+    try {
+      const values = await createExerciseForm.validateFields();
+      if (!videoCheckTriggered || !videoLoadOk) {
+        message.warning('Vui lòng kiểm tra video hiển thị được trước khi tạo.');
+        return;
+      }
+      submitCreateExercise({
+        ...values,
+        name: values.name.trim(),
+        description: values.description.trim(),
+        content: values.content.trim(),
+        equipments: values.equipments.trim(),
+        thumbnail: values.thumbnail.trim(),
+        videoUrl: values.videoUrl.trim(),
+        suggestion: values.suggestion?.trim() || '',
+      });
+    } catch {
+      // validation
+    }
+  };
+
+  const handleCreateProgram = async () => {
+    try {
+      const values = await createProgramForm.validateFields();
+      submitCreateProgram({
+        ...values,
+        name: values.name.trim(),
+        description: values.description.trim(),
+        thumbnail: values.thumbnail.trim(),
+      });
+    } catch {
+      // validation
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50 pb-16 pt-10">
       <div className="container mx-auto max-w-6xl px-4">
@@ -330,9 +461,21 @@ export default function ProfilePage() {
             <h1 className="text-3xl font-bold text-neutral-900">Hồ sơ của tôi</h1>
           </div>
 
-          <Button type="primary" className="bg-black!" onClick={openEditModal}>
-            Cập nhật hồ sơ
-          </Button>
+          <div className="flex items-center gap-2">
+            {user?.role !== 'USER' ? (
+              <>
+                <Button icon={<PlusOutlined />} onClick={openCreateExerciseModal}>
+                  Tạo bài tập
+                </Button>
+                <Button icon={<PlusOutlined />} onClick={openCreateProgramModal}>
+                  Tạo chương trình
+                </Button>
+              </>
+            ) : null}
+            <Button type="primary" className="bg-black!" onClick={openEditModal}>
+              Cập nhật hồ sơ
+            </Button>
+          </div>
         </div>
 
         <div className="grid auto-rows-auto grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -611,6 +754,24 @@ export default function ProfilePage() {
               </div>
             )}
           </BentoCard>
+
+          {user?.role !== 'USER' ? (
+            <BentoCard className="md:col-span-2">
+              <div className="mb-2 flex items-center gap-2">
+                <PlusOutlined className="text-neutral-900" />
+                <span className="text-sm font-semibold text-neutral-900">
+                  Quản lý nội dung tập luyện
+                </span>
+              </div>
+              <p className="text-sm text-neutral-700">
+                Bạn có thể tạo mới bài tập và chương trình tập trực tiếp từ trang hồ sơ.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button onClick={openCreateExerciseModal}>Tạo bài tập</Button>
+                <Button onClick={openCreateProgramModal}>Tạo chương trình</Button>
+              </div>
+            </BentoCard>
+          ) : null}
         </div>
       </div>
 
@@ -670,6 +831,157 @@ export default function ProfilePage() {
                 { value: 'MAINTAIN_WEIGHT', label: 'Duy trì cân nặng' },
               ]}
             />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Tạo bài tập"
+        open={createExerciseOpen}
+        onOk={handleCreateExercise}
+        onCancel={() => {
+          setCreateExerciseOpen(false);
+          setVideoPreviewUrl('');
+          setVideoLoadOk(false);
+          setVideoCheckTriggered(false);
+          createExerciseForm.resetFields();
+        }}
+        confirmLoading={isCreatingExercise}
+        okText="Tạo"
+        cancelText="Hủy"
+        width={760}
+        destroyOnClose
+      >
+        <Form form={createExerciseForm} layout="vertical" className="mt-2">
+          <Form.Item name="name" label="Tên bài tập" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Mô tả ngắn"
+            rules={[{ required: true }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="content"
+            label="Nội dung hướng dẫn"
+            rules={[{ required: true }]}
+          >
+            <Input.TextArea rows={4} />
+          </Form.Item>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Form.Item
+              name="muscleGroup"
+              label="Nhóm cơ"
+              rules={[{ required: true }]}
+            >
+              <Select options={exerciseMuscleGroupOptions} />
+            </Form.Item>
+            <Form.Item name="level" label="Cấp độ" rules={[{ required: true }]}>
+              <Select options={levelOptions} />
+            </Form.Item>
+          </div>
+          <Form.Item name="equipments" label="Dụng cụ" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="thumbnail" label="Thumbnail URL" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="videoUrl" label="Video URL" rules={[{ required: true }]}>
+            <Input
+              onChange={() => {
+                setVideoLoadOk(false);
+              }}
+            />
+          </Form.Item>
+          <div className="mb-3 flex items-center gap-3">
+            <Button onClick={triggerVideoCheck}>Kiểm tra video</Button>
+            {videoCheckTriggered ? (
+              videoLoadOk ? (
+                <span className="text-xs text-green-600">Video hiển thị tốt.</span>
+              ) : (
+                <span className="text-xs text-neutral-500">Đang kiểm tra video...</span>
+              )
+            ) : (
+              <span className="text-xs text-neutral-500">Cần kiểm tra video trước khi tạo.</span>
+            )}
+          </div>
+          {videoPreviewUrl ? (
+            <div className="mb-3 aspect-video w-full overflow-hidden rounded bg-neutral-900">
+              <iframe
+                src={videoPreviewUrl}
+                title="Video preview"
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onLoad={() => setVideoLoadOk(true)}
+              />
+            </div>
+          ) : null}
+          <Form.Item name="suggestion" label="Gợi ý">
+            <Input />
+          </Form.Item>
+          <Form.Item name="isActive" label="Kích hoạt" initialValue>
+            <Select
+              options={[
+                { value: true, label: 'Bật' },
+                { value: false, label: 'Tắt' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Tạo chương trình tập"
+        open={createProgramOpen}
+        onOk={handleCreateProgram}
+        onCancel={() => {
+          setCreateProgramOpen(false);
+          createProgramForm.resetFields();
+        }}
+        confirmLoading={isCreatingProgram}
+        okText="Tạo"
+        cancelText="Hủy"
+        width={520}
+        destroyOnClose
+      >
+        <Form form={createProgramForm} layout="vertical" className="mt-2">
+          <Form.Item
+            name="name"
+            label="Tên chương trình"
+            rules={[{ required: true, message: 'Nhập tên chương trình' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="Mô tả"
+            rules={[{ required: true, message: 'Nhập mô tả' }]}
+          >
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item
+            name="level"
+            label="Cấp độ"
+            rules={[{ required: true, message: 'Chọn cấp độ' }]}
+          >
+            <Select options={levelOptions} />
+          </Form.Item>
+          <Form.Item
+            name="daysPerWeek"
+            label="Số ngày tập/tuần"
+            rules={[{ required: true, message: 'Nhập số ngày tập' }]}
+          >
+            <InputNumber min={1} max={7} className="w-full" />
+          </Form.Item>
+          <Form.Item
+            name="thumbnail"
+            label="URL ảnh đại diện"
+            rules={[{ required: true, message: 'Nhập URL ảnh' }]}
+          >
+            <Input />
           </Form.Item>
         </Form>
       </Modal>

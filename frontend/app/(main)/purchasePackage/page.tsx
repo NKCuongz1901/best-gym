@@ -6,16 +6,16 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, Result, Steps, message } from 'antd';
 
 import {
+  getAvailablePTs,
   getBranches,
   getPackages,
-  getPtAccounts,
   purchasePackage,
 } from '@/app/services/api';
 import type { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '@/app/types/filters';
 import type {
+  AvailablePtAccount,
   Branch,
   Package,
-  PtAccount,
   PurchasePackageRequest,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -37,6 +37,12 @@ export default function PurchasePackagePage() {
   );
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [selectedPtId, setSelectedPtId] = useState<string | null>(null);
+  const [ptSearch, setPtSearch] = useState('');
+  const [ptShiftType, setPtShiftType] = useState<
+    'MORNING' | 'AFTERNOON' | 'EVENING' | undefined
+  >(undefined);
+  const [ptFromDate, setPtFromDate] = useState<string | undefined>(undefined);
+  const [ptToDate, setPtToDate] = useState<string | undefined>(undefined);
 
   const [packageFilters] = useState<FILTER_PACKAGE_PROPS>({
     page: 1,
@@ -44,11 +50,6 @@ export default function PurchasePackagePage() {
     unit: undefined,
   });
   const [branchFilters] = useState<FILTER_PROPS>({
-    page: 1,
-    itemsPerPage: 50,
-    search: undefined,
-  });
-  const [ptFilters] = useState<FILTER_PROPS>({
     page: 1,
     itemsPerPage: 50,
     search: undefined,
@@ -74,14 +75,28 @@ export default function PurchasePackagePage() {
   });
 
   const { data: ptsRes, isLoading: isLoadingPts } = useQuery({
-    queryKey: ['pt-accounts', ptFilters],
-    queryFn: () => getPtAccounts(ptFilters),
-    enabled: isLoggedIn,
+    queryKey: [
+      'available-pts',
+      selectedBranchId,
+      ptShiftType,
+      ptFromDate,
+      ptToDate,
+      ptSearch,
+    ],
+    queryFn: () =>
+      getAvailablePTs({
+        branchId: selectedBranchId as string,
+        shiftType: ptShiftType,
+        from: ptFromDate,
+        to: ptToDate,
+        search: ptSearch || undefined,
+      }),
+    enabled: isLoggedIn && !!selectedBranchId,
   });
 
   const packages: Package[] = packagesRes?.data ?? [];
   const branches: Branch[] = branchesRes?.data ?? [];
-  const pts: PtAccount[] = ptsRes?.data ?? [];
+  const pts: AvailablePtAccount[] = ptsRes?.data ?? [];
 
   useEffect(() => {
     const initialPackageId = searchParams.get('packageId');
@@ -245,6 +260,16 @@ export default function PurchasePackagePage() {
               pts={pts}
               selectedPtId={selectedPtId}
               onSelect={(pt) => setSelectedPtId(pt.id)}
+              search={ptSearch}
+              shiftType={ptShiftType}
+              fromDate={ptFromDate}
+              toDate={ptToDate}
+              onSearchChange={(value) => setPtSearch(value)}
+              onShiftTypeChange={(value) => setPtShiftType(value)}
+              onDateRangeChange={(from, to) => {
+                setPtFromDate(from);
+                setPtToDate(to);
+              }}
             />
           )}
 
