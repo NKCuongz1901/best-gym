@@ -1,6 +1,7 @@
 'use client';
 
-import { CheckOutlined } from '@ant-design/icons';
+import { ArrowRightOutlined, CheckOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 import type { Package as ApiPackage } from '@/app/types/types';
 
 export type Package = ApiPackage;
@@ -9,6 +10,11 @@ type PackageCardProps = {
   package: Package;
   isFeatured?: boolean;
   onSelect?: (pkg: Package) => void;
+};
+
+type PackageFeature = {
+  label: string;
+  article: string;
 };
 
 function formatPrice(price: number): string {
@@ -22,16 +28,16 @@ function getUnitLabel(unit: 'DAY' | 'MONTH'): string {
   return unit === 'DAY' ? 'Ngày' : 'Tháng';
 }
 
-function getFeatures(pkg: Package): string[] {
-  const features = [
-    'Truy cập toàn bộ phòng gym',
-    'Thiết bị tập luyện hiện đại',
-    'Phòng thay đồ, tủ đồ',
+function getFeatures(pkg: Package): PackageFeature[] {
+  const features: PackageFeature[] = [
+    { label: 'Truy cập toàn bộ phòng gym', article: 'gym-access' },
+    { label: 'Thiết bị tập luyện hiện đại', article: 'modern-equipment' },
+    { label: 'Phòng thay đồ, tủ đồ', article: 'locker-room' },
   ];
   if (pkg.hasPt) {
-    features.push('Huấn luyện viên cá nhân');
+    features.push({ label: 'Huấn luyện viên cá nhân', article: 'personal-training' });
   }
-  features.push('Hỗ trợ tư vấn dinh dưỡng');
+  features.push({ label: 'Hỗ trợ tư vấn dinh dưỡng', article: 'nutrition-support' });
   return features;
 }
 
@@ -40,6 +46,7 @@ export default function PackageCard({
   isFeatured = false,
   onSelect,
 }: PackageCardProps) {
+  const router = useRouter();
   const features = getFeatures(pkg);
   const unitLabel = getUnitLabel(pkg.unit);
   const durationText = `${pkg.durationValue} ${unitLabel}`;
@@ -72,11 +79,20 @@ export default function PackageCard({
 
       <ul className="mt-6 flex-1 space-y-4">
         {features.map((feature, index) => (
-          <li key={index} className="flex items-start gap-3">
-            <CheckOutlined className="mt-0.5 shrink-0 text-neutral-600 group-hover:text-white" />
-            <span className="text-sm text-neutral-600 group-hover:text-neutral-200">
-              {feature}
-            </span>
+          <li key={`${feature.article}-${index}`}>
+            <button
+              type="button"
+              onClick={() => router.push(`/about?article=${feature.article}`)}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent bg-neutral-50 px-4 py-3 text-left transition-all hover:border-neutral-300 hover:bg-neutral-100 group-hover:bg-white/10 group-hover:hover:border-white/20"
+            >
+              <span className="flex items-start gap-3">
+                <CheckOutlined className="mt-0.5 shrink-0 text-neutral-600 group-hover:text-white" />
+                <span className="text-sm text-neutral-600 group-hover:text-neutral-200">
+                  {feature.label}
+                </span>
+              </span>
+              <ArrowRightOutlined className="shrink-0 text-xs text-neutral-400 transition-transform group-hover:text-neutral-200" />
+            </button>
           </li>
         ))}
       </ul>
