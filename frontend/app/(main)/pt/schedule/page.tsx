@@ -21,13 +21,10 @@ import {
   InputNumber,
   Modal,
   Select,
-  Space,
   Spin,
   Tag,
-  TimePicker,
   message,
 } from 'antd';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 
@@ -37,6 +34,7 @@ import {
   getBranches,
   getPTAssistRequests,
   getPTAssistSchedule,
+  getPTShiftTemplates,
   getPTTrainingSlots,
   rejectPTAssistRequest,
   reportUserSession,
@@ -50,6 +48,7 @@ import type {
   PTAssistRequest,
   PTAssistSchedule,
   PTAssistSchedulesResponse,
+  PTShiftTemplate,
   PTTrainingSlot,
   PTTrainingSlotsResponse,
   ReportUserSessionRequest,
@@ -119,11 +118,38 @@ function renderEventContent(arg: EventContentArg) {
 
 type SetupSlotRow = {
   branchId: string;
-  date: Dayjs;
-  timeRange: [Dayjs, Dayjs];
-  capacity: number;
-  note?: string;
+  shiftTemplateId: string;
+  fromDate: Dayjs;
+  toDate: Dayjs;
+  maxStudents: number;
 };
+
+function expandShiftSchedulesToBackgroundEvents(slots: PTTrainingSlot[]): EventInput[] {
+  const events: EventInput[] = [];
+  for (const slot of slots) {
+    let cursor = dayjs(slot.fromDate).startOf('day');
+    const end = dayjs(slot.toDate).startOf('day');
+    while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
+      const [sh, sm] = slot.shiftTemplate.startTime.split(':').map(Number);
+      const [eh, em] = slot.shiftTemplate.endTime.split(':').map(Number);
+      const start = cursor.hour(sh || 0).minute(sm || 0).second(0).millisecond(0);
+      const finish = cursor.hour(eh || 0).minute(em || 0).second(0).millisecond(0);
+      if (finish.isAfter(start)) {
+        events.push({
+          id: `pt-shift-${slot.id}-${cursor.format('YYYY-MM-DD')}`,
+          start: start.toISOString(),
+          end: finish.toISOString(),
+          display: 'background',
+          backgroundColor: 'rgba(34, 197, 94, 0.16)',
+          classNames: ['pt-teaching-slot-bg'],
+          extendedProps: { isTeachingSlot: true },
+        });
+      }
+      cursor = cursor.add(1, 'day');
+    }
+  }
+  return events;
+}
 
 export default function PTSchedulePage() {
   const queryClient = useQueryClient();
@@ -135,7 +161,7 @@ export default function PTSchedulePage() {
     null,
   );
   const [feedbackForm] = Form.useForm<ReportUserSessionRequest>();
-  const [setupSlotsForm] = Form.useForm<{ slots: SetupSlotRow[] }>();
+  const [setupSlotsForm] = Form.useForm<{ slot: SetupSlotRow }>();
 
   const [range, setRange] = useState<FILTER_PT_ASSIST_SCHEDULE_PROPS>(() => {
     const start = dayjs().startOf('week').add(1, 'day');
@@ -238,6 +264,12 @@ export default function PTSchedulePage() {
     enabled: setupSlotsOpen,
   });
 
+  const { data: shiftTemplatesRes } = useQuery({
+    queryKey: ['pt-shift-templates'],
+    queryFn: () => getPTShiftTemplates(),
+    enabled: setupSlotsOpen,
+  });
+
   const { mutateAsync: submitTrainingSlot, isPending: isCreatingTrainingSlot } =
     useMutation({
       mutationFn: (payload: CreatePTTrainingSlotRequest) =>
@@ -245,9 +277,14 @@ export default function PTSchedulePage() {
     });
 
   const branches: Branch[] = branchesRes?.data ?? [];
+  const shiftTemplates: PTShiftTemplate[] = shiftTemplatesRes?.data ?? [];
   const branchOptions = branches.map((b) => ({
     label: b.name,
     value: b.id,
+  }));
+  const shiftTemplateOptions = shiftTemplates.map((t) => ({
+    label: `${t.type} (${t.startTime} - ${t.endTime})`,
+    value: t.id,
   }));
 
   const isLoading = isLoadingSchedule || isLoadingAssist || isLoadingTrainingSlots;
@@ -273,15 +310,7 @@ export default function PTSchedulePage() {
 
   const trainingSlotEvents = useMemo<EventInput[]>(() => {
     const slots: PTTrainingSlot[] = trainingSlotsRes?.data ?? [];
-    return slots.map((slot) => ({
-      id: `pt-training-slot-${slot.id}`,
-      start: slot.startTime,
-      end: slot.endTime,
-      display: 'background',
-      backgroundColor: 'rgba(34, 197, 94, 0.16)',
-      classNames: ['pt-teaching-slot-bg'],
-      extendedProps: { isTeachingSlot: true },
-    }));
+    return expandShiftSchedulesToBackgroundEvents(slots);
   }, [trainingSlotsRes?.data]);
 
   const calendarEvents = useMemo<EventInput[]>(() => {
@@ -290,15 +319,13 @@ export default function PTSchedulePage() {
 
   const openSetupSlotsModal = () => {
     setupSlotsForm.setFieldsValue({
-      slots: [
-        {
-          branchId: '',
-          date: dayjs(),
-          timeRange: [dayjs().hour(9).minute(0), dayjs().hour(12).minute(0)],
-          capacity: 6,
-          note: '',
-        },
-      ],
+      slot: {
+        branchId: '',
+        shiftTemplateId: '',
+        fromDate: dayjs(),
+        toDate: dayjs().add(6, 'day'),
+        maxStudents: 6,
+      },
     });
     setSetupSlotsOpen(true);
   };
@@ -306,36 +333,19 @@ export default function PTSchedulePage() {
   const handleSaveTeachingSlots = async () => {
     try {
       const values = await setupSlotsForm.validateFields();
-      const rows = values.slots ?? [];
-      if (rows.length === 0) {
-        message.warning('Thêm ít nhất 1 ca dạy để lưu.');
+      const row = values.slot;
+      if (!row) {
+        message.warning('Vui lòng nhập thông tin ca dạy.');
         return;
       }
 
-      await Promise.all(
-        rows.map((row) => {
-          const base = row.date.startOf('day');
-          const startTime = base
-            .hour(row.timeRange[0].hour())
-            .minute(row.timeRange[0].minute())
-            .second(0)
-            .millisecond(0)
-            .toISOString();
-          const endTime = base
-            .hour(row.timeRange[1].hour())
-            .minute(row.timeRange[1].minute())
-            .second(0)
-            .millisecond(0)
-            .toISOString();
-          return submitTrainingSlot({
-            branchId: row.branchId,
-            startTime,
-            endTime,
-            capacity: row.capacity,
-            note: row.note?.trim() || undefined,
-          });
-        }),
-      );
+      await submitTrainingSlot({
+        branchId: row.branchId,
+        shiftTemplateId: row.shiftTemplateId,
+        fromDate: row.fromDate.startOf('day').toISOString(),
+        toDate: row.toDate.startOf('day').toISOString(),
+        maxStudents: row.maxStudents,
+      });
 
       queryClient.invalidateQueries({ queryKey: ['pt-training-slots'] });
       message.success('Đã tạo ca dạy thành công');
@@ -615,101 +625,78 @@ export default function PTSchedulePage() {
         }}
       >
         <p className="mb-4 text-xs text-neutral-400">
-          Mỗi dòng sẽ tạo 1 ca dạy mới trên hệ thống. Ca đã tạo sẽ hiển thị nền xanh
-          trên lịch.
+          Thiết lập 1 ca dạy theo mẫu ca (shift template) trong khoảng ngày bạn
+          chọn. Ca đã tạo sẽ hiển thị nền xanh trên lịch.
         </p>
-        <Form form={setupSlotsForm} layout="vertical" className="max-h-[60vh] overflow-y-auto pr-1">
-          <Form.List name="slots">
-            {(fields, { add, remove }) => (
-              <div className="flex flex-col gap-3">
-                {fields.map(({ key, name }) => (
-                  <Space
-                    key={key}
-                    className="w-full flex-wrap items-start"
-                    align="start"
-                  >
-                    <Form.Item
-                      className="mb-0 min-w-[170px]"
-                      name={[name, 'branchId']}
-                      rules={[{ required: true, message: 'Chọn chi nhánh' }]}
-                    >
-                      <Select
-                        options={branchOptions}
-                        placeholder="Chi nhánh"
-                        showSearch
-                        optionFilterProp="label"
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      className="mb-0 min-w-[140px]"
-                      name={[name, 'date']}
-                      rules={[{ required: true, message: 'Chọn ngày' }]}
-                    >
-                      <DatePicker format="DD/MM/YYYY" />
-                    </Form.Item>
-                    <Form.Item
-                      className="mb-0 min-w-[220px]"
-                      name={[name, 'timeRange']}
-                      rules={[
-                        { required: true, message: 'Chọn giờ' },
-                        {
-                          validator: (_, value: [Dayjs, Dayjs] | undefined) => {
-                            if (!value?.[0] || !value[1]) return Promise.resolve();
-                            if (value[1].isAfter(value[0])) return Promise.resolve();
-                            return Promise.reject(
-                              new Error('Giờ kết thúc phải sau giờ bắt đầu'),
-                            );
-                          },
-                        },
-                      ]}
-                    >
-                      <TimePicker.RangePicker
-                        format="HH:mm"
-                        minuteStep={15}
-                        className="w-[220px]"
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      className="mb-0 min-w-[120px]"
-                      name={[name, 'capacity']}
-                      rules={[{ required: true, message: 'Sức chứa' }]}
-                    >
-                      <InputNumber min={1} max={50} className="w-[120px]" placeholder="Sức chứa" />
-                    </Form.Item>
-                    <Form.Item
-                      className="mb-0 min-w-[220px] flex-1"
-                      name={[name, 'note']}
-                    >
-                      <Input placeholder="Ghi chú (tuỳ chọn)" />
-                    </Form.Item>
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => remove(name)}
-                      aria-label="Xóa ca"
-                    />
-                  </Space>
-                ))}
-                <Button
-                  type="dashed"
-                  onClick={() =>
-                    add({
-                      branchId: branchOptions[0]?.value ?? '',
-                      date: dayjs(),
-                      timeRange: [dayjs().hour(14).minute(0), dayjs().hour(17).minute(0)],
-                      capacity: 6,
-                      note: '',
-                    })
-                  }
-                  block
-                  icon={<PlusOutlined />}
-                >
-                  Thêm ca
-                </Button>
-              </div>
-            )}
-          </Form.List>
+        <Form form={setupSlotsForm} layout="vertical">
+          <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Form.Item
+                className="mb-0"
+                label={<span className="text-neutral-200">Chi nhánh</span>}
+                name={['slot', 'branchId']}
+                rules={[{ required: true, message: 'Chọn chi nhánh' }]}
+              >
+                <Select
+                  options={branchOptions}
+                  placeholder="Chọn chi nhánh"
+                  showSearch
+                  optionFilterProp="label"
+                  size="large"
+                />
+              </Form.Item>
+              <Form.Item
+                className="mb-0"
+                label={<span className="text-neutral-200">Ca mẫu</span>}
+                name={['slot', 'shiftTemplateId']}
+                rules={[{ required: true, message: 'Chọn ca mẫu' }]}
+              >
+                <Select
+                  options={shiftTemplateOptions}
+                  placeholder="Chọn ca mẫu"
+                  showSearch
+                  optionFilterProp="label"
+                  size="large"
+                />
+              </Form.Item>
+              <Form.Item
+                className="mb-0"
+                label={<span className="text-neutral-200">Từ ngày</span>}
+                name={['slot', 'fromDate']}
+                rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
+              >
+                <DatePicker format="DD/MM/YYYY" className="w-full" size="large" />
+              </Form.Item>
+              <Form.Item
+                className="mb-0"
+                label={<span className="text-neutral-200">Đến ngày</span>}
+                name={['slot', 'toDate']}
+                rules={[
+                  { required: true, message: 'Chọn ngày kết thúc' },
+                  {
+                    validator: (_, value: Dayjs | undefined) => {
+                      const fromValue = setupSlotsForm.getFieldValue(['slot', 'fromDate']) as Dayjs | undefined;
+                      if (!value || !fromValue) return Promise.resolve();
+                      if (value.isBefore(fromValue, 'day')) {
+                        return Promise.reject(new Error('Đến ngày phải >= Từ ngày'));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
+                <DatePicker format="DD/MM/YYYY" className="w-full" size="large" />
+              </Form.Item>
+            </div>
+            <Form.Item
+              className="mb-0 mt-3"
+              label={<span className="text-neutral-200">Số học viên tối đa</span>}
+              name={['slot', 'maxStudents']}
+              rules={[{ required: true, message: 'Nhập số học viên' }]}
+            >
+              <InputNumber min={1} max={50} className="w-full" size="large" placeholder="Ví dụ: 6" />
+            </Form.Item>
+          </div>
         </Form>
       </Modal>
 

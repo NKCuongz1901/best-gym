@@ -355,28 +355,45 @@ export interface PTAssistSchedulesResponse {
 
 export interface CreatePTTrainingSlotRequest {
   branchId: string;
+  shiftTemplateId: string;
+  fromDate: string;
+  toDate: string;
+  maxStudents: number;
+}
+
+export interface PTShiftTemplate {
+  id: string;
+  type: 'MORNING' | 'AFTERNOON' | 'EVENING';
   startTime: string;
   endTime: string;
-  capacity: number;
-  note?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PTTrainingSlot {
   id: string;
   ptAccountId: string;
   branchId: string;
-  startTime: string;
-  endTime: string;
-  capacity: number;
-  note: string | null;
+  shiftTemplateId: string;
+  fromDate: string;
+  toDate: string;
+  maxStudents: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   branch: Branch;
+  shiftTemplate: PTShiftTemplate;
 }
 
 export interface PTTrainingSlotsResponse {
   message: string;
   data: PTTrainingSlot[];
+}
+
+export interface PTShiftTemplatesResponse {
+  message: string;
+  data: PTShiftTemplate[];
 }
 
 export interface CreateBranchRequest {

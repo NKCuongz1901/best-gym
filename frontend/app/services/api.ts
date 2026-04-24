@@ -39,6 +39,7 @@ import {
   PtAccountsResponse,
   PTAssistRequestsResponse,
   PTAssistSchedulesResponse,
+  PTShiftTemplatesResponse,
   PTTrainingSlotsResponse,
   PTTrainingHistoriesResponse,
   PurchasePackageRequest,
@@ -346,6 +347,11 @@ export const getPTTrainingSlots = async (filter?: {
     params: filter,
   });
   return res as unknown as PTTrainingSlotsResponse;
+};
+
+export const getPTShiftTemplates = async (): Promise<any> => {
+  const res = await axios.get<PTShiftTemplatesResponse>(API.PT.GET_SHIFT_TEMPLATES);
+  return res as unknown as PTShiftTemplatesResponse;
 };
 
 export const createBranch = async (

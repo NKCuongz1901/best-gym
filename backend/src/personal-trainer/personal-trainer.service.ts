@@ -7,6 +7,7 @@ import {
   AccountStatus,
   PtAssistRequestStatus,
   Role,
+  ShiftType,
   UserPackageStatus,
 } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -19,6 +20,26 @@ import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 @Injectable()
 export class PersonalTrainerService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getShiftTemplates() {
+    const templates = await this.prisma.ptShiftTemplate.findMany({
+      where: { isActive: true },
+      orderBy: { startTime: 'asc' },
+    });
+
+    const typeOrder: Record<ShiftType, number> = {
+      [ShiftType.MORNING]: 1,
+      [ShiftType.AFTERNOON]: 2,
+      [ShiftType.EVENING]: 3,
+    };
+
+    templates.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
+
+    return {
+      message: 'Get shift templates successfully',
+      data: templates,
+    };
+  }
 
   async getPtAssistRequests(ptAccountId: string) {
     const requests = await this.prisma.ptAssistRequest.findMany({
@@ -467,23 +488,13 @@ export class PersonalTrainerService {
       throw new NotFoundException('PT account not found or inactive');
     }
 
-    const start = new Date(dto.startTime);
-    const end = new Date(dto.endTime);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Invalid startTime or endTime');
+    const fromDate = new Date(dto.fromDate);
+    const toDate = new Date(dto.toDate);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+      throw new BadRequestException('Invalid fromDate or toDate');
     }
-    if (end <= start) {
-      throw new BadRequestException('endTime must be after startTime');
-    }
-
-    const sameCalendarDay =
-      start.getUTCFullYear() === end.getUTCFullYear() &&
-      start.getUTCMonth() === end.getUTCMonth() &&
-      start.getUTCDate() === end.getUTCDate();
-    if (!sameCalendarDay) {
-      throw new BadRequestException(
-        'startTime and endTime must be on the same calendar day (UTC)',
-      );
+    if (toDate < fromDate) {
+      throw new BadRequestException('toDate must be greater than or equal fromDate');
     }
 
     const branch = await this.prisma.branch.findFirst({
@@ -494,17 +505,43 @@ export class PersonalTrainerService {
       throw new NotFoundException('Branch not found or inactive');
     }
 
-    const slot = await this.prisma.ptTrainingSlot.create({
+    const shiftTemplate = await this.prisma.ptShiftTemplate.findFirst({
+      where: { id: dto.shiftTemplateId, isActive: true },
+      select: { id: true, type: true, startTime: true, endTime: true },
+    });
+    if (!shiftTemplate) {
+      throw new NotFoundException('Shift template not found or inactive');
+    }
+
+    const overlap = await this.prisma.ptShiftSchedule.findFirst({
+      where: {
+        ptAccountId,
+        branchId: dto.branchId,
+        shiftTemplateId: dto.shiftTemplateId,
+        isActive: true,
+        fromDate: { lte: toDate },
+        toDate: { gte: fromDate },
+      },
+      select: { id: true },
+    });
+    if (overlap) {
+      throw new BadRequestException('This shift is already scheduled in date range');
+    }
+
+    const slot = await this.prisma.ptShiftSchedule.create({
       data: {
         ptAccountId,
         branchId: dto.branchId,
-        startTime: start,
-        endTime: end,
-        capacity: dto.capacity,
-        note: dto.note,
+        shiftTemplateId: dto.shiftTemplateId,
+        fromDate,
+        toDate,
+        maxStudents: dto.maxStudents,
       },
       include: {
         branch: { select: { id: true, name: true, address: true } },
+        shiftTemplate: {
+          select: { id: true, type: true, startTime: true, endTime: true },
+        },
       },
     });
 
@@ -522,24 +559,27 @@ export class PersonalTrainerService {
 
     const where: {
       ptAccountId: string;
-      startTime?: { gte?: Date; lte?: Date };
+      fromDate?: { lte?: Date };
+      toDate?: { gte?: Date };
     } = { ptAccountId };
 
     if (from || to) {
-      where.startTime = {};
       if (from) {
-        where.startTime.gte = new Date(`${from}T00:00:00.000Z`);
+        where.toDate = { gte: new Date(`${from}T00:00:00.000Z`) };
       }
       if (to) {
-        where.startTime.lte = new Date(`${to}T23:59:59.999Z`);
+        where.fromDate = { lte: new Date(`${to}T23:59:59.999Z`) };
       }
     }
 
-    const slots = await this.prisma.ptTrainingSlot.findMany({
+    const slots = await this.prisma.ptShiftSchedule.findMany({
       where,
-      orderBy: { startTime: 'asc' },
+      orderBy: { fromDate: 'asc' },
       include: {
         branch: { select: { id: true, name: true, address: true } },
+        shiftTemplate: {
+          select: { id: true, type: true, startTime: true, endTime: true },
+        },
       },
     });
 

@@ -29,6 +29,7 @@ export interface API_PROPS {
     ACCEPT_ASSIST_REQUEST: (requestId: string) => string;
     REJECT_ASSIST_REQUEST: (requestId: string) => string;
     GET_SCHEDULE: string;
+    GET_SHIFT_TEMPLATES: string;
     CREATE_TRAINING_SLOT: string;
     GET_TRAINING_SLOTS: string;
     ASSIGN_PROGRAM_TO_USER: () => string;
@@ -95,6 +96,7 @@ export const API: API_PROPS = {
     REJECT_ASSIST_REQUEST: (requestId: string) =>
       `/pt/pt-assist-requests/${requestId}/reject`,
     GET_SCHEDULE: '/pt/assist-schedule',
+    GET_SHIFT_TEMPLATES: '/pt/shift-templates',
     CREATE_TRAINING_SLOT: '/pt/training-slots',
     GET_TRAINING_SLOTS: '/pt/training-slots',
     ASSIGN_PROGRAM_TO_USER: () => `/pt/assign-program-to-user`,

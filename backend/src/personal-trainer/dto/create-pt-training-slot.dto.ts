@@ -1,8 +1,7 @@
 import {
+  IsDateString,
   IsInt,
   IsNotEmpty,
-  IsOptional,
-  IsString,
   IsUUID,
   Max,
   Min,
@@ -14,20 +13,20 @@ export class CreatePtTrainingSlotDto {
   branchId: string;
 
   @IsNotEmpty()
-  @IsString()
-  startTime: string;
+  @IsUUID()
+  shiftTemplateId: string;
 
   @IsNotEmpty()
-  @IsString()
-  endTime: string;
+  @IsDateString()
+  fromDate: string;
+
+  @IsNotEmpty()
+  @IsDateString()
+  toDate: string;
 
   @IsNotEmpty()
   @IsInt()
   @Min(1)
   @Max(50)
-  capacity: number;
-
-  @IsOptional()
-  @IsString()
-  note?: string;
+  maxStudents: number;
 }

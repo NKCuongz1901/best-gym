@@ -88,6 +88,13 @@ enum SessionCompletion {
   NO_SHOW
 }
 
+
+enum ShiftType {
+  MORNING   // 07:00-09:00
+  AFTERNOON // 15:00-17:00
+  EVENING   // 18:00-20:00
+}
+
 model Account {
   id                     String        @id @default(uuid())
   email                  String        @unique
@@ -117,9 +124,14 @@ model Account {
 
   // PT request: request gửi đến PT
   ptIncomingAssistRequests PtAssistRequest[] @relation("PtAssistRequestsPT")
-  ptSessionReportsWritten PtSessionReport[] @relation("PtSessionReportsPT")
+
+  ptSessionReportsWritten  PtSessionReport[] @relation("PtSessionReportsPT")
   ptSessionReportsReceived PtSessionReport[] @relation("PtSessionReportsUser")
-  ptTrainingSlots PtTrainingSlot[] @relation("PtTrainingSlots")
+
+  /**
+   * ✅ NEW: PT đăng ký ca làm việc theo range ngày + chi nhánh
+   */
+  ptShiftSchedules PtShiftSchedule[] @relation("PtShiftSchedulesPT")
 }
 
 model Profile {
@@ -150,10 +162,14 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userPackages      UserPackage[]
-  checkins          CheckIn[]
-  ptAssistRequests  PtAssistRequest[]
-  ptTrainingSlots   PtTrainingSlot[]
+  userPackages     UserPackage[]
+  checkins         CheckIn[]
+  ptAssistRequests PtAssistRequest[]
+
+  /**
+   * ✅ NEW: Branch có nhiều ca PT đăng ký
+   */
+  ptShiftSchedules PtShiftSchedule[]
 }
 
 model Package {
@@ -200,9 +216,8 @@ model UserPackage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  checkins CheckIn[]
+  checkins         CheckIn[]
   ptAssistRequests PtAssistRequest[]
-
 
   programId String?
   program   Program? @relation(fields: [programId], references: [id])
@@ -210,7 +225,6 @@ model UserPackage {
   workoutHistories WorkoutHistory[]
 
   @@index([programId])
-
   @@index([accountId, status])
   @@index([ptAccountId])
   @@index([branchId])
@@ -245,7 +259,6 @@ model Exercise {
   muscleGroup MuscleGroup
   level       ExerciseLevel
 
-  // bạn đang dùng String?; nếu muốn filter dụng cụ tốt hơn thì đổi sang String[]
   equipments String?
   thumbnail  String?
   videoUrl   String?
@@ -275,7 +288,7 @@ model Program {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  days ProgramDay[]
+  days         ProgramDay[]
   userPackages UserPackage[]
 
   workoutHistories WorkoutHistory[]
@@ -296,7 +309,7 @@ model ProgramDay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  exercises ProgramDayExercise[]
+  exercises        ProgramDayExercise[]
   workoutHistories WorkoutHistory[]
 
   @@unique([programId, dayOfWeek])
@@ -318,29 +331,6 @@ model ProgramDayExercise {
   @@unique([programDayId, exerciseId])
   @@index([exerciseId])
   @@index([programDayId, sortOrder])
-}
-
-/// Ca tập do PT tạo cho một ngày cụ thể (startTime/endTime là DateTime đầy đủ).
-model PtTrainingSlot {
-  id String @id @default(uuid())
-
-  ptAccountId String
-  ptAccount   Account @relation("PtTrainingSlots", fields: [ptAccountId], references: [id], onDelete: Cascade)
-
-  branchId String
-  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  startTime DateTime
-  endTime   DateTime
-
-  capacity Int
-  note     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([ptAccountId, startTime])
-  @@index([branchId, startTime])
 }
 
 model PtAssistRequest {
@@ -409,30 +399,74 @@ model WorkoutHistory {
 }
 
 model PtSessionReport {
-  id               String @id @default(uuid())
+  id String @id @default(uuid())
 
   ptAssistRequestId String @unique
   ptAssistRequest   PtAssistRequest @relation(fields: [ptAssistRequestId], references: [id], onDelete: Cascade)
 
-  ptAccountId       String
-  ptAccount         Account @relation("PtSessionReportsPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+  ptAccountId String
+  ptAccount   Account @relation("PtSessionReportsPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
 
-  accountId         String
-  account           Account @relation("PtSessionReportsUser", fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String
+  account   Account @relation("PtSessionReportsUser", fields: [accountId], references: [id], onDelete: Cascade)
 
-  completion        SessionCompletion @default(COMPLETED)
+  completion SessionCompletion @default(COMPLETED)
 
-  summary           String?   
-  techniqueNote     String?   
-  improvement       String?   
-  nextSessionPlan   String?   
+  summary         String?
+  techniqueNote   String?
+  improvement     String?
+  nextSessionPlan String?
 
-  weightKg          Float?
-  bodyNote          String?
+  weightKg Float?
+  bodyNote String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([ptAccountId, createdAt])
   @@index([accountId, createdAt])
+}
+
+/**
+ * NEW: 3 shift templates (seed 3 rows)
+ */
+model PtShiftTemplate {
+  id        String    @id @default(uuid())
+  type      ShiftType @unique
+  startTime String   
+  endTime   String    
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedules PtShiftSchedule[]
+}
+
+
+model PtShiftSchedule {
+  id              String @id @default(uuid())
+
+  ptAccountId     String
+  ptAccount       Account @relation("PtShiftSchedulesPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  branchId        String
+  branch          Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  shiftTemplateId String
+  shiftTemplate   PtShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
+
+  fromDate    DateTime
+  toDate      DateTime
+
+  maxStudents Int     @default(1)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ptAccountId, branchId])
+  @@index([shiftTemplateId])
+  @@index([ptAccountId, fromDate, toDate])
+  @@index([branchId, fromDate, toDate])
 }

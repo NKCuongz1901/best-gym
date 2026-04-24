@@ -27,6 +27,7 @@ import ConfirmPurchaseStep from '@/app/components/purchase/ConfirmPurchaseStep';
 export default function PurchasePackagePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const packageIdFromQuery = searchParams.get('packageId');
 
   const { isLoggedIn, loading: authLoading } = useAuthStore();
 
@@ -95,6 +96,16 @@ export default function PurchasePackagePage() {
     () => packages.find((pkg) => pkg.id === selectedPackageId) ?? null,
     [packages, selectedPackageId],
   );
+
+  const displayPackages = useMemo(() => {
+    if (packageIdFromQuery) {
+      return packages.filter((pkg) => pkg.id === packageIdFromQuery);
+    }
+    if (selectedPackageId) {
+      return packages.filter((pkg) => pkg.id === selectedPackageId);
+    }
+    return packages;
+  }, [packages, packageIdFromQuery, selectedPackageId]);
 
   const selectedBranch = useMemo(
     () => branches.find((b) => b.id === selectedBranchId) ?? null,
@@ -208,7 +219,7 @@ export default function PurchasePackagePage() {
           {currentStep === 0 && (
             <SelectPackageStep
               loading={isLoadingPackages}
-              packages={packages}
+              packages={displayPackages}
               selectedPackageId={selectedPackageId}
               onSelect={(pkg) => {
                 setSelectedPackageId(pkg.id);

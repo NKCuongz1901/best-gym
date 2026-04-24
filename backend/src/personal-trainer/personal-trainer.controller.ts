@@ -34,6 +34,13 @@ export class PersonalTrainerController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)
+  @Get('shift-templates')
+  async getShiftTemplates() {
+    return this.personalTrainerService.getShiftTemplates();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PT)
   @Post('pt-assist-requests/:id/accept')
   async acceptPtAssistRequest(@Req() req: any, @Param('id') id: string) {
     return this.personalTrainerService.acceptPtAssistRequest(

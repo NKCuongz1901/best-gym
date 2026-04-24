@@ -95,18 +95,18 @@ export class UserPackageController {
     return this.userPackageService.getWorkoutHistory(req.user.userId, filter);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.USER)
-  @Get('pt-training-slots')
-  async getPtTrainingSlots(
-    @Req() req: any,
-    @Query() filter: FilterPtTrainingSlotsForUserDto,
-  ) {
-    return this.userPackageService.getPtTrainingSlotsForUser(
-      req.user.userId,
-      filter,
-    );
-  }
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles(Role.USER)
+  // @Get('pt-training-slots')
+  // async getPtTrainingSlots(
+  //   @Req() req: any,
+  //   @Query() filter: FilterPtTrainingSlotsForUserDto,
+  // ) {
+  //   return this.userPackageService.getPtTrainingSlotsForUser(
+  //     req.user.userId,
+  //     filter,
+  //   );
+  // }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.USER)
