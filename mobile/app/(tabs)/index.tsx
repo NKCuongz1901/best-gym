@@ -3,15 +3,15 @@ import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
 import {
   createPtAssistRequest,
+  getAvailablePTs,
   getPTAssistSchedule,
-  getPtTrainingSlotsForUser,
 } from "@/services/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useMyPurchasePackages } from "@/stores/useMyPurchasePackages";
 import {
   MyPurchasePackage,
   PTAssistSchedule,
-  PtTrainingSlotForUser,
+  AvailablePtShiftSchedule,
 } from "@/types/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -152,17 +152,47 @@ const formatSlotDateLabel = (value: string) =>
     month: "2-digit",
   });
 
-const formatSlotTimeLabel = (startTime: string, endTime: string) => {
-  const start = new Date(startTime).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const end = new Date(endTime).toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const formatTimeValue = (value: string) => {
+  // Supports both ISO datetime and "HH:mm" / "HH:mm:ss" values from shiftTemplate.
+  if (value.includes("T")) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  }
 
-  return `${start} - ${end}`;
+  const [hour = "00", minute = "00"] = value.split(":");
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
+};
+
+const formatSlotTimeLabel = (startTime: string, endTime: string) =>
+  `${formatTimeValue(startTime)} - ${formatTimeValue(endTime)}`;
+
+const formatDayKey = (date: Date) =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    date.getUTCDate(),
+  ).padStart(2, "0")}`;
+
+const getDateRangeInDays = (fromIso: string, toIso: string) => {
+  const fromDate = new Date(fromIso);
+  const toDate = new Date(toIso);
+  fromDate.setUTCHours(0, 0, 0, 0);
+  toDate.setUTCHours(0, 0, 0, 0);
+
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+    return [];
+  }
+
+  const result: string[] = [];
+  const cursor = new Date(fromDate);
+  while (cursor <= toDate) {
+    result.push(formatDayKey(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return result;
 };
 
 export default function HomeScreen() {
@@ -178,17 +208,17 @@ export default function HomeScreen() {
     null,
   );
   const [selectedSlotId, setSelectedSlotId] = useState("");
+  const [selectedSessionDate, setSelectedSessionDate] = useState("");
   const [note, setNote] = useState("");
-  const {
-    data: ptSlotsData,
-    isLoading: isLoadingPtSlots,
-  } = useQuery({
-    queryKey: ["pt-training-slots-for-user", selectedPackage?.id],
+  const { data: availablePtData, isLoading: isLoadingPtSlots } = useQuery({
+    queryKey: ["available-pts-for-package", selectedPackage?.id],
     queryFn: () =>
-      getPtTrainingSlotsForUser({
-        userPackageId: selectedPackage?.id ?? "",
+      getAvailablePTs({
+        branchId: selectedPackage?.branchId ?? "",
+        from: selectedPackage?.startAt?.slice(0, 10),
+        to: selectedPackage?.endAt?.slice(0, 10),
       }),
-    enabled: !!selectedPackage?.id,
+    enabled: !!selectedPackage?.id && !!selectedPackage?.branchId,
   });
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
@@ -211,6 +241,7 @@ export default function HomeScreen() {
       });
       setSelectedPackage(null);
       setSelectedSlotId("");
+      setSelectedSessionDate("");
       setNote("");
       await refetch();
     },
@@ -226,6 +257,7 @@ export default function HomeScreen() {
   const handleOpenPtRequestModal = (item: MyPurchasePackage) => {
     setSelectedPackage(item);
     setSelectedSlotId("");
+    setSelectedSessionDate("");
     setNote("");
   };
 
@@ -236,13 +268,14 @@ export default function HomeScreen() {
 
     setSelectedPackage(null);
     setSelectedSlotId("");
+    setSelectedSessionDate("");
   };
 
   const handleCreatePtRequest = () => {
-    if (!selectedPackage || !selectedSlotId) {
+    if (!selectedPackage || !selectedSlotId || !selectedSessionDate) {
       Toast.show({
         type: "error",
-        text1: "Vui lòng chọn ca dạy của PT",
+        text1: "Vui lòng chọn ca dạy và ngày tập",
       });
       return;
     }
@@ -250,14 +283,49 @@ export default function HomeScreen() {
     ptRequestMutation.mutate({
       userPackageId: selectedPackage.id,
       slotId: selectedSlotId,
+      sessionDate: selectedSessionDate,
       note: note.trim() || undefined,
     });
   };
 
-  const availablePtSlots = useMemo<PtTrainingSlotForUser[]>(() => {
-    const slots = ptSlotsData?.data ?? [];
-    return slots.filter((slot) => !slot.isFull);
-  }, [ptSlotsData]);
+  const selectedPtShifts = useMemo<AvailablePtShiftSchedule[]>(() => {
+    if (!selectedPackage?.ptAccountId) {
+      return [];
+    }
+    const pt = (availablePtData?.data ?? []).find(
+      (item) => item.id === selectedPackage.ptAccountId,
+    );
+    return pt?.ptShiftSchedules ?? [];
+  }, [availablePtData, selectedPackage?.ptAccountId]);
+
+  const selectedShift = useMemo(
+    () => selectedPtShifts.find((shift) => shift.id === selectedSlotId) ?? null,
+    [selectedPtShifts, selectedSlotId],
+  );
+
+  const selectableSessionDates = useMemo(() => {
+    if (!selectedShift || !selectedPackage?.startAt || !selectedPackage?.endAt) {
+      return [];
+    }
+    const minFrom = new Date(selectedShift.fromDate) > new Date(selectedPackage.startAt)
+      ? selectedShift.fromDate
+      : selectedPackage.startAt;
+    const maxTo =
+      new Date(selectedShift.toDate) < new Date(selectedPackage.endAt)
+        ? selectedShift.toDate
+        : selectedPackage.endAt;
+
+    const allDays = getDateRangeInDays(minFrom, maxTo);
+    const nowDay = formatDayKey(new Date());
+    return allDays.filter((day) => day >= nowDay).slice(0, 21);
+  }, [selectedShift, selectedPackage?.startAt, selectedPackage?.endAt]);
+
+  React.useEffect(() => {
+    if (!selectedSessionDate || selectableSessionDates.includes(selectedSessionDate)) {
+      return;
+    }
+    setSelectedSessionDate("");
+  }, [selectedSessionDate, selectableSessionDates]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -479,38 +547,37 @@ export default function HomeScreen() {
                 <ActivityIndicator color="#22C55E" />
                 <Text style={styles.slotLoadingText}>Đang tải danh sách ca dạy...</Text>
               </View>
-            ) : availablePtSlots.length ? (
+            ) : selectedPtShifts.length ? (
               <View style={styles.slotList}>
-                {availablePtSlots.map((slot) => {
+                {selectedPtShifts.map((slot) => {
                   const isActive = slot.id === selectedSlotId;
                   return (
                     <Pressable
                       key={slot.id}
-                      onPress={() => setSelectedSlotId(slot.id)}
+                      onPress={() => {
+                        setSelectedSlotId(slot.id);
+                        setSelectedSessionDate("");
+                      }}
                       style={[styles.slotCard, isActive && styles.slotCardActive]}
                     >
                       <View style={styles.slotCardHeader}>
                         <Text style={[styles.slotDate, isActive && styles.slotDateActive]}>
-                          {formatSlotDateLabel(slot.startTime)}
-                        </Text>
-                        <Text style={[styles.slotSeats, isActive && styles.slotSeatsActive]}>
-                          {slot.availableSeats}/{slot.capacity} chỗ trống
+                          {slot.shiftTemplate.type === "MORNING"
+                            ? "Ca sáng"
+                            : slot.shiftTemplate.type === "AFTERNOON"
+                              ? "Ca chiều"
+                              : "Ca tối"}
                         </Text>
                       </View>
                       <Text style={[styles.slotTime, isActive && styles.slotTimeActive]}>
-                        {formatSlotTimeLabel(slot.startTime, slot.endTime)}
+                        {formatSlotTimeLabel(slot.shiftTemplate.startTime, slot.shiftTemplate.endTime)}
                       </Text>
                       <Text style={[styles.slotBranch, isActive && styles.slotBranchActive]}>
                         {slot.branch.name}
                       </Text>
-                      {slot.note ? (
-                        <Text
-                          style={[styles.slotNote, isActive && styles.slotNoteActive]}
-                          numberOfLines={2}
-                        >
-                          {slot.note}
-                        </Text>
-                      ) : null}
+                      <Text style={[styles.slotNote, isActive && styles.slotNoteActive]}>
+                        Hiệu lực: {formatSlotDateLabel(slot.fromDate)} - {formatSlotDateLabel(slot.toDate)}
+                      </Text>
                     </Pressable>
                   );
                 })}
@@ -522,6 +589,45 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+
+            {selectedShift ? (
+              <>
+                <Text style={styles.inputLabel}>Chọn ngày tập</Text>
+                {selectableSessionDates.length ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalSelectorContent}
+                  >
+                    {selectableSessionDates.map((date) => {
+                      const active = date === selectedSessionDate;
+                      return (
+                        <Pressable
+                          key={date}
+                          style={[styles.selectorChip, active && styles.selectorChipActive]}
+                          onPress={() => setSelectedSessionDate(date)}
+                        >
+                          <Text
+                            style={[
+                              styles.selectorChipText,
+                              active && styles.selectorChipTextActive,
+                            ]}
+                          >
+                            {formatSlotDateLabel(date)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.slotEmptyBox}>
+                    <Text style={styles.slotEmptyText}>
+                      Không có ngày hợp lệ trong khung thời gian của ca dạy này.
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : null}
 
             <Text style={styles.inputLabel}>Ghi chú</Text>
             <TextInput

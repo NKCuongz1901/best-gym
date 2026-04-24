@@ -3,6 +3,7 @@ import {
   CheckInHistoryResponse,
   CheckInRequest,
   CheckInResponse,
+  AvailablePtResponse,
   CreateWorkoutHistoryRequest,
   CreateWorkoutHistoryResponse,
   CreatePtAssistRequest,
@@ -106,6 +107,19 @@ export const getPtTrainingSlotsForUser = async (params: {
     },
   );
   return res as unknown as PtTrainingSlotsForUserResponse;
+};
+
+export const getAvailablePTs = async (params: {
+  branchId: string;
+  shiftType?: "MORNING" | "AFTERNOON" | "EVENING";
+  from?: string;
+  to?: string;
+  search?: string;
+}): Promise<AvailablePtResponse> => {
+  const res = await axios.get<AvailablePtResponse>(API.USER.GET_AVAILABLE_PTS, {
+    params,
+  });
+  return res as unknown as AvailablePtResponse;
 };
 
 export const getPTAssistSchedule = async (params: {

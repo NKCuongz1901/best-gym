@@ -634,6 +634,14 @@ export class UserPackageService {
   }
 
   async createRequestPT(accountId: string, dto: CreatePtAssistRequestDto) {
+    const toIsoTime = (time: string) => {
+      const [hour = '00', minute = '00', second = '00'] = time.split(':');
+      return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(
+        2,
+        '0',
+      )}`;
+    };
+
     return this.prisma.$transaction(async (tx) => {
       const userPackage = await tx.userPackage.findUnique({
         where: { id: dto.userPackageId },
@@ -669,75 +677,114 @@ export class UserPackageService {
         throw new BadRequestException('No PT assigned to this UserPackage');
       }
 
-      // const selectedSlot = await tx.ptTrainingSlot.findUnique({
-      //   where: { id: dto.slotId },
-      // });
-      // if (!selectedSlot) {
-      //   throw new NotFoundException('PT training slot not found');
-      // }
+      const selectedSlot = await tx.ptShiftSchedule.findUnique({
+        where: { id: dto.slotId },
+        include: {
+          shiftTemplate: {
+            select: { id: true, type: true, startTime: true, endTime: true },
+          },
+        },
+      });
+      if (!selectedSlot) {
+        throw new NotFoundException('PT shift schedule not found');
+      }
 
-      // if (selectedSlot.ptAccountId !== userPackage.ptAccountId) {
-      //   throw new BadRequestException('Selected slot does not belong to your PT');
-      // }
+      if (selectedSlot.ptAccountId !== userPackage.ptAccountId) {
+        throw new BadRequestException(
+          'Selected schedule does not belong to your assigned PT',
+        );
+      }
+      if (selectedSlot.branchId !== userPackage.branchId) {
+        throw new BadRequestException(
+          'Selected schedule does not belong to your package branch',
+        );
+      }
 
-      // if (selectedSlot.startTime < userPackage.startAt || selectedSlot.startTime > userPackage.endAt) {
-      //   throw new BadRequestException(
-      //     'Requested time is outside package validity',
-      //   );
-      // }
+      const requestedStart = new Date(
+        `${dto.sessionDate}T${toIsoTime(selectedSlot.shiftTemplate.startTime)}.000Z`,
+      );
+      const requestedEnd = new Date(
+        `${dto.sessionDate}T${toIsoTime(selectedSlot.shiftTemplate.endTime)}.000Z`,
+      );
+      if (
+        Number.isNaN(requestedStart.getTime()) ||
+        Number.isNaN(requestedEnd.getTime())
+      ) {
+        throw new BadRequestException('Invalid sessionDate or shift time');
+      }
+      if (requestedEnd <= requestedStart) {
+        throw new BadRequestException('Invalid shift template time range');
+      }
 
-      // const usedSeats = await tx.ptAssistRequest.count({
-      //   where: {
-      //     ptAccountId: selectedSlot.ptAccountId,
-      //     branchId: selectedSlot.branchId,
-      //     startTime: selectedSlot.startTime,
-      //     endTime: selectedSlot.endTime,
-      //     status: {
-      //       in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
-      //     },
-      //   },
-      // });
-      // if (usedSeats >= selectedSlot.capacity) {
-      //   throw new BadRequestException('Selected slot is full');
-      // // }
+      if (
+        requestedStart < selectedSlot.fromDate ||
+        requestedStart > selectedSlot.toDate
+      ) {
+        throw new BadRequestException(
+          'Requested date is outside PT shift schedule range',
+        );
+      }
+      if (
+        requestedStart < userPackage.startAt ||
+        requestedStart > userPackage.endAt
+      ) {
+        throw new BadRequestException(
+          'Requested time is outside package validity',
+        );
+      }
 
-      // const dupPending = await tx.ptAssistRequest.findFirst({
-      //   where: {
-      //     accountId,
-      //     ptAccountId: selectedSlot.ptAccountId,
-      //     status: PtAssistRequestStatus.PENDING,
-      //     startTime: selectedSlot.startTime,
-      //     endTime: selectedSlot.endTime,
-      //   },
-      //   select: { id: true },
-      // });
+      const usedSeats = await tx.ptAssistRequest.count({
+        where: {
+          ptAccountId: selectedSlot.ptAccountId,
+          branchId: selectedSlot.branchId,
+          startTime: requestedStart,
+          endTime: requestedEnd,
+          status: {
+            in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
+          },
+        },
+      });
+      if (usedSeats >= selectedSlot.maxStudents) {
+        throw new BadRequestException('Selected slot is full');
+      }
 
-      // if (dupPending) {
-      //   throw new BadRequestException(
-      //     'You already have a pending request in this time slot',
-      //   );
-      // }
+      const dupPending = await tx.ptAssistRequest.findFirst({
+        where: {
+          accountId,
+          ptAccountId: selectedSlot.ptAccountId,
+          status: PtAssistRequestStatus.PENDING,
+          startTime: requestedStart,
+          endTime: requestedEnd,
+        },
+        select: { id: true },
+      });
 
-      // const created = await tx.ptAssistRequest.create({
-      //   data: {
-      //     accountId,
-      //     userPackageId: userPackage.id,
-      //     branchId: selectedSlot.branchId,
-      //     ptAccountId: selectedSlot.ptAccountId,
-      //     startTime: selectedSlot.startTime,
-      //     endTime: selectedSlot.endTime,
-      //     note: dto.note,
-      //     status: PtAssistRequestStatus.PENDING,
-      //   },
-      //   include: {
-      //     branch: { select: { id: true, name: true } },
-      //     ptAccount: { select: { id: true, email: true } },
-      //   },
-      // });
+      if (dupPending) {
+        throw new BadRequestException(
+          'You already have a pending request in this time slot',
+        );
+      }
+
+      const created = await tx.ptAssistRequest.create({
+        data: {
+          accountId,
+          userPackageId: userPackage.id,
+          branchId: selectedSlot.branchId,
+          ptAccountId: selectedSlot.ptAccountId,
+          startTime: requestedStart,
+          endTime: requestedEnd,
+          note: dto.note,
+          status: PtAssistRequestStatus.PENDING,
+        },
+        include: {
+          branch: { select: { id: true, name: true } },
+          ptAccount: { select: { id: true, email: true } },
+        },
+      });
 
       return {
         message: 'Create PT assist request successfully',
-        // data: created,
+        data: created,
       };
     });
   }

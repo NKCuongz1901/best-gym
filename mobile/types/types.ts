@@ -6,6 +6,29 @@ export interface UserAccount {
   };
 }
 
+export interface AvailablePtShiftSchedule {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  maxStudents: number;
+  branch: Branch;
+  shiftTemplate: {
+    id: string;
+    type: "MORNING" | "AFTERNOON" | "EVENING";
+    startTime: string;
+    endTime: string;
+  };
+}
+
+export interface AvailablePtAccount extends PtAccount {
+  ptShiftSchedules: AvailablePtShiftSchedule[];
+}
+
+export interface AvailablePtResponse {
+  message: string;
+  data: AvailablePtAccount[];
+}
+
 export interface PtAccount {
   id: string;
   email: string;
@@ -175,6 +198,7 @@ export interface AcceptedTraineeRequestsResponse {
 export interface CreatePtAssistRequest {
   userPackageId: string;
   slotId: string;
+  sessionDate: string;
   note?: string;
 }
 

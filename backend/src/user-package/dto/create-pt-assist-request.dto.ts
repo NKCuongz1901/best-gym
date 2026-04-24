@@ -1,4 +1,5 @@
 import {
+  Matches,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -13,6 +14,12 @@ export class CreatePtAssistRequestDto {
   @IsNotEmpty()
   @IsUUID()
   slotId: string;
+
+  @IsNotEmpty()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'sessionDate must be yyyy-MM-dd',
+  })
+  sessionDate: string;
 
   @IsOptional()
   @IsString()

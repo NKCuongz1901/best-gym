@@ -39,9 +39,7 @@ import {
   rejectPTAssistRequest,
   reportUserSession,
 } from '@/app/services/api';
-import type {
-  FILTER_PT_ASSIST_SCHEDULE_PROPS,
-} from '@/app/types/filters';
+import type { FILTER_PT_ASSIST_SCHEDULE_PROPS } from '@/app/types/filters';
 import type {
   Branch,
   CreatePTTrainingSlotRequest,
@@ -95,9 +93,13 @@ function filterPendingInRange(
 }
 
 function renderEventContent(arg: EventContentArg) {
-  const status = (arg.event.extendedProps.status as string | undefined) ?? 'ACCEPTED';
-  const trainee = (arg.event.extendedProps.traineeName as string | undefined) ?? 'Không rõ học viên';
-  const packageName = (arg.event.extendedProps.packageName as string | undefined) ?? '';
+  const status =
+    (arg.event.extendedProps.status as string | undefined) ?? 'ACCEPTED';
+  const trainee =
+    (arg.event.extendedProps.traineeName as string | undefined) ??
+    'Không rõ học viên';
+  const packageName =
+    (arg.event.extendedProps.packageName as string | undefined) ?? '';
   const colorClass =
     status === 'REJECTED'
       ? 'bg-red-500/90'
@@ -108,7 +110,9 @@ function renderEventContent(arg: EventContentArg) {
           : 'bg-sky-500/90';
 
   return (
-    <div className={`w-full rounded px-1.5 py-1 text-[11px] leading-tight text-white ${colorClass}`}>
+    <div
+      className={`w-full rounded px-1.5 py-1 text-[11px] leading-tight text-white ${colorClass}`}
+    >
       <div className="font-semibold">{arg.timeText}</div>
       <div className="font-semibold">{trainee}</div>
       {packageName ? <div className="opacity-90">{packageName}</div> : null}
@@ -124,7 +128,9 @@ type SetupSlotRow = {
   maxStudents: number;
 };
 
-function expandShiftSchedulesToBackgroundEvents(slots: PTTrainingSlot[]): EventInput[] {
+function expandShiftSchedulesToBackgroundEvents(
+  slots: PTTrainingSlot[],
+): EventInput[] {
   const events: EventInput[] = [];
   for (const slot of slots) {
     let cursor = dayjs(slot.fromDate).startOf('day');
@@ -132,8 +138,16 @@ function expandShiftSchedulesToBackgroundEvents(slots: PTTrainingSlot[]): EventI
     while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
       const [sh, sm] = slot.shiftTemplate.startTime.split(':').map(Number);
       const [eh, em] = slot.shiftTemplate.endTime.split(':').map(Number);
-      const start = cursor.hour(sh || 0).minute(sm || 0).second(0).millisecond(0);
-      const finish = cursor.hour(eh || 0).minute(em || 0).second(0).millisecond(0);
+      const start = cursor
+        .hour(sh || 0)
+        .minute(sm || 0)
+        .second(0)
+        .millisecond(0);
+      const finish = cursor
+        .hour(eh || 0)
+        .minute(em || 0)
+        .second(0)
+        .millisecond(0);
       if (finish.isAfter(start)) {
         events.push({
           id: `pt-shift-${slot.id}-${cursor.format('YYYY-MM-DD')}`,
@@ -157,9 +171,8 @@ export default function PTSchedulePage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [setupSlotsOpen, setSetupSlotsOpen] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<PTAssistSchedule | null>(
-    null,
-  );
+  const [selectedSchedule, setSelectedSchedule] =
+    useState<PTAssistSchedule | null>(null);
   const [feedbackForm] = Form.useForm<ReportUserSessionRequest>();
   const [setupSlotsForm] = Form.useForm<{ slot: SetupSlotRow }>();
 
@@ -192,7 +205,11 @@ export default function PTSchedulePage() {
     const accepted: PTAssistSchedule[] = scheduleRes?.data ?? [];
     if (!range.from || !range.to) return accepted;
     const pendingRaw = assistRes?.data ?? [];
-    const pendingInRange = filterPendingInRange(pendingRaw, range.from, range.to);
+    const pendingInRange = filterPendingInRange(
+      pendingRaw,
+      range.from,
+      range.to,
+    );
     const pendingAsSchedules = pendingInRange.map(pendingRequestToSchedule);
     return [...pendingAsSchedules, ...accepted];
   }, [scheduleRes?.data, assistRes?.data, range.from, range.to]);
@@ -287,12 +304,14 @@ export default function PTSchedulePage() {
     value: t.id,
   }));
 
-  const isLoading = isLoadingSchedule || isLoadingAssist || isLoadingTrainingSlots;
+  const isLoading =
+    isLoadingSchedule || isLoadingAssist || isLoadingTrainingSlots;
 
   const events = useMemo<EventInput[]>(() => {
     return mergedSchedules.map((item) => {
       const traineeName =
-        item.extendedProps.account.profile?.name ?? item.extendedProps.account.email;
+        item.extendedProps.account.profile?.name ??
+        item.extendedProps.account.email;
       return {
         id: item.id,
         title: item.title,
@@ -407,9 +426,9 @@ export default function PTSchedulePage() {
           <div>
             <h1 className="text-2xl font-bold">Lịch dạy PT</h1>
             <p className="mt-1 text-sm text-neutral-300">
-              Theo dõi lịch hỗ trợ theo tuần và khung giờ chi tiết. Ô màu cam: chờ
-              bạn chấp nhận; ô màu tím: đã chấp nhận. Nền xanh nhạt: ca dạy PT đã
-              tạo.
+              Theo dõi lịch hỗ trợ theo tuần và khung giờ chi tiết. Ô màu cam:
+              chờ bạn chấp nhận; ô màu tím: đã chấp nhận. Nền xanh nhạt: ca dạy
+              PT đã tạo.
             </p>
           </div>
           <Button
@@ -547,7 +566,11 @@ export default function PTSchedulePage() {
                 >
                   Đóng
                 </Button>,
-                <Button key="feedback" type="primary" onClick={openFeedbackModal}>
+                <Button
+                  key="feedback"
+                  type="primary"
+                  onClick={openFeedbackModal}
+                >
                   Nhận xét
                 </Button>,
               ]
@@ -665,7 +688,11 @@ export default function PTSchedulePage() {
                 name={['slot', 'fromDate']}
                 rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
               >
-                <DatePicker format="DD/MM/YYYY" className="w-full" size="large" />
+                <DatePicker
+                  format="DD/MM/YYYY"
+                  className="w-full"
+                  size="large"
+                />
               </Form.Item>
               <Form.Item
                 className="mb-0"
@@ -675,26 +702,43 @@ export default function PTSchedulePage() {
                   { required: true, message: 'Chọn ngày kết thúc' },
                   {
                     validator: (_, value: Dayjs | undefined) => {
-                      const fromValue = setupSlotsForm.getFieldValue(['slot', 'fromDate']) as Dayjs | undefined;
+                      const fromValue = setupSlotsForm.getFieldValue([
+                        'slot',
+                        'fromDate',
+                      ]) as Dayjs | undefined;
                       if (!value || !fromValue) return Promise.resolve();
                       if (value.isBefore(fromValue, 'day')) {
-                        return Promise.reject(new Error('Đến ngày phải >= Từ ngày'));
+                        return Promise.reject(
+                          new Error('Đến ngày phải >= Từ ngày'),
+                        );
                       }
                       return Promise.resolve();
                     },
                   },
                 ]}
               >
-                <DatePicker format="DD/MM/YYYY" className="w-full" size="large" />
+                <DatePicker
+                  format="DD/MM/YYYY"
+                  className="w-full"
+                  size="large"
+                />
               </Form.Item>
             </div>
             <Form.Item
               className="mb-0 mt-3"
-              label={<span className="text-neutral-200">Số học viên tối đa</span>}
+              label={
+                <span className="text-neutral-200">Số học viên tối đa</span>
+              }
               name={['slot', 'maxStudents']}
               rules={[{ required: true, message: 'Nhập số học viên' }]}
             >
-              <InputNumber min={1} max={50} className="w-full" size="large" placeholder="Ví dụ: 6" />
+              <InputNumber
+                min={1}
+                max={50}
+                className="w-full"
+                size="large"
+                placeholder="Ví dụ: 6"
+              />
             </Form.Item>
           </div>
         </Form>
@@ -739,7 +783,10 @@ export default function PTSchedulePage() {
             label="Kỹ thuật"
             rules={[{ required: true, message: 'Nhập nhận xét kỹ thuật' }]}
           >
-            <Input.TextArea rows={2} placeholder="Điểm cần lưu ý về kỹ thuật..." />
+            <Input.TextArea
+              rows={2}
+              placeholder="Điểm cần lưu ý về kỹ thuật..."
+            />
           </Form.Item>
           <Form.Item
             name="improvement"
@@ -760,14 +807,22 @@ export default function PTSchedulePage() {
             label="Cân nặng (kg)"
             rules={[{ required: true, message: 'Nhập cân nặng' }]}
           >
-            <InputNumber min={0} step={0.1} className="w-full" placeholder="70" />
+            <InputNumber
+              min={0}
+              step={0.1}
+              className="w-full"
+              placeholder="70"
+            />
           </Form.Item>
           <Form.Item
             name="bodyNote"
             label="Ghi chú cơ thể"
             rules={[{ required: true, message: 'Nhập ghi chú' }]}
           >
-            <Input.TextArea rows={2} placeholder="Tình trạng sức khỏe, đau nhức..." />
+            <Input.TextArea
+              rows={2}
+              placeholder="Tình trạng sức khỏe, đau nhức..."
+            />
           </Form.Item>
         </Form>
       </Modal>

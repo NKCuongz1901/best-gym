@@ -13,6 +13,7 @@ export interface API_PROPS {
     CREATE_REQUEST_PT: string;
     GET_PT_TRAINING_HISTORY: string;
     GET_PT_TRAINING_SLOTS: string;
+    GET_AVAILABLE_PTS: string;
     GET_LIST_WORKOUT_HISTORY: string;
     CREATE_WORKOUT_HISTORY: string;
     GET_TODAY_EXERCISE: string;
@@ -64,6 +65,7 @@ export const API: API_PROPS = {
     CREATE_REQUEST_PT: "/user-package/pt-assist-request",
     GET_PT_TRAINING_HISTORY: "/user-package/pt-training-history",
     GET_PT_TRAINING_SLOTS: "/user-package/pt-training-slots",
+    GET_AVAILABLE_PTS: "/user-package/available-pts",
     GET_LIST_WORKOUT_HISTORY: "/user-package/workout-history",
     CREATE_WORKOUT_HISTORY: "/user-package/workout-history",
     GET_TODAY_EXERCISE: "/user-package/today-exercises",
