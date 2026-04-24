@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import {
+  HomeOutlined,
   DashboardOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -102,23 +103,29 @@ export default function AdminLayout({
         >
           <Header
             style={{
-              padding: 0,
+              padding: '0 12px 0 0',
               background: colorBgContainer,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               flexShrink: 0,
             }}
           >
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
-              style={{
-                fontSize: '16px',
-                width: 64,
-                height: 64,
-              }}
-            />
+            <div>
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                style={{
+                  fontSize: '16px',
+                  width: 64,
+                  height: 64,
+                }}
+              />
+            </div>
+            <Link href={appRoute.home.root}>
+              <Button icon={<HomeOutlined />}>Về trang chủ</Button>
+            </Link>
           </Header>
           <Content
             style={{
