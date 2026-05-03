@@ -11,6 +11,12 @@ import {
   AssignProgramToUserRequest,
   AssignProgramToUserResponse,
   AvailablePtResponse,
+  AdminAnalyticsOverviewResponse,
+  AdminAnalyticsQuery,
+  AdminAnalyticsRevenueByBranchResponse,
+  AdminAnalyticsRevenueByPackageResponse,
+  AdminAnalyticsRevenueTimeseriesResponse,
+  AdminOperationsResponse,
   BranchDetailResponse,
   BranchesResponse,
   CheckInHistoryResponse,
@@ -600,4 +606,54 @@ export const getMyPtKpiMonthly = async (
     { params: monthKey ? { monthKey } : undefined },
   );
   return res as unknown as PtMonthlyKpiResponse;
+};
+
+export const getAdminAnalyticsOverview = async (
+  query?: AdminAnalyticsQuery,
+): Promise<AdminAnalyticsOverviewResponse> => {
+  const res = await axios.get<AdminAnalyticsOverviewResponse>(
+    API.ANALYTICS.OVERVIEW,
+    { params: query },
+  );
+  return res as unknown as AdminAnalyticsOverviewResponse;
+};
+
+export const getAdminAnalyticsRevenueTimeseries = async (
+  query?: AdminAnalyticsQuery,
+): Promise<AdminAnalyticsRevenueTimeseriesResponse> => {
+  const res = await axios.get<AdminAnalyticsRevenueTimeseriesResponse>(
+    API.ANALYTICS.REVENUE_TIMESERIES,
+    { params: query },
+  );
+  return res as unknown as AdminAnalyticsRevenueTimeseriesResponse;
+};
+
+export const getAdminAnalyticsRevenueByBranch = async (
+  query?: AdminAnalyticsQuery,
+): Promise<AdminAnalyticsRevenueByBranchResponse> => {
+  const res = await axios.get<AdminAnalyticsRevenueByBranchResponse>(
+    API.ANALYTICS.REVENUE_BY_BRANCH,
+    { params: query },
+  );
+  return res as unknown as AdminAnalyticsRevenueByBranchResponse;
+};
+
+export const getAdminAnalyticsRevenueByPackage = async (
+  query?: AdminAnalyticsQuery,
+): Promise<AdminAnalyticsRevenueByPackageResponse> => {
+  const res = await axios.get<AdminAnalyticsRevenueByPackageResponse>(
+    API.ANALYTICS.REVENUE_BY_PACKAGE,
+    { params: query },
+  );
+  return res as unknown as AdminAnalyticsRevenueByPackageResponse;
+};
+
+export const getAdminOperations = async (
+  query?: AdminAnalyticsQuery,
+): Promise<AdminOperationsResponse> => {
+  const res = await axios.get<AdminOperationsResponse>(
+    API.ANALYTICS.OPERATIONS,
+    { params: query },
+  );
+  return res as unknown as AdminOperationsResponse;
 };

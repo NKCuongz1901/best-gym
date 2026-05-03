@@ -859,3 +859,93 @@ export interface PtMonthlyKpiResponse {
     payoutStatus: PtMonthlyRewardPayoutStatus | null;
   };
 }
+
+export interface AdminAnalyticsQuery {
+  from?: string;
+  to?: string;
+  groupBy?: 'day' | 'month';
+  branchId?: string;
+  packageId?: string;
+}
+
+export interface AdminAnalyticsMetrics {
+  grossRevenue: number;
+  activeRevenue: number;
+  purchasesCount: number;
+  newUsers: number;
+  activePackages: number;
+  checkins: number;
+  ptAcceptedSessions: number;
+}
+
+export type AdminAnalyticsMetricKey = keyof AdminAnalyticsMetrics;
+
+export interface AdminAnalyticsChangeVsPrev {
+  grossRevenuePct: number | null;
+  activeRevenuePct: number | null;
+  purchasesCountPct: number | null;
+  newUsersPct: number | null;
+  activePackagesPct: number | null;
+  checkinsPct: number | null;
+  ptAcceptedSessionsPct: number | null;
+}
+
+export interface AdminAnalyticsOverviewResponse {
+  message: string;
+  data: {
+    range: {
+      from: string;
+      to: string;
+    };
+    metrics: AdminAnalyticsMetrics;
+    changeVsPreviousPeriod: AdminAnalyticsChangeVsPrev;
+  };
+}
+
+export interface AnalyticsRevenueTimeseriesItem {
+  bucket: string;
+  grossRevenue: number;
+  activeRevenue: number;
+  purchasesCount: number;
+}
+
+export interface AdminAnalyticsRevenueTimeseriesResponse {
+  message: string;
+  data: AnalyticsRevenueTimeseriesItem[];
+}
+
+export interface AnalyticsRevenueByBranchItem {
+  branchId: string;
+  branchName: string;
+  revenue: number;
+  purchasesCount: number;
+}
+
+export interface AdminAnalyticsRevenueByBranchResponse {
+  message: string;
+  data: AnalyticsRevenueByBranchItem[];
+}
+
+export interface AnalyticsRevenueByPackageItem {
+  packageId: string;
+  packageName: string;
+  revenue: number;
+  purchasesCount: number;
+}
+
+export interface AdminAnalyticsRevenueByPackageResponse {
+  message: string;
+  data: AnalyticsRevenueByPackageItem[];
+}
+
+export interface AdminOperationsMetrics {
+  newUsers: number;
+  activePackages: number;
+  checkins: number;
+  ptAcceptedSessions: number;
+}
+
+export interface AdminOperationsResponse {
+  message: string;
+  data: AdminOperationsMetrics;
+}

@@ -73,6 +73,13 @@ export interface API_PROPS {
     ADMIN_UPDATE_PAYOUT: (payoutId: string) => string;
     PT_GET_MONTHLY: string;
   };
+  ANALYTICS: {
+    OVERVIEW: string;
+    REVENUE_TIMESERIES: string;
+    REVENUE_BY_BRANCH: string;
+    REVENUE_BY_PACKAGE: string;
+    OPERATIONS: string;
+  };
 }
 
 export const API: API_PROPS = {
@@ -153,5 +160,12 @@ export const API: API_PROPS = {
     ADMIN_UPDATE_PAYOUT: (payoutId: string) =>
       `/admin/pt-kpi/payouts/${payoutId}`,
     PT_GET_MONTHLY: '/pt/kpi/monthly',
+  },
+  ANALYTICS: {
+    OVERVIEW: '/admin/analytics/overview',
+    REVENUE_TIMESERIES: '/admin/analytics/revenue/timeseries',
+    REVENUE_BY_BRANCH: '/admin/analytics/revenue/by-branch',
+    REVENUE_BY_PACKAGE: '/admin/analytics/revenue/by-package',
+    OPERATIONS: '/admin/analytics/operations',
   },
 };

@@ -15,6 +15,7 @@ import { ProgramModule } from './program/program.module';
 import { AiModule } from './ai/ai.module';
 import { CronjobModule } from './cronjob/cronjob.module';
 import { PtKpiModule } from './pt-kpi/pt-kpi.module';
+import { AdminAnalyticsModule } from './admin-analytics/admin-analytics.module';
 import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     AiModule,
     CronjobModule,
     PtKpiModule,
+    AdminAnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
