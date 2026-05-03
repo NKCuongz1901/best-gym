@@ -21,22 +21,27 @@ export interface PtAccount {
   };
 }
 
-export interface AvailablePtShiftSchedule {
+export interface PtWeeklySlotItem {
   id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable?: boolean;
+}
+
+export interface PtAvailabilityWindow {
+  id: string;
+  ptAccountId?: string;
+  branchId?: string;
   fromDate: string;
   toDate: string;
-  maxStudents: number;
-  branch: Branch;
-  shiftTemplate: {
-    id: string;
-    type: 'MORNING' | 'AFTERNOON' | 'EVENING';
-    startTime: string;
-    endTime: string;
-  };
+  isActive?: boolean;
+  branch?: Branch;
+  weeklySlots: PtWeeklySlotItem[];
 }
 
 export interface AvailablePtAccount extends PtAccount {
-  ptShiftSchedules: AvailablePtShiftSchedule[];
+  ptAvailabilityWindows: PtAvailabilityWindow[];
 }
 
 export interface AvailablePtResponse {
@@ -397,45 +402,65 @@ export interface CreatePtAssistRequestResponse {
 
 export interface CreatePTTrainingSlotRequest {
   branchId: string;
-  shiftTemplateId: string;
   fromDate: string;
   toDate: string;
-  maxStudents: number;
+  slots: Array<{
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
-export interface PTShiftTemplate {
-  id: string;
-  type: 'MORNING' | 'AFTERNOON' | 'EVENING';
+export interface PtBookingGridSlotDef {
+  key: string;
   startTime: string;
   endTime: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export interface PTTrainingSlot {
-  id: string;
-  ptAccountId: string;
-  branchId: string;
-  shiftTemplateId: string;
-  fromDate: string;
-  toDate: string;
-  maxStudents: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  branch: Branch;
-  shiftTemplate: PTShiftTemplate;
-}
-
-export interface PTTrainingSlotsResponse {
+export interface PtBookingGridDefinitionResponse {
   message: string;
-  data: PTTrainingSlot[];
+  data: {
+    timeZone: string;
+    dayOfWeekLegend: string;
+    slots: PtBookingGridSlotDef[];
+  };
 }
 
-export interface PTShiftTemplatesResponse {
+export interface PtAvailabilityWindowsResponse {
   message: string;
-  data: PTShiftTemplate[];
+  data: PtAvailabilityWindow[];
+}
+
+export type PtWeekGridCellState =
+  | 'FREE'
+  | 'PASSED'
+  | 'OCCUPIED'
+  | 'UNAVAILABLE';
+
+export interface PtWeekGridCell {
+  gridKey: string;
+  startTime: string;
+  endTime: string;
+  weeklySlotId: string | null;
+  state: PtWeekGridCellState;
+}
+
+export interface PtWeekGridDay {
+  date: string;
+  dayOfWeek: number;
+  slots: PtWeekGridCell[];
+}
+
+export interface PtWeekBookingGridResponse {
+  message: string;
+  data: {
+    timeZone: string;
+    weekStart: string;
+    branch: Branch;
+    ptAccountId: string;
+    gridRows: PtBookingGridSlotDef[];
+    days: PtWeekGridDay[];
+  };
 }
 
 export interface CreateBranchRequest {

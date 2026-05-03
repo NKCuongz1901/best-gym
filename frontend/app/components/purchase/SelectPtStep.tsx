@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, Card, Col, DatePicker, Empty, Input, Row, Select, Skeleton, Tag } from 'antd';
+import { Avatar, Card, Col, DatePicker, Empty, Input, Row, Skeleton, Tag } from 'antd';
 import { UserOutlined, CheckOutlined } from '@ant-design/icons';
 import { motion } from 'motion/react';
 import dayjs from 'dayjs';
@@ -12,11 +12,9 @@ interface SelectPtStepProps {
   selectedPtId: string | null;
   onSelect: (pt: AvailablePtAccount) => void;
   search: string;
-  shiftType?: 'MORNING' | 'AFTERNOON' | 'EVENING';
   fromDate?: string;
   toDate?: string;
   onSearchChange: (value: string) => void;
-  onShiftTypeChange: (value: 'MORNING' | 'AFTERNOON' | 'EVENING' | undefined) => void;
   onDateRangeChange: (from?: string, to?: string) => void;
 }
 
@@ -26,11 +24,9 @@ export default function SelectPtStep({
   selectedPtId,
   onSelect,
   search,
-  shiftType,
   fromDate,
   toDate,
   onSearchChange,
-  onShiftTypeChange,
   onDateRangeChange,
 }: SelectPtStepProps) {
   return (
@@ -48,25 +44,12 @@ export default function SelectPtStep({
         </p>
       </motion.div>
 
-      <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-white p-3 md:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-white p-3 md:grid-cols-2">
         <Input
           allowClear
           placeholder="Tìm theo tên/email PT"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-        />
-        <Select
-          allowClear
-          placeholder="Lọc theo ca"
-          value={shiftType}
-          options={[
-            { value: 'MORNING', label: 'Ca sáng' },
-            { value: 'AFTERNOON', label: 'Ca chiều' },
-            { value: 'EVENING', label: 'Ca tối' },
-          ]}
-          onChange={(value) =>
-            onShiftTypeChange(value as 'MORNING' | 'AFTERNOON' | 'EVENING' | undefined)
-          }
         />
         <DatePicker.RangePicker
           className="w-full"
@@ -100,6 +83,10 @@ export default function SelectPtStep({
         <Row gutter={[16, 16]}>
           {pts.map((pt, index) => {
             const isSelected = selectedPtId === pt.id;
+            const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
+              (acc, win) => acc + (win.weeklySlots?.length ?? 0),
+              0,
+            );
             return (
               <Col xs={24} md={12} key={pt.id}>
                 <motion.div
@@ -151,10 +138,8 @@ export default function SelectPtStep({
                       {pt.profile?.fitnessGoal && (
                         <Tag color="blue">{pt.profile.fitnessGoal}</Tag>
                       )}
-                      {pt.ptShiftSchedules?.length ? (
-                        <Tag color="green">
-                          {pt.ptShiftSchedules.length} lịch dạy phù hợp
-                        </Tag>
+                      {totalSlots > 0 ? (
+                        <Tag color="green">{totalSlots} ô lịch rảnh</Tag>
                       ) : null}
                     </div>
                   </Card>
@@ -167,4 +152,3 @@ export default function SelectPtStep({
     </div>
   );
 }
-

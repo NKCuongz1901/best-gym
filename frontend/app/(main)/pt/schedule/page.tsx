@@ -27,6 +27,7 @@ import {
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 
 import {
   acceptPTAssistRequest,
@@ -34,7 +35,6 @@ import {
   getBranches,
   getPTAssistRequests,
   getPTAssistSchedule,
-  getPTShiftTemplates,
   getPTTrainingSlots,
   rejectPTAssistRequest,
   reportUserSession,
@@ -43,15 +43,25 @@ import type { FILTER_PT_ASSIST_SCHEDULE_PROPS } from '@/app/types/filters';
 import type {
   Branch,
   CreatePTTrainingSlotRequest,
+  PtAvailabilityWindow,
   PTAssistRequest,
   PTAssistSchedule,
   PTAssistSchedulesResponse,
-  PTShiftTemplate,
-  PTTrainingSlot,
-  PTTrainingSlotsResponse,
   ReportUserSessionRequest,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
+
+dayjs.extend(isoWeek);
+
+const STANDARD_GRID_ROWS: Array<{ startTime: string; endTime: string }> = [
+  { startTime: '06:00', endTime: '08:00' },
+  { startTime: '08:00', endTime: '10:00' },
+  { startTime: '10:00', endTime: '12:00' },
+  { startTime: '13:00', endTime: '15:00' },
+  { startTime: '15:00', endTime: '17:00' },
+  { startTime: '17:00', endTime: '19:00' },
+  { startTime: '19:00', endTime: '21:00' },
+];
 
 function toYyyyMmDd(iso?: string) {
   return iso ? dayjs(iso).format('YYYY-MM-DD') : undefined;
@@ -76,7 +86,6 @@ function pendingRequestToSchedule(req: PTAssistRequest): PTAssistSchedule {
   };
 }
 
-/** Buổi PENDING có start nằm trong khoảng lịch đang xem (overlap với [from, to]). */
 function filterPendingInRange(
   requests: PTAssistRequest[],
   fromIso: string,
@@ -120,44 +129,43 @@ function renderEventContent(arg: EventContentArg) {
   );
 }
 
-type SetupSlotRow = {
-  branchId: string;
-  shiftTemplateId: string;
-  fromDate: Dayjs;
-  toDate: Dayjs;
-  maxStudents: number;
-};
-
-function expandShiftSchedulesToBackgroundEvents(
-  slots: PTTrainingSlot[],
+function expandWindowsToBackgroundEvents(
+  windows: PtAvailabilityWindow[],
 ): EventInput[] {
   const events: EventInput[] = [];
-  for (const slot of slots) {
-    let cursor = dayjs(slot.fromDate).startOf('day');
-    const end = dayjs(slot.toDate).startOf('day');
+  for (const win of windows) {
+    if (!win.weeklySlots?.length) continue;
+    let cursor = dayjs(win.fromDate).startOf('day');
+    const end = dayjs(win.toDate).startOf('day');
     while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
-      const [sh, sm] = slot.shiftTemplate.startTime.split(':').map(Number);
-      const [eh, em] = slot.shiftTemplate.endTime.split(':').map(Number);
-      const start = cursor
-        .hour(sh || 0)
-        .minute(sm || 0)
-        .second(0)
-        .millisecond(0);
-      const finish = cursor
-        .hour(eh || 0)
-        .minute(em || 0)
-        .second(0)
-        .millisecond(0);
-      if (finish.isAfter(start)) {
-        events.push({
-          id: `pt-shift-${slot.id}-${cursor.format('YYYY-MM-DD')}`,
-          start: start.toISOString(),
-          end: finish.toISOString(),
-          display: 'background',
-          backgroundColor: 'rgba(34, 197, 94, 0.16)',
-          classNames: ['pt-teaching-slot-bg'],
-          extendedProps: { isTeachingSlot: true },
-        });
+      const dow = cursor.isoWeekday();
+      const slotsForDay = win.weeklySlots.filter(
+        (s) => s.dayOfWeek === dow && s.isAvailable !== false,
+      );
+      for (const slot of slotsForDay) {
+        const [sh, sm] = slot.startTime.split(':').map(Number);
+        const [eh, em] = slot.endTime.split(':').map(Number);
+        const start = cursor
+          .hour(sh || 0)
+          .minute(sm || 0)
+          .second(0)
+          .millisecond(0);
+        const finish = cursor
+          .hour(eh || 0)
+          .minute(em || 0)
+          .second(0)
+          .millisecond(0);
+        if (finish.isAfter(start)) {
+          events.push({
+            id: `pt-window-${win.id}-${cursor.format('YYYY-MM-DD')}-${slot.id}`,
+            start: start.toISOString(),
+            end: finish.toISOString(),
+            display: 'background',
+            backgroundColor: 'rgba(34, 197, 94, 0.16)',
+            classNames: ['pt-teaching-slot-bg'],
+            extendedProps: { isTeachingSlot: true },
+          });
+        }
       }
       cursor = cursor.add(1, 'day');
     }
@@ -174,7 +182,11 @@ export default function PTSchedulePage() {
   const [selectedSchedule, setSelectedSchedule] =
     useState<PTAssistSchedule | null>(null);
   const [feedbackForm] = Form.useForm<ReportUserSessionRequest>();
-  const [setupSlotsForm] = Form.useForm<{ slot: SetupSlotRow }>();
+  const [setupForm] = Form.useForm<{
+    branchId: string;
+    fromDate: Dayjs;
+    toDate: Dayjs;
+  }>();
 
   const [range, setRange] = useState<FILTER_PT_ASSIST_SCHEDULE_PROPS>(() => {
     const start = dayjs().startOf('week').add(1, 'day');
@@ -265,7 +277,7 @@ export default function PTSchedulePage() {
     data: trainingSlotsRes,
     isLoading: isLoadingTrainingSlots,
     isError: isTrainingSlotsError,
-  } = useQuery<PTTrainingSlotsResponse>({
+  } = useQuery({
     queryKey: ['pt-training-slots', range.from, range.to],
     queryFn: () =>
       getPTTrainingSlots({
@@ -281,12 +293,6 @@ export default function PTSchedulePage() {
     enabled: setupSlotsOpen,
   });
 
-  const { data: shiftTemplatesRes } = useQuery({
-    queryKey: ['pt-shift-templates'],
-    queryFn: () => getPTShiftTemplates(),
-    enabled: setupSlotsOpen,
-  });
-
   const { mutateAsync: submitTrainingSlot, isPending: isCreatingTrainingSlot } =
     useMutation({
       mutationFn: (payload: CreatePTTrainingSlotRequest) =>
@@ -294,14 +300,9 @@ export default function PTSchedulePage() {
     });
 
   const branches: Branch[] = branchesRes?.data ?? [];
-  const shiftTemplates: PTShiftTemplate[] = shiftTemplatesRes?.data ?? [];
   const branchOptions = branches.map((b) => ({
     label: b.name,
     value: b.id,
-  }));
-  const shiftTemplateOptions = shiftTemplates.map((t) => ({
-    label: `${t.type} (${t.startTime} - ${t.endTime})`,
-    value: t.id,
   }));
 
   const isLoading =
@@ -328,50 +329,56 @@ export default function PTSchedulePage() {
   }, [mergedSchedules]);
 
   const trainingSlotEvents = useMemo<EventInput[]>(() => {
-    const slots: PTTrainingSlot[] = trainingSlotsRes?.data ?? [];
-    return expandShiftSchedulesToBackgroundEvents(slots);
+    const windows: PtAvailabilityWindow[] = trainingSlotsRes?.data ?? [];
+    return expandWindowsToBackgroundEvents(windows);
   }, [trainingSlotsRes?.data]);
 
   const calendarEvents = useMemo<EventInput[]>(() => {
     return [...trainingSlotEvents, ...events];
   }, [trainingSlotEvents, events]);
 
+  const myWindows: PtAvailabilityWindow[] = useMemo(
+    () => trainingSlotsRes?.data ?? [],
+    [trainingSlotsRes?.data],
+  );
+
   const openSetupSlotsModal = () => {
-    setupSlotsForm.setFieldsValue({
-      slot: {
-        branchId: '',
-        shiftTemplateId: '',
-        fromDate: dayjs(),
-        toDate: dayjs().add(6, 'day'),
-        maxStudents: 6,
-      },
+    setupForm.setFieldsValue({
+      branchId: '',
+      fromDate: dayjs(),
+      toDate: dayjs().add(13, 'day'),
     });
     setSetupSlotsOpen(true);
   };
 
   const handleSaveTeachingSlots = async () => {
     try {
-      const values = await setupSlotsForm.validateFields();
-      const row = values.slot;
-      if (!row) {
-        message.warning('Vui lòng nhập thông tin ca dạy.');
-        return;
-      }
+      const values = await setupForm.validateFields();
+      const slotsPayload: CreatePTTrainingSlotRequest['slots'] =
+        STANDARD_GRID_ROWS.flatMap((row) =>
+          [1, 2, 3, 4, 5, 6, 7].map((dow) => ({
+            dayOfWeek: dow,
+            startTime: row.startTime,
+            endTime: row.endTime,
+          })),
+        );
 
       await submitTrainingSlot({
-        branchId: row.branchId,
-        shiftTemplateId: row.shiftTemplateId,
-        fromDate: row.fromDate.startOf('day').toISOString(),
-        toDate: row.toDate.startOf('day').toISOString(),
-        maxStudents: row.maxStudents,
+        branchId: values.branchId,
+        fromDate: values.fromDate.format('YYYY-MM-DD'),
+        toDate: values.toDate.format('YYYY-MM-DD'),
+        slots: slotsPayload,
       });
 
       queryClient.invalidateQueries({ queryKey: ['pt-training-slots'] });
       message.success('Đã tạo ca dạy thành công');
       setSetupSlotsOpen(false);
-      setupSlotsForm.resetFields();
-    } catch {
-      // validation
+      setupForm.resetFields();
+    } catch (err: any) {
+      const apiMsg = err?.response?.data?.message;
+      if (typeof apiMsg === 'string') {
+        message.error(apiMsg);
+      }
     }
   };
 
@@ -439,6 +446,33 @@ export default function PTSchedulePage() {
             Thiết lập ca dạy
           </Button>
         </div>
+
+        {myWindows.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 p-3">
+            <div className="mb-2 text-xs font-semibold text-neutral-300">
+              Lịch dạy đã đăng ký ({myWindows.length})
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {myWindows.map((win) => (
+                <div
+                  key={win.id}
+                  className="rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-neutral-200"
+                >
+                  <div className="font-semibold">
+                    {win.branch?.name ?? 'Chi nhánh'}
+                  </div>
+                  <div className="text-neutral-400">
+                    {dayjs(win.fromDate).format('DD/MM/YYYY')} →{' '}
+                    {dayjs(win.toDate).format('DD/MM/YYYY')}
+                  </div>
+                  <div className="mt-1 text-neutral-400">
+                    {win.weeklySlots.length} ô / tuần
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-3">
           {isLoading ? (
@@ -639,7 +673,7 @@ export default function PTSchedulePage() {
         confirmLoading={isCreatingTrainingSlot}
         okText="Lưu"
         cancelText="Hủy"
-        width={640}
+        width={560}
         destroyOnClose
         styles={{
           body: { background: '#171717' },
@@ -648,44 +682,32 @@ export default function PTSchedulePage() {
         }}
       >
         <p className="mb-4 text-xs text-neutral-400">
-          Thiết lập 1 ca dạy theo mẫu ca (shift template) trong khoảng ngày bạn
-          chọn. Ca đã tạo sẽ hiển thị nền xanh trên lịch.
+          Đăng ký chi nhánh và khoảng ngày bạn dạy ở chi nhánh đó. Trong khoảng
+          thời gian này, học viên có thể đặt buổi PT với bạn ở các khung giờ
+          chuẩn (06:00–08:00, 08:00–10:00, …, 19:00–21:00) tất cả các ngày
+          trong tuần.
         </p>
-        <Form form={setupSlotsForm} layout="vertical">
+        <Form form={setupForm} layout="vertical">
           <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 p-4">
+            <Form.Item
+              className="mb-3"
+              label={<span className="text-neutral-200">Chi nhánh</span>}
+              name="branchId"
+              rules={[{ required: true, message: 'Chọn chi nhánh' }]}
+            >
+              <Select
+                options={branchOptions}
+                placeholder="Chọn chi nhánh"
+                showSearch
+                optionFilterProp="label"
+                size="large"
+              />
+            </Form.Item>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Form.Item
                 className="mb-0"
-                label={<span className="text-neutral-200">Chi nhánh</span>}
-                name={['slot', 'branchId']}
-                rules={[{ required: true, message: 'Chọn chi nhánh' }]}
-              >
-                <Select
-                  options={branchOptions}
-                  placeholder="Chọn chi nhánh"
-                  showSearch
-                  optionFilterProp="label"
-                  size="large"
-                />
-              </Form.Item>
-              <Form.Item
-                className="mb-0"
-                label={<span className="text-neutral-200">Ca mẫu</span>}
-                name={['slot', 'shiftTemplateId']}
-                rules={[{ required: true, message: 'Chọn ca mẫu' }]}
-              >
-                <Select
-                  options={shiftTemplateOptions}
-                  placeholder="Chọn ca mẫu"
-                  showSearch
-                  optionFilterProp="label"
-                  size="large"
-                />
-              </Form.Item>
-              <Form.Item
-                className="mb-0"
                 label={<span className="text-neutral-200">Từ ngày</span>}
-                name={['slot', 'fromDate']}
+                name="fromDate"
                 rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
               >
                 <DatePicker
@@ -697,15 +719,14 @@ export default function PTSchedulePage() {
               <Form.Item
                 className="mb-0"
                 label={<span className="text-neutral-200">Đến ngày</span>}
-                name={['slot', 'toDate']}
+                name="toDate"
                 rules={[
                   { required: true, message: 'Chọn ngày kết thúc' },
                   {
                     validator: (_, value: Dayjs | undefined) => {
-                      const fromValue = setupSlotsForm.getFieldValue([
-                        'slot',
+                      const fromValue = setupForm.getFieldValue(
                         'fromDate',
-                      ]) as Dayjs | undefined;
+                      ) as Dayjs | undefined;
                       if (!value || !fromValue) return Promise.resolve();
                       if (value.isBefore(fromValue, 'day')) {
                         return Promise.reject(
@@ -724,22 +745,6 @@ export default function PTSchedulePage() {
                 />
               </Form.Item>
             </div>
-            <Form.Item
-              className="mb-0 mt-3"
-              label={
-                <span className="text-neutral-200">Số học viên tối đa</span>
-              }
-              name={['slot', 'maxStudents']}
-              rules={[{ required: true, message: 'Nhập số học viên' }]}
-            >
-              <InputNumber
-                min={1}
-                max={50}
-                className="w-full"
-                size="large"
-                placeholder="Ví dụ: 6"
-              />
-            </Form.Item>
           </div>
         </Form>
       </Modal>

@@ -42,8 +42,9 @@ import {
   PtAccountsResponse,
   PTAssistRequestsResponse,
   PTAssistSchedulesResponse,
-  PTShiftTemplatesResponse,
-  PTTrainingSlotsResponse,
+  PtAvailabilityWindowsResponse,
+  PtBookingGridDefinitionResponse,
+  PtWeekBookingGridResponse,
   PTTrainingHistoriesResponse,
   PurchasePackageRequest,
   PurchasePackageResponse,
@@ -191,7 +192,6 @@ export const getMyPurchasePackages = async (): Promise<any> => {
 
 export const getAvailablePTs = async (filter: {
   branchId: string;
-  shiftType?: 'MORNING' | 'AFTERNOON' | 'EVENING';
   from?: string;
   to?: string;
   search?: string;
@@ -200,6 +200,18 @@ export const getAvailablePTs = async (filter: {
     params: filter,
   });
   return res as unknown as AvailablePtResponse;
+};
+
+export const getPtWeekBookingGrid = async (params: {
+  branchId: string;
+  ptAccountId: string;
+  weekStart: string;
+}): Promise<PtWeekBookingGridResponse> => {
+  const res = await axios.get<PtWeekBookingGridResponse>(
+    API.USER.GET_PT_WEEK_BOOKING_GRID,
+    { params },
+  );
+  return res as unknown as PtWeekBookingGridResponse;
 };
 
 // legacy (PT duyệt cấp gói) - flow mới đã chuyển sang duyệt theo từng buổi
@@ -361,17 +373,23 @@ export const createPTTrainingSlot = async (
 export const getPTTrainingSlots = async (filter?: {
   from?: string;
   to?: string;
-}): Promise<any> => {
-  const res = await axios.get<PTTrainingSlotsResponse>(API.PT.GET_TRAINING_SLOTS, {
-    params: filter,
-  });
-  return res as unknown as PTTrainingSlotsResponse;
+}): Promise<PtAvailabilityWindowsResponse> => {
+  const res = await axios.get<PtAvailabilityWindowsResponse>(
+    API.PT.GET_TRAINING_SLOTS,
+    {
+      params: filter,
+    },
+  );
+  return res as unknown as PtAvailabilityWindowsResponse;
 };
 
-export const getPTShiftTemplates = async (): Promise<any> => {
-  const res = await axios.get<PTShiftTemplatesResponse>(API.PT.GET_SHIFT_TEMPLATES);
-  return res as unknown as PTShiftTemplatesResponse;
-};
+export const getPtBookingGridDefinition =
+  async (): Promise<PtBookingGridDefinitionResponse> => {
+    const res = await axios.get<PtBookingGridDefinitionResponse>(
+      API.PT.GET_BOOKING_GRID_DEFINITION,
+    );
+    return res as unknown as PtBookingGridDefinitionResponse;
+  };
 
 export const createBranch = async (
   request: CreateBranchRequest,

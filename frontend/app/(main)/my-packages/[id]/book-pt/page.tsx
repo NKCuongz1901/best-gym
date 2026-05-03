@@ -6,7 +6,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Button,
-  DatePicker,
   Form,
   Input,
   Result,
@@ -14,29 +13,55 @@ import {
   Tag,
   message,
 } from 'antd';
+import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { CalendarOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import isoWeek from 'dayjs/plugin/isoWeek';
 
 import {
   createPtAssistRequest,
   getAvailablePTs,
   getMyPurchasePackages,
+  getPtWeekBookingGrid,
 } from '@/app/services/api';
 import type {
   AvailablePtAccount,
-  AvailablePtShiftSchedule,
   CreatePtAssistRequestRequest,
   MyPurchasePackage,
   MyPurchasePackagesResponse,
+  PtWeekBookingGridResponse,
+  PtWeekGridCell,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
 import SelectPtStep from '@/app/components/purchase/SelectPtStep';
 
-const shiftLabels: Record<'MORNING' | 'AFTERNOON' | 'EVENING', string> = {
-  MORNING: 'Ca sáng',
-  AFTERNOON: 'Ca chiều',
-  EVENING: 'Ca tối',
+dayjs.extend(isoWeek);
+
+const DAY_OF_WEEK_LABELS: Record<number, string> = {
+  1: 'Thứ 2',
+  2: 'Thứ 3',
+  3: 'Thứ 4',
+  4: 'Thứ 5',
+  5: 'Thứ 6',
+  6: 'Thứ 7',
+  7: 'Chủ nhật',
 };
+
+const STANDARD_GRID_KEYS = new Set([
+  'R06',
+  'R08',
+  'R10',
+  'R13',
+  'R15',
+  'R17',
+  'R19',
+]);
+
+interface SelectedCell {
+  weeklySlotId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+}
 
 export default function BookPtSessionPage() {
   const router = useRouter();
@@ -45,15 +70,14 @@ export default function BookPtSessionPage() {
   const userPackageId = params?.id;
 
   const [selectedPtId, setSelectedPtId] = useState<string | null>(null);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [sessionDate, setSessionDate] = useState<dayjs.Dayjs | null>(null);
   const [note, setNote] = useState<string>('');
   const [ptSearch, setPtSearch] = useState('');
-  const [ptShiftType, setPtShiftType] = useState<
-    'MORNING' | 'AFTERNOON' | 'EVENING' | undefined
-  >(undefined);
   const [ptFromDate, setPtFromDate] = useState<string | undefined>(undefined);
   const [ptToDate, setPtToDate] = useState<string | undefined>(undefined);
+  const [weekStart, setWeekStart] = useState<dayjs.Dayjs>(() =>
+    dayjs().startOf('isoWeek'),
+  );
+  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isLoggedIn) {
@@ -79,7 +103,6 @@ export default function BookPtSessionPage() {
     queryKey: [
       'available-pts-book',
       branchId,
-      ptShiftType,
       ptFromDate,
       ptToDate,
       ptSearch,
@@ -87,7 +110,6 @@ export default function BookPtSessionPage() {
     queryFn: () =>
       getAvailablePTs({
         branchId: branchId as string,
-        shiftType: ptShiftType,
         from: ptFromDate,
         to: ptToDate,
         search: ptSearch || undefined,
@@ -102,21 +124,30 @@ export default function BookPtSessionPage() {
     [pts, selectedPtId],
   );
 
-  const selectedSlot: AvailablePtShiftSchedule | null = useMemo(() => {
-    if (!selectedPt || !selectedSlotId) return null;
-    return (
-      selectedPt.ptShiftSchedules.find((s) => s.id === selectedSlotId) ?? null
-    );
-  }, [selectedPt, selectedSlotId]);
-
   useEffect(() => {
-    setSelectedSlotId(null);
-    setSessionDate(null);
-  }, [selectedPtId]);
+    setSelectedCell(null);
+  }, [selectedPtId, branchId]);
 
-  useEffect(() => {
-    setSessionDate(null);
-  }, [selectedSlotId]);
+  const weekStartYmd = weekStart.format('YYYY-MM-DD');
+
+  const { data: weekGridRes, isLoading: isLoadingGrid } =
+    useQuery<PtWeekBookingGridResponse>({
+      queryKey: ['pt-week-grid', selectedPtId, branchId, weekStartYmd],
+      queryFn: () =>
+        getPtWeekBookingGrid({
+          branchId: branchId as string,
+          ptAccountId: selectedPtId as string,
+          weekStart: weekStartYmd,
+        }),
+      enabled: isLoggedIn && !!branchId && !!selectedPtId,
+    });
+
+  const gridRows = weekGridRes?.data?.gridRows ?? [];
+  const days = weekGridRes?.data?.days ?? [];
+  const visibleRows = useMemo(
+    () => gridRows.filter((r) => STANDARD_GRID_KEYS.has(r.key)),
+    [gridRows],
+  );
 
   const { mutate: submitBooking, isPending: isSubmitting } = useMutation({
     mutationFn: (payload: CreatePtAssistRequestRequest) =>
@@ -146,38 +177,42 @@ export default function BookPtSessionPage() {
 
   const outOfQuota = remaining !== null && remaining <= 0;
 
-  const disabledDate = (current: dayjs.Dayjs) => {
-    if (!selectedSlot || !current) return true;
-    const slotFrom = dayjs(selectedSlot.fromDate).startOf('day');
-    const slotTo = dayjs(selectedSlot.toDate).startOf('day');
-    if (current.isBefore(slotFrom, 'day') || current.isAfter(slotTo, 'day')) {
-      return true;
-    }
-    if (userPackage?.startAt) {
-      const pkgStart = dayjs(userPackage.startAt).startOf('day');
-      if (current.isBefore(pkgStart, 'day')) return true;
-    }
-    if (userPackage?.endAt) {
-      const pkgEnd = dayjs(userPackage.endAt).startOf('day');
-      if (current.isAfter(pkgEnd, 'day')) return true;
-    }
-    if (current.isBefore(dayjs().startOf('day'), 'day')) return true;
-    return false;
+  const todayIsoWeekStart = dayjs().startOf('isoWeek');
+  const canGoPrev = weekStart.isAfter(todayIsoWeekStart, 'day');
+
+  const handleClickCell = (date: string, cell: PtWeekGridCell) => {
+    if (cell.state !== 'FREE' || !cell.weeklySlotId) return;
+    setSelectedCell({
+      weeklySlotId: cell.weeklySlotId,
+      sessionDate: date,
+      startTime: cell.startTime,
+      endTime: cell.endTime,
+    });
+  };
+
+  const goPrevWeek = () => {
+    if (!canGoPrev) return;
+    setWeekStart((prev) => prev.subtract(1, 'week'));
+    setSelectedCell(null);
+  };
+
+  const goNextWeek = () => {
+    setWeekStart((prev) => prev.add(1, 'week'));
+    setSelectedCell(null);
   };
 
   const canSubmit =
     !!userPackageId &&
-    !!selectedSlotId &&
-    !!sessionDate &&
+    !!selectedCell &&
     !outOfQuota &&
     userPackage?.status === 'ACTIVE';
 
   const handleSubmit = () => {
-    if (!canSubmit || !sessionDate || !selectedSlotId || !userPackageId) return;
+    if (!canSubmit || !selectedCell || !userPackageId) return;
     submitBooking({
       userPackageId,
-      slotId: selectedSlotId,
-      sessionDate: sessionDate.format('YYYY-MM-DD'),
+      slotId: selectedCell.weeklySlotId,
+      sessionDate: selectedCell.sessionDate,
       note: note.trim() || undefined,
     });
   };
@@ -225,7 +260,7 @@ export default function BookPtSessionPage() {
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-24 pt-10">
-      <div className="mx-auto w-full max-w-5xl px-4">
+      <div className="mx-auto w-full max-w-6xl px-4">
         <button
           type="button"
           onClick={() => router.back()}
@@ -281,11 +316,9 @@ export default function BookPtSessionPage() {
             selectedPtId={selectedPtId}
             onSelect={(pt) => setSelectedPtId(pt.id)}
             search={ptSearch}
-            shiftType={ptShiftType}
             fromDate={ptFromDate}
             toDate={ptToDate}
             onSearchChange={(v) => setPtSearch(v)}
-            onShiftTypeChange={(v) => setPtShiftType(v)}
             onDateRangeChange={(from, to) => {
               setPtFromDate(from);
               setPtToDate(to);
@@ -294,92 +327,143 @@ export default function BookPtSessionPage() {
         </div>
 
         {selectedPt ? (
-          <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-neutral-900">
-              Chọn ca dạy của {selectedPt.profile?.name || selectedPt.email}
-            </h2>
-            {selectedPt.ptShiftSchedules.length === 0 ? (
-              <p className="text-sm text-neutral-500">
-                PT này hiện chưa có ca dạy phù hợp với điều kiện lọc.
-              </p>
+          <div className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-lg">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">
+                Chọn khung giờ với{' '}
+                {selectedPt.profile?.name || selectedPt.email}
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="small"
+                  icon={<LeftOutlined />}
+                  disabled={!canGoPrev}
+                  onClick={goPrevWeek}
+                  className="border-neutral-700 bg-neutral-900 text-neutral-100 hover:border-neutral-500! hover:text-white!"
+                >
+                  Tuần trước
+                </Button>
+                <span className="text-sm font-semibold text-neutral-200">
+                  {weekStart.format('DD/MM')} –{' '}
+                  {weekStart.add(6, 'day').format('DD/MM/YYYY')}
+                </span>
+                <Button
+                  size="small"
+                  onClick={goNextWeek}
+                  className="border-neutral-700 bg-neutral-900 text-neutral-100 hover:border-neutral-500! hover:text-white!"
+                >
+                  Tuần sau
+                  <RightOutlined />
+                </Button>
+              </div>
+            </div>
+
+            {isLoadingGrid ? (
+              <div className="flex h-64 items-center justify-center">
+                <Spin />
+              </div>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                {selectedPt.ptShiftSchedules.map((slot) => {
-                  const isActive = selectedSlotId === slot.id;
-                  return (
-                    <button
-                      type="button"
-                      key={slot.id}
-                      onClick={() => setSelectedSlotId(slot.id)}
-                      className={`rounded-xl border p-4 text-left transition-all ${
-                        isActive
-                          ? 'border-neutral-900 bg-neutral-900 text-white shadow-md'
-                          : 'border-neutral-200 bg-white hover:border-neutral-400'
-                      }`}
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[840px] grid-cols-7 gap-2">
+                  {days.map((day) => (
+                    <div
+                      key={`hd-${day.date}`}
+                      className="rounded-lg bg-neutral-900 px-2 py-3 text-center"
                     >
-                      <div className="flex items-center gap-2">
-                        <Tag
-                          color={isActive ? 'white' : 'blue'}
-                          className="m-0!"
-                        >
-                          {shiftLabels[slot.shiftTemplate.type]}
-                        </Tag>
-                        <span
-                          className={`text-sm font-medium ${
-                            isActive ? 'text-white' : 'text-neutral-900'
+                      <div className="text-sm font-semibold text-white">
+                        {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
+                      </div>
+                      <div className="text-[11px] text-neutral-400">
+                        {dayjs(day.date).format('D/M')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 grid min-w-[840px] grid-cols-7 gap-2">
+                  {visibleRows.map((row) =>
+                    days.map((day) => {
+                      const cell = day.slots.find(
+                        (s) => s.gridKey === row.key,
+                      );
+                      const state = cell?.state ?? 'UNAVAILABLE';
+                      const isSelected =
+                        !!cell &&
+                        selectedCell?.weeklySlotId === cell.weeklySlotId &&
+                        selectedCell?.sessionDate === day.date;
+                      const isFreeQuotaOk = state === 'FREE' && !outOfQuota;
+                      const clickable = isFreeQuotaOk;
+
+                      let stateClasses =
+                        'border-neutral-800 bg-neutral-900/40 text-neutral-600';
+                      let label: string = '—';
+
+                      if (state === 'PASSED') {
+                        stateClasses =
+                          'border-neutral-800 bg-neutral-900/60 text-neutral-500';
+                        label = 'ĐÃ QUA';
+                      } else if (state === 'OCCUPIED') {
+                        stateClasses =
+                          'border-rose-900/60 bg-rose-950/40 text-rose-300';
+                        label = 'ĐÃ ĐẶT';
+                      } else if (state === 'FREE') {
+                        if (outOfQuota) {
+                          stateClasses =
+                            'border-neutral-800 bg-neutral-900/60 text-neutral-500';
+                          label = 'HẾT BUỔI';
+                        } else {
+                          stateClasses =
+                            'border-neutral-700 bg-neutral-900 text-white hover:border-emerald-500 hover:bg-neutral-800';
+                          label = `${remaining ?? 0} BUỔI`;
+                        }
+                      }
+
+                      if (isSelected) {
+                        stateClasses =
+                          'border-emerald-400 bg-emerald-500/10 text-emerald-100 ring-2 ring-emerald-500/40';
+                      }
+
+                      return (
+                        <button
+                          key={`${row.key}-${day.date}`}
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => cell && handleClickCell(day.date, cell)}
+                          className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-lg border text-[11px] font-semibold uppercase tracking-wide transition-colors ${stateClasses} ${
+                            clickable ? 'cursor-pointer' : 'cursor-not-allowed'
                           }`}
                         >
-                          <ClockCircleOutlined className="mr-1" />
-                          {slot.shiftTemplate.startTime} -{' '}
-                          {slot.shiftTemplate.endTime}
-                        </span>
-                      </div>
-                      <p
-                        className={`mt-2 text-xs ${
-                          isActive ? 'text-neutral-200' : 'text-neutral-500'
-                        }`}
-                      >
-                        <CalendarOutlined className="mr-1" />
-                        {dayjs(slot.fromDate).format('DD/MM/YYYY')} →{' '}
-                        {dayjs(slot.toDate).format('DD/MM/YYYY')}
-                      </p>
-                      <p
-                        className={`mt-1 text-xs ${
-                          isActive ? 'text-neutral-200' : 'text-neutral-500'
-                        }`}
-                      >
-                        Tối đa {slot.maxStudents} học viên / ca
-                      </p>
-                    </button>
-                  );
-                })}
+                          <span className="text-sm font-bold tracking-normal">
+                            {row.startTime} - {row.endTime}
+                          </span>
+                          <span className="text-[10px] font-semibold">
+                            {label}
+                          </span>
+                        </button>
+                      );
+                    }),
+                  )}
+                </div>
               </div>
             )}
           </div>
         ) : null}
 
-        {selectedSlot ? (
+        {selectedCell ? (
           <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-neutral-900">
               Thông tin buổi tập
             </h2>
-            <Form layout="vertical" className="grid gap-4 md:grid-cols-2">
-              <Form.Item label="Ngày tập" required className="mb-0">
-                <DatePicker
-                  className="w-full"
-                  format="DD/MM/YYYY"
-                  value={sessionDate}
-                  onChange={(value) => setSessionDate(value)}
-                  disabledDate={disabledDate}
-                />
-              </Form.Item>
-              <Form.Item label="Khung giờ" className="mb-0">
-                <Input
-                  readOnly
-                  value={`${selectedSlot.shiftTemplate.startTime} - ${selectedSlot.shiftTemplate.endTime}`}
-                />
-              </Form.Item>
-              <Form.Item label="Ghi chú" className="mb-0 md:col-span-2">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Tag color="blue" className="m-0!">
+                {dayjs(selectedCell.sessionDate).format('dddd, DD/MM/YYYY')}
+              </Tag>
+              <Tag color="geekblue" className="m-0!">
+                {selectedCell.startTime} – {selectedCell.endTime}
+              </Tag>
+            </div>
+            <Form layout="vertical">
+              <Form.Item label="Ghi chú" className="mb-0">
                 <Input.TextArea
                   rows={3}
                   value={note}
@@ -392,7 +476,7 @@ export default function BookPtSessionPage() {
         ) : null}
 
         <div className="fixed bottom-0 left-0 right-0 border-t border-neutral-200 bg-white/90 py-3 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4">
             <Button onClick={() => router.back()}>Hủy</Button>
             <Button
               type="primary"

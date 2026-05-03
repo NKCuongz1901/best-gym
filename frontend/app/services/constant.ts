@@ -17,6 +17,7 @@ export interface API_PROPS {
     CREATE_WORKOUT_HISTORY: string;
     GET_LIST_WORKOUT_HISTORY: string;
     CREATE_PT_ASSIST_REQUEST: string;
+    GET_PT_WEEK_BOOKING_GRID: string;
   };
   PACKAGE: {
     GET_ALL: string;
@@ -31,7 +32,7 @@ export interface API_PROPS {
     ACCEPT_ASSIST_REQUEST: (requestId: string) => string;
     REJECT_ASSIST_REQUEST: (requestId: string) => string;
     GET_SCHEDULE: string;
-    GET_SHIFT_TEMPLATES: string;
+    GET_BOOKING_GRID_DEFINITION: string;
     CREATE_TRAINING_SLOT: string;
     GET_TRAINING_SLOTS: string;
     ASSIGN_PROGRAM_TO_USER: () => string;
@@ -84,6 +85,7 @@ export const API: API_PROPS = {
     CREATE_WORKOUT_HISTORY: '/user-package/workout-history',
     GET_LIST_WORKOUT_HISTORY: '/user-package/workout-history',
     CREATE_PT_ASSIST_REQUEST: '/user-package/pt-assist-request',
+    GET_PT_WEEK_BOOKING_GRID: '/user-package/pt-week-booking-grid',
   },
   PACKAGE: {
     GET_ALL: '/package',
@@ -100,7 +102,7 @@ export const API: API_PROPS = {
     REJECT_ASSIST_REQUEST: (requestId: string) =>
       `/pt/pt-assist-requests/${requestId}/reject`,
     GET_SCHEDULE: '/pt/assist-schedule',
-    GET_SHIFT_TEMPLATES: '/pt/shift-templates',
+    GET_BOOKING_GRID_DEFINITION: '/pt/booking-slot-grid-definition',
     CREATE_TRAINING_SLOT: '/pt/training-slots',
     GET_TRAINING_SLOTS: '/pt/training-slots',
     ASSIGN_PROGRAM_TO_USER: () => `/pt/assign-program-to-user`,
