@@ -18,6 +18,7 @@ import {
   CreateBranchResponse,
   CreateExerciseRequest,
   CreateExerciseResponse,
+  DeleteExerciseResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   CreateProgramDayExerciseRequest,
@@ -62,6 +63,8 @@ import {
   TodayExcerciseResponse,
   TraineeRequestsResponse,
   UpdateBranchResponse,
+  UpdateExerciseRequest,
+  UpdateExerciseResponse,
   UpdateProfileRequest,
   UpdateProfileResponse,
   UserAccountsResponse,
@@ -432,6 +435,24 @@ export const createExercise = async (
   const res = await axios.post<CreateExerciseResponse>(
     API.EXERCISE.CREATE_EXERCISE,
     request,
+  );
+  return res;
+};
+
+export const updateExercise = async (
+  exerciseId: string,
+  request: UpdateExerciseRequest,
+): Promise<any> => {
+  const res = await axios.put<UpdateExerciseResponse>(
+    API.EXERCISE.UPDATE_EXERCISE(exerciseId),
+    request,
+  );
+  return res;
+};
+
+export const deleteExercise = async (exerciseId: string): Promise<any> => {
+  const res = await axios.delete<DeleteExerciseResponse>(
+    API.EXERCISE.DELETE_EXERCISE(exerciseId),
   );
   return res;
 };

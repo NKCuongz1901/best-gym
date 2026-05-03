@@ -53,6 +53,8 @@ export interface API_PROPS {
     GET_ALL: string;
     GET_BY_ID: (exerciseId: string) => string;
     CREATE_EXERCISE: string;
+    UPDATE_EXERCISE: (exerciseId: string) => string;
+    DELETE_EXERCISE: (exerciseId: string) => string;
   };
   PROGRAM: {
     GET_ALL: string;
@@ -123,6 +125,8 @@ export const API: API_PROPS = {
     GET_ALL: '/exercise',
     GET_BY_ID: (exerciseId: string) => `/exercise/${exerciseId}`,
     CREATE_EXERCISE: '/exercise',
+    UPDATE_EXERCISE: (exerciseId: string) => `/exercise/${exerciseId}`,
+    DELETE_EXERCISE: (exerciseId: string) => `/exercise/${exerciseId}`,
   },
   PROGRAM: {
     GET_ALL: '/program',

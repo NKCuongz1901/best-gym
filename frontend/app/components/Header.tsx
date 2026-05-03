@@ -227,6 +227,14 @@ export default function Header() {
             key: 'pt-schedule',
             label: <Link href="/pt/schedule">Lịch dạy</Link>,
           },
+          {
+            key: 'pt-exercises',
+            label: <Link href="/pt/exercises">Bài tập của tôi</Link>,
+          },
+          {
+            key: 'pt-programs',
+            label: <Link href="/pt/programs">Chương trình của tôi</Link>,
+          },
         ]
       : []),
     ...(user?.role === 'ADMIN'

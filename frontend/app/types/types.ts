@@ -213,6 +213,7 @@ export interface AcceptedTraineeRequestsResponse {
 
 export interface Exercise {
   id: string;
+  createdById?: string | null;
   name: string;
   description: string;
   content: string;
@@ -299,6 +300,7 @@ export interface ProgramDay {
 
 export interface Program {
   id: string;
+  createdById?: string | null;
   name: string;
   description: string;
   level: ProgramLevel;
@@ -512,6 +514,17 @@ export interface CreateExerciseRequest {
 export interface CreateExerciseResponse {
   message: string;
   data: Exercise;
+}
+
+export type UpdateExerciseRequest = Partial<CreateExerciseRequest>;
+
+export interface UpdateExerciseResponse {
+  message: string;
+  data: Exercise;
+}
+
+export interface DeleteExerciseResponse {
+  message: string;
 }
 
 export interface AssignProgramToUserRequest {
