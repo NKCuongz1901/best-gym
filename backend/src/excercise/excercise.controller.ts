@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Req,
   Param,
   Post,
   Put,
@@ -22,9 +23,14 @@ import { Role } from 'generated/prisma/enums';
 export class ExcerciseController {
   constructor(private readonly excerciseService: ExcerciseService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.PT)
   @Get()
-  findAll(@Query() filterExcerciseDto: FilterExcerciseDto) {
-    return this.excerciseService.findAll(filterExcerciseDto);
+  findAll(@Req() req: any, @Query() filterExcerciseDto: FilterExcerciseDto) {
+    return this.excerciseService.findAll(filterExcerciseDto, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Get(':id')
@@ -35,24 +41,34 @@ export class ExcerciseController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.PT)
-  async create(@Body() createExcerciseDto: CreateExcerciseDto) {
-    return this.excerciseService.create(createExcerciseDto);
+  async create(@Req() req: any, @Body() createExcerciseDto: CreateExcerciseDto) {
+    return this.excerciseService.create(createExcerciseDto, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.PT)
   async update(
+    @Req() req: any,
     @Param('id') id: string,
     @Body() updateExcerciseDto: UpdateExcerciseDto,
   ) {
-    return this.excerciseService.update(id, updateExcerciseDto);
+    return this.excerciseService.update(id, updateExcerciseDto, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.PT)
-  async remove(@Param('id') id: string) {
-    return this.excerciseService.remove(id);
+  async remove(@Req() req: any, @Param('id') id: string) {
+    return this.excerciseService.remove(id, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 }

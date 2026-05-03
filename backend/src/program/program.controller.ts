@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ProgramService } from './program.service';
@@ -21,27 +22,40 @@ import { Role } from 'generated/prisma/enums';
 export class ProgramController {
   constructor(private readonly programService: ProgramService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.PT)
   @Get()
-  findAll(@Query() filterProgramDto: FilterProgramDto) {
-    return this.programService.findAll(filterProgramDto);
+  findAll(@Req() req: any, @Query() filterProgramDto: FilterProgramDto) {
+    return this.programService.findAll(filterProgramDto, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  async create(@Body() createProgramDto: CreateProgramDto) {
-    return this.programService.create(createProgramDto);
+  @Roles(Role.ADMIN, Role.PT)
+  async create(@Req() req: any, @Body() createProgramDto: CreateProgramDto) {
+    return this.programService.create(createProgramDto, {
+      userId: req.user.userId,
+      role: req.user.role,
+    });
   }
 
   @Post(':programId/days/:programDayId/exercises')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.PT)
   async addProgramDayExercise(
+    @Req() req: any,
     @Param('programId') programId: string,
     @Param('programDayId') programDayId: string,
     @Body() addProgramDayExerciseDto: AddProgramDayExerciseDto,
   ) {
     return this.programService.addProgramDayExercise(
+      {
+        userId: req.user.userId,
+        role: req.user.role,
+      },
       programId,
       programDayId,
       addProgramDayExerciseDto,
@@ -50,11 +64,19 @@ export class ProgramController {
 
   @Post(':programId/days')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.PT)
   async createProgramDay(
+    @Req() req: any,
     @Param('programId') programId: string,
     @Body() createProgramDayDto: CreateProgramDayDto,
   ) {
-    return this.programService.createProgramDay(programId, createProgramDayDto);
+    return this.programService.createProgramDay(
+      {
+        userId: req.user.userId,
+        role: req.user.role,
+      },
+      programId,
+      createProgramDayDto,
+    );
   }
 }

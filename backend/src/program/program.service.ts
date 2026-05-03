@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Role } from 'generated/prisma/enums';
 import { Prisma } from 'generated/prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddProgramDayExerciseDto } from './dto/add-program-day-exercise.dto';
@@ -15,7 +17,26 @@ import { FilterProgramDto } from './dto/filter-program.dto';
 export class ProgramService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(filterProgramDto: FilterProgramDto) {
+  private async assertProgramWriteAccess(
+    programId: string,
+    actor: { userId: string; role: Role },
+  ) {
+    const program = await this.prisma.program.findUnique({
+      where: { id: programId },
+      select: { id: true, createdById: true },
+    });
+    if (!program) {
+      throw new NotFoundException(`Program with id ${programId} not found`);
+    }
+    if (actor.role === Role.PT && program.createdById !== actor.userId) {
+      throw new ForbiddenException('You can only modify programs you created');
+    }
+  }
+
+  async findAll(
+    filterProgramDto: FilterProgramDto,
+    actor: { userId: string; role: Role },
+  ) {
     const {
       page = 1,
       itemsPerPage = 10,
@@ -27,6 +48,9 @@ export class ProgramService {
     const where: Prisma.ProgramWhereInput = {
       isActive,
     };
+    if (actor.role === Role.PT) {
+      where.OR = [{ createdById: actor.userId }, { createdById: null }];
+    }
     const trimmed = search?.trim();
     if (trimmed) {
       where.name = { contains: trimmed, mode: 'insensitive' };
@@ -67,10 +91,13 @@ export class ProgramService {
   }
 
   async addProgramDayExercise(
+    actor: { userId: string; role: Role },
     programId: string,
     programDayId: string,
     addProgramDayExerciseDto: AddProgramDayExerciseDto,
   ) {
+    await this.assertProgramWriteAccess(programId, actor);
+
     const programDay = await this.prisma.programDay.findFirst({
       where: { id: programDayId, programId },
     });
@@ -121,15 +148,11 @@ export class ProgramService {
   }
 
   async createProgramDay(
+    actor: { userId: string; role: Role },
     programId: string,
     createProgramDayDto: CreateProgramDayDto,
   ) {
-    const program = await this.prisma.program.findUnique({
-      where: { id: programId },
-    });
-    if (!program) {
-      throw new NotFoundException(`Program with id ${programId} not found`);
-    }
+    await this.assertProgramWriteAccess(programId, actor);
 
     const { dayOfWeek, title, note } = createProgramDayDto;
 
@@ -159,12 +182,16 @@ export class ProgramService {
     };
   }
 
-  async create(createProgramDto: CreateProgramDto) {
+  async create(
+    createProgramDto: CreateProgramDto,
+    actor: { userId: string; role: Role },
+  ) {
     const { name, description, level, daysPerWeek, thumbnail, isActive } =
       createProgramDto;
 
     const program = await this.prisma.program.create({
       data: {
+        createdById: actor.userId,
         name,
         description,
         level,

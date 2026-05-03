@@ -123,6 +123,8 @@ model Account {
   ptSessionReportsReceived PtSessionReport[] @relation("PtSessionReportsUser")
 
   ptAvailabilityWindows PtAvailabilityWindow[]
+  createdExercises     Exercise[]          @relation("ExerciseCreator")
+  createdPrograms      Program[]           @relation("ProgramCreator")
 }
 
 model Profile {
@@ -245,6 +247,8 @@ model CheckIn {
 
 model Exercise {
   id          String @id @default(uuid())
+  createdById String?
+  createdBy   Account? @relation("ExerciseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   name        String
   description String?
   content     String?
@@ -267,10 +271,13 @@ model Exercise {
   @@index([muscleGroup])
   @@index([level])
   @@index([isActive])
+  @@index([createdById])
 }
 
 model Program {
   id          String       @id @default(uuid())
+  createdById String?
+  createdBy   Account?     @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: SetNull)
   name        String
   description String?
   level       ProgramLevel
@@ -288,6 +295,7 @@ model Program {
 
   @@index([level])
   @@index([isActive])
+  @@index([createdById])
 }
 
 model ProgramDay {
