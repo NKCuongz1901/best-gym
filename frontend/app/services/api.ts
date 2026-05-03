@@ -19,6 +19,13 @@ import {
   CreateExerciseRequest,
   CreateExerciseResponse,
   DeleteExerciseResponse,
+  PtKpiMonthlySummaryResponse,
+  PtKpiPolicyResponse,
+  PtMonthlyKpiResponse,
+  UpdatePtKpiPayoutRequest,
+  UpdatePtKpiPayoutResponse,
+  UpsertPtKpiPolicyRequest,
+  UpsertPtKpiPolicyResponse,
   CreatePackageRequest,
   CreatePackageResponse,
   CreateProgramDayExerciseRequest,
@@ -542,4 +549,55 @@ export const createPtAssistRequest = async (
     request,
   );
   return res;
+};
+
+export const getPtKpiPolicy = async (
+  monthKey?: string,
+): Promise<PtKpiPolicyResponse> => {
+  const res = await axios.get<PtKpiPolicyResponse>(
+    API.PT_KPI.ADMIN_GET_POLICY,
+    { params: monthKey ? { monthKey } : undefined },
+  );
+  return res as unknown as PtKpiPolicyResponse;
+};
+
+export const upsertPtKpiPolicy = async (
+  request: UpsertPtKpiPolicyRequest,
+): Promise<UpsertPtKpiPolicyResponse> => {
+  const res = await axios.post<UpsertPtKpiPolicyResponse>(
+    API.PT_KPI.ADMIN_UPSERT_POLICY,
+    request,
+  );
+  return res as unknown as UpsertPtKpiPolicyResponse;
+};
+
+export const getPtKpiMonthlySummary = async (
+  monthKey?: string,
+): Promise<PtKpiMonthlySummaryResponse> => {
+  const res = await axios.get<PtKpiMonthlySummaryResponse>(
+    API.PT_KPI.ADMIN_GET_MONTHLY_SUMMARY,
+    { params: monthKey ? { monthKey } : undefined },
+  );
+  return res as unknown as PtKpiMonthlySummaryResponse;
+};
+
+export const updatePtKpiPayout = async (
+  payoutId: string,
+  request: UpdatePtKpiPayoutRequest,
+): Promise<UpdatePtKpiPayoutResponse> => {
+  const res = await axios.patch<UpdatePtKpiPayoutResponse>(
+    API.PT_KPI.ADMIN_UPDATE_PAYOUT(payoutId),
+    request,
+  );
+  return res as unknown as UpdatePtKpiPayoutResponse;
+};
+
+export const getMyPtKpiMonthly = async (
+  monthKey?: string,
+): Promise<PtMonthlyKpiResponse> => {
+  const res = await axios.get<PtMonthlyKpiResponse>(
+    API.PT_KPI.PT_GET_MONTHLY,
+    { params: monthKey ? { monthKey } : undefined },
+  );
+  return res as unknown as PtMonthlyKpiResponse;
 };

@@ -23,7 +23,7 @@ export class ProgramController {
   constructor(private readonly programService: ProgramService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.PT)
+  @Roles(Role.ADMIN, Role.PT, Role.USER)
   @Get()
   findAll(@Req() req: any, @Query() filterProgramDto: FilterProgramDto) {
     return this.programService.findAll(filterProgramDto, {

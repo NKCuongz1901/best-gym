@@ -11,6 +11,7 @@ import {
   VideoCameraOutlined,
   FolderOpenFilled,
   GlobalOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { Button, Layout, Menu, theme } from 'antd';
 import Link from 'next/link';
@@ -66,6 +67,11 @@ export default function AdminLayout({
       key: appRoute.admin.branch,
       icon: <GlobalOutlined />,
       label: <Link href={appRoute.admin.branch}>Chi nhánh</Link>,
+    },
+    {
+      key: appRoute.admin.ptKpi,
+      icon: <TrophyOutlined />,
+      label: <Link href={appRoute.admin.ptKpi}>PT KPI</Link>,
     },
   ];
 

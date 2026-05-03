@@ -1,12 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { UserPackageStatus } from 'generated/prisma/enums';
+import { PtKpiService } from 'src/pt-kpi/pt-kpi.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CronjobService {
   private readonly logger = new Logger(CronjobService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ptKpiService: PtKpiService,
+  ) {}
 
   async expireUserPackages(): Promise<number> {
     const now = new Date();
@@ -40,6 +44,18 @@ export class CronjobService {
       }
     } catch (err) {
       this.logger.error('expireUserPackages failed', err);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  async handleFinalizePtMonthlyKpi() {
+    try {
+      const result = await this.ptKpiService.finalizePreviousMonth();
+      this.logger.log(
+        `Finalized PT KPI for ${result.data.monthKey}, processed ${result.data.processed} PT(s)`,
+      );
+    } catch (err) {
+      this.logger.error('finalizePtMonthlyKpi failed', err);
     }
   }
 }

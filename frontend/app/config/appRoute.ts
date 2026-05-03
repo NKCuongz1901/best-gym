@@ -7,6 +7,7 @@ export const appRoute = {
     exercise: '/admin/exercise',
     program: '/admin/program',
     branch: '/admin/branch',
+    ptKpi: '/admin/pt-kpi',
   },
   user: {
     root: '/my-packages',
@@ -21,5 +22,6 @@ export const appRoute = {
   pt: {
     root: '/pt',
     trainee: '/pt/trainee',
+    kpi: '/pt/kpi',
   },
 };

@@ -228,6 +228,10 @@ export default function Header() {
             label: <Link href="/pt/schedule">Lịch dạy</Link>,
           },
           {
+            key: 'pt-kpi',
+            label: <Link href="/pt/kpi">KPI của tôi</Link>,
+          },
+          {
             key: 'pt-exercises',
             label: <Link href="/pt/exercises">Bài tập của tôi</Link>,
           },

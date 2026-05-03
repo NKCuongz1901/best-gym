@@ -88,6 +88,18 @@ enum SessionCompletion {
   NO_SHOW
 }
 
+enum PtMonthlyRewardPayoutStatus {
+  DRAFT
+  APPROVED
+  PAID
+  VOID
+}
+
+enum PtMonthlyRewardPayoutSource {
+  AUTO
+  MANUAL_OVERRIDE
+}
+
 
 model Account {
   id                     String        @id @default(uuid())
@@ -125,6 +137,10 @@ model Account {
   ptAvailabilityWindows PtAvailabilityWindow[]
   createdExercises     Exercise[]          @relation("ExerciseCreator")
   createdPrograms      Program[]           @relation("ProgramCreator")
+  createdPtKpiPolicies PtMonthlyKpiPolicy[] @relation("PtMonthlyKpiPolicyCreator")
+  ptMonthlyKpiSnapshots PtMonthlyKpiSnapshot[] @relation("PtMonthlyKpiSnapshotPT")
+  ptMonthlyRewardPayouts PtMonthlyRewardPayout[] @relation("PtMonthlyRewardPayoutPT")
+  approvedPtMonthlyRewardPayouts PtMonthlyRewardPayout[] @relation("PtMonthlyRewardPayoutApprover")
 }
 
 model Profile {
@@ -465,4 +481,72 @@ model PtWeeklySlot {
 
   @@unique([windowId, dayOfWeek, startTime, endTime])
   @@index([windowId])
+}
+
+model PtMonthlyKpiPolicy {
+  id String @id @default(uuid())
+
+  monthKey      String @unique
+  targetTrainees Int
+  targetSessions Int
+  rewardAmount   Int
+  isActive       Boolean @default(true)
+
+  createdByAdminId String
+  createdByAdmin   Account @relation("PtMonthlyKpiPolicyCreator", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model PtMonthlyKpiSnapshot {
+  id String @id @default(uuid())
+
+  monthKey    String
+  ptAccountId String
+  ptAccount   Account @relation("PtMonthlyKpiSnapshotPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  distinctTrainees Int @default(0)
+  acceptedSessions Int @default(0)
+  achieved         Boolean @default(false)
+  rewardAmountAuto Int @default(0)
+  finalizedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payout PtMonthlyRewardPayout?
+
+  @@unique([ptAccountId, monthKey])
+  @@index([monthKey])
+}
+
+model PtMonthlyRewardPayout {
+  id String @id @default(uuid())
+
+  monthKey    String
+  ptAccountId String
+  ptAccount   Account @relation("PtMonthlyRewardPayoutPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
+
+  snapshotId String? @unique
+  snapshot   PtMonthlyKpiSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+
+  amountAuto  Int @default(0)
+  amountFinal Int @default(0)
+
+  status PtMonthlyRewardPayoutStatus @default(DRAFT)
+  source PtMonthlyRewardPayoutSource @default(AUTO)
+
+  approvedByAdminId String?
+  approvedByAdmin   Account? @relation("PtMonthlyRewardPayoutApprover", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+  note              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ptAccountId, monthKey])
+  @@index([monthKey])
+  @@index([status])
 }

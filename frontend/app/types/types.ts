@@ -755,3 +755,107 @@ export interface ListWorkoutHistoryResponse {
   message: string;
   data: WorkoutHistory[];
 }
+
+export type PtMonthlyRewardPayoutStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'PAID'
+  | 'VOID';
+export type PtMonthlyRewardPayoutSource = 'AUTO' | 'MANUAL_OVERRIDE';
+
+export interface PtMonthlyKpiPolicy {
+  id: string;
+  monthKey: string;
+  targetTrainees: number;
+  targetSessions: number;
+  rewardAmount: number;
+  isActive: boolean;
+  createdByAdminId: string;
+  createdByAdmin?: { id: string; email: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PtMonthlyRewardPayout {
+  id: string;
+  monthKey: string;
+  ptAccountId: string;
+  snapshotId: string | null;
+  amountAuto: number;
+  amountFinal: number;
+  status: PtMonthlyRewardPayoutStatus;
+  source: PtMonthlyRewardPayoutSource;
+  approvedByAdminId: string | null;
+  approvedByAdmin?: { id: string; email: string } | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PtKpiMonthlySummaryRow {
+  ptAccountId: string;
+  email: string;
+  name: string | null;
+  avatar: string | null;
+  distinctTrainees: number;
+  acceptedSessions: number;
+  achieved: boolean;
+  rewardAmountAuto: number;
+  payout: PtMonthlyRewardPayout | null;
+}
+
+export interface PtKpiMonthlySummaryResponse {
+  message: string;
+  data: {
+    monthKey: string;
+    policy: PtMonthlyKpiPolicy | null;
+    rows: PtKpiMonthlySummaryRow[];
+  };
+}
+
+export interface PtKpiPolicyResponse {
+  message: string;
+  data: PtMonthlyKpiPolicy | null;
+}
+
+export interface UpsertPtKpiPolicyRequest {
+  monthKey: string;
+  targetTrainees: number;
+  targetSessions: number;
+  rewardAmount: number;
+  isActive?: boolean;
+}
+
+export interface UpsertPtKpiPolicyResponse {
+  message: string;
+  data: PtMonthlyKpiPolicy;
+}
+
+export interface UpdatePtKpiPayoutRequest {
+  amountFinal?: number;
+  status?: PtMonthlyRewardPayoutStatus;
+  note?: string;
+}
+
+export interface UpdatePtKpiPayoutResponse {
+  message: string;
+  data: PtMonthlyRewardPayout;
+}
+
+export interface PtMonthlyKpiResponse {
+  message: string;
+  data: {
+    monthKey: string;
+    distinctTrainees: number;
+    acceptedSessions: number;
+    kpiTarget: {
+      targetTrainees: number;
+      targetSessions: number;
+      rewardAmount: number;
+    };
+    progress: { traineePercent: number; sessionPercent: number };
+    achieved: boolean;
+    estimatedReward: number;
+    payoutStatus: PtMonthlyRewardPayoutStatus | null;
+  };
+}

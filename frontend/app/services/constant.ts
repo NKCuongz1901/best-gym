@@ -66,6 +66,13 @@ export interface API_PROPS {
     RECOMMEND_PROGRAM: string;
     RECOMMEND_NUTRITION: string;
   };
+  PT_KPI: {
+    ADMIN_GET_POLICY: string;
+    ADMIN_UPSERT_POLICY: string;
+    ADMIN_GET_MONTHLY_SUMMARY: string;
+    ADMIN_UPDATE_PAYOUT: (payoutId: string) => string;
+    PT_GET_MONTHLY: string;
+  };
 }
 
 export const API: API_PROPS = {
@@ -138,5 +145,13 @@ export const API: API_PROPS = {
   AI: {
     RECOMMEND_PROGRAM: '/ai/recommend-packages',
     RECOMMEND_NUTRITION: '/ai/recommend-nutrition',
+  },
+  PT_KPI: {
+    ADMIN_GET_POLICY: '/admin/pt-kpi/policies',
+    ADMIN_UPSERT_POLICY: '/admin/pt-kpi/policies',
+    ADMIN_GET_MONTHLY_SUMMARY: '/admin/pt-kpi/monthly-summary',
+    ADMIN_UPDATE_PAYOUT: (payoutId: string) =>
+      `/admin/pt-kpi/payouts/${payoutId}`,
+    PT_GET_MONTHLY: '/pt/kpi/monthly',
   },
 };
