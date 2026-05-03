@@ -1,14 +1,9 @@
 import { Transform } from 'class-transformer';
-import { ShiftType } from 'generated/prisma/enums';
-import { IsEnum, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
 export class FilterAvailablePtDto {
   @IsUUID()
   branchId: string;
-
-  @IsOptional()
-  @IsEnum(ShiftType)
-  shiftType?: ShiftType;
 
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {

@@ -7,10 +7,16 @@ import {
   AccountStatus,
   PtAssistRequestStatus,
   Role,
-  ShiftType,
   UserPackageStatus,
 } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PT_BOOKING_GRID_SLOTS } from 'src/pt-schedule/grid-slots.constants';
+import {
+  findGridSlotDef,
+  normalizeHhMm,
+  PT_TIMEZONE,
+} from 'src/pt-schedule/pt-schedule.helpers';
+import { fromZonedTime } from 'date-fns-tz';
 import { calcEndAt } from 'src/utils/helpers';
 import { CreatePtSessionReportDto } from './dto/create-pt-session-report.dto';
 import { CreatePtTrainingSlotDto } from './dto/create-pt-training-slot.dto';
@@ -21,23 +27,14 @@ import { RejectPtAssistRequestDto } from './dto/reject-pt-assist-request.dto';
 export class PersonalTrainerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getShiftTemplates() {
-    const templates = await this.prisma.ptShiftTemplate.findMany({
-      where: { isActive: true },
-      orderBy: { startTime: 'asc' },
-    });
-
-    const typeOrder: Record<ShiftType, number> = {
-      [ShiftType.MORNING]: 1,
-      [ShiftType.AFTERNOON]: 2,
-      [ShiftType.EVENING]: 3,
-    };
-
-    templates.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
-
+  getBookingSlotGridDefinition() {
     return {
-      message: 'Get shift templates successfully',
-      data: templates,
+      message: 'Booking slot grid rows (fixed; VN local time labels)',
+      data: {
+        timeZone: PT_TIMEZONE,
+        dayOfWeekLegend: '1 = Monday … 7 = Sunday (ISO)',
+        slots: [...PT_BOOKING_GRID_SLOTS],
+      },
     };
   }
 
@@ -172,22 +169,31 @@ export class PersonalTrainerService {
   }
 
   async getRequestedPackages(ptAccountId: string) {
-    const listRequestedPackages = await this.prisma.userPackage.findMany({
+    const pendingAssist = await this.prisma.ptAssistRequest.findMany({
       where: {
-        ptAccountId: ptAccountId,
-        status: UserPackageStatus.PENDING,
+        ptAccountId,
+        status: PtAssistRequestStatus.PENDING,
       },
+      select: { userPackageId: true },
+      distinct: ['userPackageId'],
+    });
+    const ids = pendingAssist.map((r) => r.userPackageId);
+    const listRequestedPackages = await this.prisma.userPackage.findMany({
+      where: { id: { in: ids } },
       include: {
         package: {
           select: {
             id: true,
             name: true,
+            hasPt: true,
+            ptSessionsIncluded: true,
           },
         },
         account: {
           select: {
             id: true,
             email: true,
+            profile: { select: { name: true, phone: true } },
           },
         },
         branch: {
@@ -201,15 +207,25 @@ export class PersonalTrainerService {
     });
 
     return {
-      message: 'Get requested packages successfully',
+      message:
+        'User packages with at least one pending PT session request to you',
       data: listRequestedPackages,
     };
   }
 
   async getAcceptedPackages(ptAccountId: string) {
+    const assistRows = await this.prisma.ptAssistRequest.findMany({
+      where: {
+        ptAccountId,
+        status: PtAssistRequestStatus.ACCEPTED,
+      },
+      select: { userPackageId: true },
+      distinct: ['userPackageId'],
+    });
+    const ids = assistRows.map((r) => r.userPackageId);
     const listAcceptedPackages = await this.prisma.userPackage.findMany({
       where: {
-        ptAccountId: ptAccountId,
+        id: { in: ids },
         status: UserPackageStatus.ACTIVE,
       },
       include: {
@@ -217,12 +233,15 @@ export class PersonalTrainerService {
           select: {
             id: true,
             name: true,
+            hasPt: true,
+            ptSessionsIncluded: true,
           },
         },
         account: {
           select: {
             id: true,
             email: true,
+            profile: { select: { name: true, phone: true } },
           },
         },
         branch: {
@@ -241,11 +260,13 @@ export class PersonalTrainerService {
       },
     });
     return {
-      message: 'Get accepted packages successfully',
+      message:
+        'Active user packages where you have accepted at least one PT session',
       data: listAcceptedPackages,
     };
   }
 
+  /** @deprecated Legacy flow: user chose PT at purchase; kept for old PENDING rows only */
   async acceptedRequest(ptAccountId: string, userPackageId: string) {
     const requestedPackage = await this.prisma.userPackage.findUnique({
       where: {
@@ -282,6 +303,7 @@ export class PersonalTrainerService {
     };
   }
 
+  /** @deprecated Legacy flow: rejects package assignment at purchase time */
   async rejectedRequest(ptAccountId: string, userPackageId: string) {
     const requestedPackage = await this.prisma.userPackage.update({
       where: {
@@ -488,13 +510,15 @@ export class PersonalTrainerService {
       throw new NotFoundException('PT account not found or inactive');
     }
 
-    const fromDate = new Date(dto.fromDate);
-    const toDate = new Date(dto.toDate);
-    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    const fromUtc = fromZonedTime(`${dto.fromDate}T00:00:00`, PT_TIMEZONE);
+    const toUtc = fromZonedTime(`${dto.toDate}T23:59:59.999`, PT_TIMEZONE);
+    if (Number.isNaN(fromUtc.getTime()) || Number.isNaN(toUtc.getTime())) {
       throw new BadRequestException('Invalid fromDate or toDate');
     }
-    if (toDate < fromDate) {
-      throw new BadRequestException('toDate must be greater than or equal fromDate');
+    if (toUtc < fromUtc) {
+      throw new BadRequestException(
+        'toDate must be greater than or equal fromDate',
+      );
     }
 
     const branch = await this.prisma.branch.findFirst({
@@ -505,49 +529,69 @@ export class PersonalTrainerService {
       throw new NotFoundException('Branch not found or inactive');
     }
 
-    const shiftTemplate = await this.prisma.ptShiftTemplate.findFirst({
-      where: { id: dto.shiftTemplateId, isActive: true },
-      select: { id: true, type: true, startTime: true, endTime: true },
-    });
-    if (!shiftTemplate) {
-      throw new NotFoundException('Shift template not found or inactive');
-    }
-
-    const overlap = await this.prisma.ptShiftSchedule.findFirst({
+    const overlap = await this.prisma.ptAvailabilityWindow.findFirst({
       where: {
         ptAccountId,
         branchId: dto.branchId,
-        shiftTemplateId: dto.shiftTemplateId,
         isActive: true,
-        fromDate: { lte: toDate },
-        toDate: { gte: fromDate },
+        fromDate: { lte: toUtc },
+        toDate: { gte: fromUtc },
       },
       select: { id: true },
     });
     if (overlap) {
-      throw new BadRequestException('This shift is already scheduled in date range');
+      throw new BadRequestException(
+        'You already have an active availability window overlapping this date range for this branch',
+      );
     }
 
-    const slot = await this.prisma.ptShiftSchedule.create({
+    const seen = new Set<string>();
+    const weeklyCreates: Array<{
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+    }> = [];
+
+    for (const s of dto.slots) {
+      const def = findGridSlotDef(s.startTime, s.endTime);
+      if (!def) {
+        throw new BadRequestException(
+          `Unknown grid slot ${s.startTime}-${s.endTime}; use GET /pt/booking-slot-grid-definition`,
+        );
+      }
+      const key = `${s.dayOfWeek}|${def.startTime}|${def.endTime}`;
+      if (seen.has(key)) {
+        throw new BadRequestException(`Duplicate slot in payload: ${key}`);
+      }
+      seen.add(key);
+      weeklyCreates.push({
+        dayOfWeek: s.dayOfWeek,
+        startTime: normalizeHhMm(def.startTime),
+        endTime: normalizeHhMm(def.endTime),
+        isAvailable: true,
+      });
+    }
+
+    const window = await this.prisma.ptAvailabilityWindow.create({
       data: {
         ptAccountId,
         branchId: dto.branchId,
-        shiftTemplateId: dto.shiftTemplateId,
-        fromDate,
-        toDate,
-        maxStudents: dto.maxStudents,
+        fromDate: fromUtc,
+        toDate: toUtc,
+        weeklySlots: { create: weeklyCreates },
       },
       include: {
         branch: { select: { id: true, name: true, address: true } },
-        shiftTemplate: {
-          select: { id: true, type: true, startTime: true, endTime: true },
+        weeklySlots: {
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
         },
       },
     });
 
     return {
-      message: 'Create training slot successfully',
-      data: slot,
+      message: 'Create availability window successfully',
+      data: window,
     };
   }
 
@@ -563,29 +607,31 @@ export class PersonalTrainerService {
       toDate?: { gte?: Date };
     } = { ptAccountId };
 
-    if (from || to) {
-      if (from) {
-        where.toDate = { gte: new Date(`${from}T00:00:00.000Z`) };
-      }
-      if (to) {
-        where.fromDate = { lte: new Date(`${to}T23:59:59.999Z`) };
-      }
+    if (from) {
+      where.toDate = {
+        gte: fromZonedTime(`${from}T00:00:00`, PT_TIMEZONE),
+      };
+    }
+    if (to) {
+      where.fromDate = {
+        lte: fromZonedTime(`${to}T23:59:59.999`, PT_TIMEZONE),
+      };
     }
 
-    const slots = await this.prisma.ptShiftSchedule.findMany({
+    const windows = await this.prisma.ptAvailabilityWindow.findMany({
       where,
       orderBy: { fromDate: 'asc' },
       include: {
         branch: { select: { id: true, name: true, address: true } },
-        shiftTemplate: {
-          select: { id: true, type: true, startTime: true, endTime: true },
+        weeklySlots: {
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
         },
       },
     });
 
     return {
-      message: 'Get training slots successfully',
-      data: slots,
+      message: 'Get availability windows successfully',
+      data: windows,
     };
   }
 }

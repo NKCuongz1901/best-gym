@@ -3,11 +3,12 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Result, Spin } from 'antd';
+import { Button, Result, Spin, Tag } from 'antd';
 import { motion } from 'motion/react';
 import {
   CalendarOutlined,
   EnvironmentOutlined,
+  ThunderboltOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 
@@ -96,13 +97,24 @@ export default function MyPackagesPage() {
                 pkg.price,
               )}₫`;
 
+              const granted =
+                item.ptSessionsGranted ?? pkg.ptSessionsIncluded ?? 0;
+              const remaining =
+                typeof item.ptSessionsRemaining === 'number'
+                  ? item.ptSessionsRemaining
+                  : null;
+              const canBookPt =
+                pkg.hasPt &&
+                item.status === 'ACTIVE' &&
+                (remaining === null || remaining > 0);
+
               return (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
+                  className="flex flex-col rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
                 >
                   <div className="mb-3 flex items-start justify-between gap-2">
                     <div>
@@ -135,17 +147,29 @@ export default function MyPackagesPage() {
                         {branch.address ? ` - ${branch.address}` : ''}
                       </span>
                     </div>
-                    {pt && (
+                    {pkg.hasPt ? (
+                      <div className="flex items-center gap-2">
+                        <ThunderboltOutlined className="text-primary" />
+                        <span>
+                          Buổi PT còn lại:{' '}
+                          <span className="font-semibold text-neutral-900">
+                            {remaining ?? '—'} / {granted || '—'}
+                          </span>
+                        </span>
+                      </div>
+                    ) : null}
+                    {pt && pkg.hasPt ? (
                       <div className="flex items-center gap-2">
                         <UserOutlined className="text-primary" />
                         <span>
-                          PT:{' '}
+                          PT (cũ):{' '}
                           {pt.profile?.name
                             ? pt.profile.name
                             : pt.email}
                         </span>
+                        <Tag color="default">legacy</Tag>
                       </div>
-                    )}
+                    ) : null}
                     {(item.startAt || item.endAt) && (
                       <div className="flex items-center gap-2">
                         <CalendarOutlined className="text-primary" />
@@ -162,6 +186,23 @@ export default function MyPackagesPage() {
                       </div>
                     )}
                   </div>
+
+                  {pkg.hasPt ? (
+                    <div className="mt-4">
+                      <Button
+                        type="primary"
+                        block
+                        disabled={!canBookPt}
+                        onClick={() =>
+                          router.push(`/my-packages/${item.id}/book-pt`)
+                        }
+                      >
+                        {remaining === 0
+                          ? 'Đã hết quota PT'
+                          : 'Đặt buổi PT'}
+                      </Button>
+                    </div>
+                  ) : null}
                 </motion.div>
               );
             })}
@@ -171,4 +212,3 @@ export default function MyPackagesPage() {
     </div>
   );
 }
-

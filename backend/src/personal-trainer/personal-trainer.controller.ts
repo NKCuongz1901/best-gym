@@ -34,9 +34,9 @@ export class PersonalTrainerController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PT)
-  @Get('shift-templates')
-  async getShiftTemplates() {
-    return this.personalTrainerService.getShiftTemplates();
+  @Get('booking-slot-grid-definition')
+  getBookingSlotGridDefinition() {
+    return this.personalTrainerService.getBookingSlotGridDefinition();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

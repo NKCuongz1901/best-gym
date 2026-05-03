@@ -6,14 +6,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, Result, Steps, message } from 'antd';
 
 import {
-  getAvailablePTs,
   getBranches,
   getPackages,
   purchasePackage,
 } from '@/app/services/api';
 import type { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '@/app/types/filters';
 import type {
-  AvailablePtAccount,
   Branch,
   Package,
   PurchasePackageRequest,
@@ -21,7 +19,6 @@ import type {
 import { useAuthStore } from '@/app/stores/authStore';
 import SelectPackageStep from '@/app/components/purchase/SelectPackageStep';
 import SelectBranchStep from '@/app/components/purchase/SelectBranchStep';
-import SelectPtStep from '@/app/components/purchase/SelectPtStep';
 import ConfirmPurchaseStep from '@/app/components/purchase/ConfirmPurchaseStep';
 
 export default function PurchasePackagePage() {
@@ -36,13 +33,6 @@ export default function PurchasePackagePage() {
     null,
   );
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
-  const [selectedPtId, setSelectedPtId] = useState<string | null>(null);
-  const [ptSearch, setPtSearch] = useState('');
-  const [ptShiftType, setPtShiftType] = useState<
-    'MORNING' | 'AFTERNOON' | 'EVENING' | undefined
-  >(undefined);
-  const [ptFromDate, setPtFromDate] = useState<string | undefined>(undefined);
-  const [ptToDate, setPtToDate] = useState<string | undefined>(undefined);
 
   const [packageFilters] = useState<FILTER_PACKAGE_PROPS>({
     page: 1,
@@ -74,29 +64,8 @@ export default function PurchasePackagePage() {
     enabled: isLoggedIn,
   });
 
-  const { data: ptsRes, isLoading: isLoadingPts } = useQuery({
-    queryKey: [
-      'available-pts',
-      selectedBranchId,
-      ptShiftType,
-      ptFromDate,
-      ptToDate,
-      ptSearch,
-    ],
-    queryFn: () =>
-      getAvailablePTs({
-        branchId: selectedBranchId as string,
-        shiftType: ptShiftType,
-        from: ptFromDate,
-        to: ptToDate,
-        search: ptSearch || undefined,
-      }),
-    enabled: isLoggedIn && !!selectedBranchId,
-  });
-
   const packages: Package[] = packagesRes?.data ?? [];
   const branches: Branch[] = branchesRes?.data ?? [];
-  const pts: AvailablePtAccount[] = ptsRes?.data ?? [];
 
   useEffect(() => {
     const initialPackageId = searchParams.get('packageId');
@@ -127,27 +96,13 @@ export default function PurchasePackagePage() {
     [branches, selectedBranchId],
   );
 
-  const selectedPt = useMemo(
-    () => pts.find((pt) => pt.id === selectedPtId) ?? null,
-    [pts, selectedPtId],
-  );
+  const steps = ['Gói tập', 'Cơ sở', 'Xác nhận'];
 
-  const requirePt = selectedPackage?.hasPt ?? false;
-
-  const steps = useMemo(() => {
-    const base = ['Gói tập', 'Cơ sở'];
-    if (requirePt) base.push('Huấn luyện viên');
-    base.push('Xác nhận');
-    return base;
-  }, [requirePt]);
-
-  const isConfirmStep =
-    (requirePt && currentStep === 3) || (!requirePt && currentStep === 2);
+  const isConfirmStep = currentStep === 2;
 
   const canProceed = () => {
     if (currentStep === 0) return !!selectedPackageId;
     if (currentStep === 1) return !!selectedBranchId;
-    if (requirePt && currentStep === 2) return !!selectedPtId;
     return true;
   };
 
@@ -173,7 +128,7 @@ export default function PurchasePackagePage() {
     mutationFn: (body: PurchasePackageRequest) => purchasePackage(body),
     onSuccess: () => {
       message.success('Đăng ký gói tập thành công!');
-      router.push('/packages');
+      router.push('/my-packages');
     },
     onError: () => {
       message.error('Đăng ký gói tập thất bại, vui lòng thử lại.');
@@ -185,15 +140,10 @@ export default function PurchasePackagePage() {
       message.error('Thiếu thông tin gói tập hoặc cơ sở.');
       return;
     }
-    if (requirePt && !selectedPtId) {
-      message.error('Vui lòng chọn huấn luyện viên.');
-      return;
-    }
 
     const payload: PurchasePackageRequest = {
       packageId: selectedPackageId,
       branchId: selectedBranchId,
-      ptAccountId: requirePt ? (selectedPtId ?? undefined) : undefined,
     };
 
     doPurchase(payload);
@@ -238,9 +188,6 @@ export default function PurchasePackagePage() {
               selectedPackageId={selectedPackageId}
               onSelect={(pkg) => {
                 setSelectedPackageId(pkg.id);
-                if (!pkg.hasPt) {
-                  setSelectedPtId(null);
-                }
               }}
             />
           )}
@@ -254,30 +201,10 @@ export default function PurchasePackagePage() {
             />
           )}
 
-          {requirePt && currentStep === 2 && (
-            <SelectPtStep
-              loading={isLoadingPts}
-              pts={pts}
-              selectedPtId={selectedPtId}
-              onSelect={(pt) => setSelectedPtId(pt.id)}
-              search={ptSearch}
-              shiftType={ptShiftType}
-              fromDate={ptFromDate}
-              toDate={ptToDate}
-              onSearchChange={(value) => setPtSearch(value)}
-              onShiftTypeChange={(value) => setPtShiftType(value)}
-              onDateRangeChange={(from, to) => {
-                setPtFromDate(from);
-                setPtToDate(to);
-              }}
-            />
-          )}
-
           {isConfirmStep && (
             <ConfirmPurchaseStep
               selectedPackage={selectedPackage}
               selectedBranch={selectedBranch}
-              selectedPt={selectedPt}
             />
           )}
         </div>

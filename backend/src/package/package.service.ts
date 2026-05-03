@@ -13,14 +13,22 @@ export class PackageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createPackageDto: CreatePackageDto) {
-    const { name, unit, durationValue, hasPt, price, description } =
-      createPackageDto;
+    const {
+      name,
+      unit,
+      durationValue,
+      hasPt,
+      ptSessionsIncluded,
+      price,
+      description,
+    } = createPackageDto;
     const newPackage = await this.prisma.package.create({
       data: {
         name,
         unit,
         durationValue,
         hasPt,
+        ptSessionsIncluded: hasPt ? ptSessionsIncluded! : null,
         price,
         description,
       },
@@ -82,19 +90,61 @@ export class PackageService {
   }
 
   async update(id: string, updatePackageDto: UpdatePackageDto) {
+    const existing = await this.prisma.package.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Package with id ${id} not found`);
+    }
+
+    const nextHasPt =
+      updatePackageDto.hasPt !== undefined
+        ? updatePackageDto.hasPt
+        : existing.hasPt;
+
+    if (
+      updatePackageDto.ptSessionsIncluded !== undefined &&
+      !nextHasPt
+    ) {
+      throw new BadRequestException(
+        'ptSessionsIncluded can only be set when hasPt is true',
+      );
+    }
+
+    let nextPtSessions =
+      updatePackageDto.ptSessionsIncluded !== undefined
+        ? updatePackageDto.ptSessionsIncluded
+        : existing.ptSessionsIncluded;
+
+    if (!nextHasPt) {
+      nextPtSessions = null;
+    } else if (
+      nextPtSessions == null ||
+      !Number.isFinite(nextPtSessions) ||
+      nextPtSessions < 1
+    ) {
+      throw new BadRequestException(
+        'When hasPt is true, ptSessionsIncluded must be a positive integer',
+      );
+    }
+
     const data: Parameters<typeof this.prisma.package.update>[0]['data'] = {};
     if (updatePackageDto.name !== undefined) data.name = updatePackageDto.name;
     if (updatePackageDto.unit !== undefined) data.unit = updatePackageDto.unit;
     if (updatePackageDto.durationValue !== undefined)
       data.durationValue = updatePackageDto.durationValue;
-    if (updatePackageDto.hasPt !== undefined)
-      data.hasPt = updatePackageDto.hasPt;
     if (updatePackageDto.price !== undefined)
       data.price = updatePackageDto.price;
     if (updatePackageDto.description !== undefined)
       data.description = updatePackageDto.description;
     if (updatePackageDto.isActive !== undefined)
       data.isActive = updatePackageDto.isActive;
+
+    const ptFieldsDirty =
+      updatePackageDto.hasPt !== undefined ||
+      updatePackageDto.ptSessionsIncluded !== undefined;
+    if (ptFieldsDirty) {
+      data.hasPt = nextHasPt;
+      data.ptSessionsIncluded = nextPtSessions;
+    }
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('No fields to update');

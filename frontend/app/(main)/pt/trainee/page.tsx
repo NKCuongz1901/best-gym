@@ -20,10 +20,7 @@ import {
   getAcceptedTraineeRequests,
   getPTAssistRequests,
   getPrograms,
-  getTraineeRequests,
-  approveTraineeRequest,
   rejectPTAssistRequest,
-  rejectTraineeRequest,
 } from '@/app/services/api';
 import type {
   AssignProgramToUserRequest,
@@ -40,25 +37,12 @@ export default function TraineePage() {
   const queryClient = useQueryClient();
   const { isLoggedIn, user } = useAuthStore();
   const [assignForm] = Form.useForm<{ programId: string }>();
-  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'assist'>(
-    'pending',
-  );
+  const [activeTab, setActiveTab] = useState<'active' | 'assist'>('active');
   const [selectedTrainee, setSelectedTrainee] = useState<TraineeRequest | null>(
     null,
   );
   const [detailOpen, setDetailOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
-
-  const { data: pendingData, isLoading: isLoadingPending } = useQuery({
-    queryKey: ['pt-trainee-pending'],
-    queryFn: () => getTraineeRequests(),
-    enabled: isLoggedIn && user?.role === 'PT',
-  });
-
-  const pendingList: TraineeRequest[] = useMemo(
-    () => pendingData?.data ?? [],
-    [pendingData],
-  );
 
   const { data: activeData, isLoading: isLoadingActive } = useQuery({
     queryKey: ['pt-trainee-active'],
@@ -66,10 +50,18 @@ export default function TraineePage() {
     enabled: isLoggedIn && user?.role === 'PT',
   });
 
-  const activeList: TraineeRequest[] = useMemo(
-    () => activeData?.data ?? [],
-    [activeData],
-  );
+  const activeList: TraineeRequest[] = useMemo(() => {
+    const raw: TraineeRequest[] = activeData?.data ?? [];
+    const seen = new Set<string>();
+    const deduped: TraineeRequest[] = [];
+    for (const item of raw) {
+      const key = item.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(item);
+    }
+    return deduped;
+  }, [activeData]);
 
   const { data: assistData, isLoading: isLoadingAssist } = useQuery({
     queryKey: ['pt-assist-requests'],
@@ -94,29 +86,6 @@ export default function TraineePage() {
     label: program.name,
     value: program.id,
   }));
-
-  const { mutate: approveRequest, isPending: isApproving } = useMutation({
-    mutationFn: (trainee: TraineeRequest) =>
-      approveTraineeRequest({ requestId: trainee.id }),
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['pt-trainee-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['pt-trainee-active'] });
-      const trainee = res.data as TraineeRequest;
-      const name = trainee.account.profile?.name ?? trainee.account.email;
-      message.success(`Đã duyệt học viên ${name}.`);
-    },
-  });
-
-  const { mutate: rejectRequest, isPending: isRejecting } = useMutation({
-    mutationFn: (trainee: TraineeRequest) =>
-      rejectTraineeRequest({ requestId: trainee.id }),
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ['pt-trainee-pending'] });
-      const trainee = res.data as TraineeRequest;
-      const name = trainee.account.profile?.name ?? trainee.account.email;
-      message.info(`Đã từ chối yêu cầu của ${name}.`);
-    },
-  });
 
   const { mutate: acceptAssistRequest, isPending: isAcceptingAssist } =
     useMutation({
@@ -192,35 +161,8 @@ export default function TraineePage() {
 
         <Tabs
           activeKey={activeTab}
-          onChange={(key) =>
-            setActiveTab(key as 'pending' | 'active' | 'assist')
-          }
+          onChange={(key) => setActiveTab(key as 'active' | 'assist')}
           items={[
-            {
-              key: 'pending',
-              label: `Chờ duyệt (${pendingList.length})`,
-              children: isLoadingPending ? (
-                <div className="flex justify-center py-10">
-                  <Spin />
-                </div>
-              ) : pendingList.length === 0 ? (
-                <p className="py-8 text-center text-sm text-neutral-500">
-                  Không có yêu cầu nào đang chờ duyệt.
-                </p>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {pendingList.map((trainee) => (
-                    <TraineeCard
-                      key={trainee.id}
-                      trainee={trainee}
-                      mode="pending"
-                      onApprove={approveRequest}
-                      onReject={rejectRequest}
-                    />
-                  ))}
-                </div>
-              ),
-            },
             {
               key: 'active',
               label: `Học viên của tôi (${activeList.length})`,

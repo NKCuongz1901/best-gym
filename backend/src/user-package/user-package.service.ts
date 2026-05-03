@@ -11,10 +11,19 @@ import {
   AccountStatus,
   PtAssistRequestStatus,
   Role,
-  ShiftType,
   UserPackageStatus,
   WorkoutHistoryStatus,
 } from 'generated/prisma/enums';
+import { PT_BOOKING_GRID_SLOTS } from 'src/pt-schedule/grid-slots.constants';
+import {
+  calendarDateOverlapsWindow,
+  isoDowMon1Sun7ForCalendarDate,
+  enumerateWeekDatesFromMonday,
+  normalizeHhMm,
+  PT_TIMEZONE,
+  utcBoundsForCalendarSlot,
+} from 'src/pt-schedule/pt-schedule.helpers';
+import { fromZonedTime } from 'date-fns-tz';
 import { calcEndAt } from 'src/utils/helpers';
 import { CheckinPackageDto } from './dto/checkin-package.dto';
 import { FilterPtTrainingHistoryDto } from './dto/filter-pt-training-history.dto';
@@ -23,53 +32,107 @@ import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 import { FilterPtTrainingSlotsForUserDto } from './dto/filter-pt-training-slots.dto';
 import { FilterAvailablePtDto } from './dto/filter-available-pt.dto';
+import { PtWeekGridQueryDto } from './dto/pt-week-grid-query.dto';
 
 @Injectable()
 export class UserPackageService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAvailablePTs(filter: FilterAvailablePtDto) {
-    const { branchId, shiftType, from, to, search } = filter;
+  private ptQuotaCap(
+    ptSessionsGranted: number | null,
+    pkg: { ptSessionsIncluded: number | null; hasPt: boolean },
+  ): number | null {
+    if (!pkg.hasPt) return null;
+    const cap = ptSessionsGranted ?? pkg.ptSessionsIncluded ?? null;
+    return cap != null && cap >= 1 ? cap : null;
+  }
 
-    const scheduleWhere: {
-      branchId: string;
-      isActive: boolean;
-      shiftTemplate: { isActive: boolean; type?: ShiftType };
-      fromDate?: { lte: Date };
-      toDate?: { gte: Date };
-    } = {
+  private async enrichUserPackagesPtStats<
+    T extends {
+      id: string;
+      ptSessionsGranted: number | null;
+      package: { hasPt: boolean; ptSessionsIncluded: number | null };
+    },
+  >(userPackages: T[]) {
+    const ptPkgIds = userPackages
+      .filter((up) => up.package.hasPt)
+      .map((up) => up.id);
+
+    let usedMap = new Map<string, number>();
+    if (ptPkgIds.length > 0) {
+      const usages = await this.prisma.ptAssistRequest.groupBy({
+        by: ['userPackageId'],
+        where: {
+          userPackageId: { in: ptPkgIds },
+          status: {
+            in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
+          },
+        },
+        _count: { _all: true },
+      });
+      usedMap = new Map(
+        usages.map((u) => [u.userPackageId, u._count._all]),
+      );
+    }
+
+    return userPackages.map((up) => {
+      if (!up.package.hasPt) return up;
+      const cap = this.ptQuotaCap(up.ptSessionsGranted, up.package);
+      const used = usedMap.get(up.id) ?? 0;
+      const remaining = cap != null ? Math.max(0, cap - used) : null;
+      return {
+        ...up,
+        ptSessionsRemaining: remaining,
+        ptAssistSessionsUsed: used,
+      };
+    });
+  }
+
+  async getAvailablePTs(filter: FilterAvailablePtDto) {
+    const { branchId, from, to, search } = filter;
+
+    const windowWhere = {
       branchId,
       isActive: true,
-      shiftTemplate: {
-        isActive: true,
-        ...(shiftType ? { type: shiftType } : {}),
-      },
+      weeklySlots: { some: { isAvailable: true } },
+      ...(from
+        ? { toDate: { gte: fromZonedTime(`${from}T00:00:00`, PT_TIMEZONE) } }
+        : {}),
+      ...(to
+        ? {
+            fromDate: {
+              lte: fromZonedTime(`${to}T23:59:59.999`, PT_TIMEZONE),
+            },
+          }
+        : {}),
     };
 
-    if (from) {
-      scheduleWhere.toDate = { gte: new Date(`${from}T00:00:00.000Z`) };
-    }
-    if (to) {
-      scheduleWhere.fromDate = { lte: new Date(`${to}T23:59:59.999Z`) };
-    }
-
-    const where: any = {
+    const baseFilter = {
       role: Role.PT,
       status: AccountStatus.ACTIVE,
-      ptShiftSchedules: {
-        some: scheduleWhere,
+      ptAvailabilityWindows: {
+        some: windowWhere,
       },
     };
 
-    if (search?.length) {
-      where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { profile: { name: { contains: search, mode: 'insensitive' } } },
-      ];
-    }
-
     const pts = await this.prisma.account.findMany({
-      where,
+      where: search?.length
+        ? {
+            AND: [
+              baseFilter,
+              {
+                OR: [
+                  { email: { contains: search, mode: 'insensitive' } },
+                  {
+                    profile: {
+                      name: { contains: search, mode: 'insensitive' },
+                    },
+                  },
+                ],
+              },
+            ],
+          }
+        : baseFilter,
       select: {
         id: true,
         email: true,
@@ -80,21 +143,22 @@ export class UserPackageService {
             avatar: true,
           },
         },
-        ptShiftSchedules: {
-          where: scheduleWhere,
-          orderBy: [{ fromDate: 'asc' }, { shiftTemplate: { startTime: 'asc' } }],
+        ptAvailabilityWindows: {
+          where: windowWhere,
+          orderBy: { fromDate: 'asc' },
           select: {
             id: true,
             fromDate: true,
             toDate: true,
-            maxStudents: true,
             branch: {
               select: { id: true, name: true, address: true },
             },
-            shiftTemplate: {
+            weeklySlots: {
+              where: { isAvailable: true },
+              orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
               select: {
                 id: true,
-                type: true,
+                dayOfWeek: true,
                 startTime: true,
                 endTime: true,
               },
@@ -110,6 +174,156 @@ export class UserPackageService {
     return {
       message: 'Get available PTs successfully',
       data: pts,
+    };
+  }
+
+  async getPtWeekBookingGrid(dto: PtWeekGridQueryDto) {
+    const { branchId, ptAccountId, weekStart } = dto;
+
+    if (isoDowMon1Sun7ForCalendarDate(weekStart) !== 1) {
+      throw new BadRequestException(
+        'weekStart must be Monday (calendar date yyyy-MM-dd in Asia/Ho_Chi_Minh)',
+      );
+    }
+
+    const pt = await this.prisma.account.findFirst({
+      where: {
+        id: ptAccountId,
+        role: Role.PT,
+        status: AccountStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    if (!pt) {
+      throw new NotFoundException('PT not found or inactive');
+    }
+
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, isActive: true },
+      select: { id: true, name: true, address: true },
+    });
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    const weekDates = enumerateWeekDatesFromMonday(weekStart);
+    const weekRangeStart = fromZonedTime(`${weekStart}T00:00:00`, PT_TIMEZONE);
+    const weekRangeEndInclusive = fromZonedTime(
+      `${weekDates[6]}T23:59:59.999`,
+      PT_TIMEZONE,
+    );
+
+    const windows = await this.prisma.ptAvailabilityWindow.findMany({
+      where: {
+        ptAccountId,
+        branchId,
+        isActive: true,
+        weeklySlots: { some: { isAvailable: true } },
+        fromDate: { lte: weekRangeEndInclusive },
+        toDate: { gte: weekRangeStart },
+      },
+      include: {
+        weeklySlots: {
+          where: { isAvailable: true },
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        },
+      },
+    });
+
+    const bookings = await this.prisma.ptAssistRequest.findMany({
+      where: {
+        ptAccountId,
+        branchId,
+        status: {
+          in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
+        },
+        startTime: { lte: weekRangeEndInclusive },
+        endTime: { gte: weekRangeStart },
+      },
+      select: { startTime: true, endTime: true },
+    });
+
+    const now = new Date();
+    const days = weekDates.map((dateStr) => {
+      const dow = isoDowMon1Sun7ForCalendarDate(dateStr);
+
+      const applicableSlotsAllWindows: Array<{
+        id: string;
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+      }> = [];
+      for (const w of windows) {
+        if (!calendarDateOverlapsWindow(dateStr, w.fromDate, w.toDate)) {
+          continue;
+        }
+        for (const s of w.weeklySlots) {
+          if (s.dayOfWeek === dow) applicableSlotsAllWindows.push(s);
+        }
+      }
+
+      const slotsPayload = PT_BOOKING_GRID_SLOTS.map((row) => {
+        const rowStart = normalizeHhMm(row.startTime);
+        const rowEnd = normalizeHhMm(row.endTime);
+        const match = applicableSlotsAllWindows.find(
+          (s) =>
+            normalizeHhMm(s.startTime) === rowStart &&
+            normalizeHhMm(s.endTime) === rowEnd,
+        );
+
+        if (!match) {
+          return {
+            gridKey: row.key,
+            startTime: row.startTime,
+            endTime: row.endTime,
+            weeklySlotId: null as string | null,
+            state: 'UNAVAILABLE' as const,
+          };
+        }
+
+        const bounds = utcBoundsForCalendarSlot(
+          dateStr,
+          row.startTime,
+          row.endTime,
+        );
+
+        const occupied = bookings.some(
+          (b) =>
+            b.startTime.getTime() === bounds.start.getTime() &&
+            b.endTime.getTime() === bounds.end.getTime(),
+        );
+
+        let state: 'FREE' | 'PASSED' | 'OCCUPIED' | 'UNAVAILABLE';
+        if (occupied) state = 'OCCUPIED';
+        else if (now > bounds.end) state = 'PASSED';
+        else state = 'FREE';
+
+        return {
+          gridKey: row.key,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          weeklySlotId: match.id,
+          state,
+        };
+      });
+
+      return {
+        date: dateStr,
+        dayOfWeek: dow,
+        slots: slotsPayload,
+      };
+    });
+
+    return {
+      message: 'Get PT week booking grid successfully',
+      data: {
+        timeZone: PT_TIMEZONE,
+        weekStart,
+        branch,
+        ptAccountId,
+        gridRows: [...PT_BOOKING_GRID_SLOTS],
+        days,
+      },
     };
   }
 
@@ -341,7 +555,7 @@ export class UserPackageService {
     accountId: string,
     purchasePackageDto: PurchasePackageDto,
   ) {
-    const { packageId, branchId, ptAccountId } = purchasePackageDto;
+    const { packageId, branchId } = purchasePackageDto;
 
     const newPackage = await this.prisma.package.findUnique({
       where: {
@@ -362,38 +576,20 @@ export class UserPackageService {
       throw new NotFoundException('Branch not found');
     }
 
-    if (newPackage.hasPt) {
-      const selectedPtAccount = await this.prisma.account.findUnique({
-        where: {
-          id: ptAccountId,
-          role: Role.PT,
-          status: AccountStatus.ACTIVE,
-        },
-      });
-      if (!selectedPtAccount) {
-        throw new NotFoundException('PT account not found');
-      }
-
-      const userPackage = await this.prisma.userPackage.create({
-        data: {
-          accountId,
-          branchId,
-          packageId,
-          ptAccountId,
-          status: UserPackageStatus.PENDING,
-        },
-      });
-
-      return {
-        message: 'Purchase package successfully',
-        data: userPackage,
-      };
+    if (
+      newPackage.hasPt &&
+      (newPackage.ptSessionsIncluded == null ||
+        !Number.isFinite(newPackage.ptSessionsIncluded) ||
+        newPackage.ptSessionsIncluded < 1)
+    ) {
+      throw new BadRequestException(
+        'This PT package does not define a valid ptSessionsIncluded count',
+      );
     }
 
-    // Purchase package without PT
     const startAt = new Date();
     const endAt = calcEndAt(startAt, newPackage.unit, newPackage.durationValue);
-    const userPackage = await this.prisma.userPackage.create({
+    const created = await this.prisma.userPackage.create({
       data: {
         accountId,
         branchId,
@@ -403,12 +599,25 @@ export class UserPackageService {
         startAt,
         endAt,
         expiredAt: endAt,
+        ...(newPackage.hasPt && newPackage.ptSessionsIncluded != null
+          ? { ptSessionsGranted: newPackage.ptSessionsIncluded }
+          : {}),
       },
     });
 
+    const userPackage = await this.prisma.userPackage.findUnique({
+      where: { id: created.id },
+      include: { package: true },
+    });
+    if (!userPackage) {
+      throw new NotFoundException('User package not found after purchase');
+    }
+
+    const [withStats] = await this.enrichUserPackagesPtStats([userPackage]);
+
     return {
       message: 'Purchase package successfully',
-      data: userPackage,
+      data: withStats,
     };
   }
 
@@ -431,6 +640,7 @@ export class UserPackageService {
             unit: true,
             durationValue: true,
             hasPt: true,
+            ptSessionsIncluded: true,
             price: true,
             description: true,
           },
@@ -448,9 +658,11 @@ export class UserPackageService {
       },
     });
 
+    const data = await this.enrichUserPackagesPtStats(userPackages);
+
     return {
       message: 'Get user packages successfully',
-      data: userPackages,
+      data,
     };
   }
   async getUserDetailPackage(accountId: string, userPackageId: string) {
@@ -468,9 +680,10 @@ export class UserPackageService {
     if (!userPackage) {
       throw new NotFoundException('User package not found');
     }
+    const [data] = await this.enrichUserPackagesPtStats([userPackage]);
     return {
       message: 'Get user detail package successfully',
-      data: userPackage,
+      data,
     };
   }
 
@@ -549,7 +762,12 @@ export class UserPackageService {
         userPackage: {
           include: {
             package: {
-              select: { id: true, name: true, hasPt: true },
+              select: {
+                id: true,
+                name: true,
+                hasPt: true,
+                ptSessionsIncluded: true,
+              },
             },
           },
         },
@@ -634,14 +852,6 @@ export class UserPackageService {
   }
 
   async createRequestPT(accountId: string, dto: CreatePtAssistRequestDto) {
-    const toIsoTime = (time: string) => {
-      const [hour = '00', minute = '00', second = '00'] = time.split(':');
-      return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(
-        2,
-        '0',
-      )}`;
-    };
-
     return this.prisma.$transaction(async (tx) => {
       const userPackage = await tx.userPackage.findUnique({
         where: { id: dto.userPackageId },
@@ -673,57 +883,100 @@ export class UserPackageService {
         throw new BadRequestException('This package does not include PT');
       }
 
-      if (!userPackage.ptAccountId) {
-        throw new BadRequestException('No PT assigned to this UserPackage');
+      const quotaCap = this.ptQuotaCap(
+        userPackage.ptSessionsGranted,
+        userPackage.package,
+      );
+      if (quotaCap == null) {
+        throw new BadRequestException(
+          'Package PT session quota is not configured',
+        );
       }
 
-      const selectedSlot = await tx.ptShiftSchedule.findUnique({
-        where: { id: dto.slotId },
-        include: {
-          shiftTemplate: {
-            select: { id: true, type: true, startTime: true, endTime: true },
+      const consumed = await tx.ptAssistRequest.count({
+        where: {
+          userPackageId: userPackage.id,
+          status: {
+            in: [
+              PtAssistRequestStatus.PENDING,
+              PtAssistRequestStatus.ACCEPTED,
+            ],
           },
         },
       });
-      if (!selectedSlot) {
-        throw new NotFoundException('PT shift schedule not found');
-      }
-
-      if (selectedSlot.ptAccountId !== userPackage.ptAccountId) {
+      if (consumed >= quotaCap) {
         throw new BadRequestException(
-          'Selected schedule does not belong to your assigned PT',
-        );
-      }
-      if (selectedSlot.branchId !== userPackage.branchId) {
-        throw new BadRequestException(
-          'Selected schedule does not belong to your package branch',
+          'No PT sessions remaining for this package',
         );
       }
 
-      const requestedStart = new Date(
-        `${dto.sessionDate}T${toIsoTime(selectedSlot.shiftTemplate.startTime)}.000Z`,
-      );
-      const requestedEnd = new Date(
-        `${dto.sessionDate}T${toIsoTime(selectedSlot.shiftTemplate.endTime)}.000Z`,
-      );
+      const weeklySlot = await tx.ptWeeklySlot.findUnique({
+        where: { id: dto.slotId },
+        include: { window: true },
+      });
+      if (!weeklySlot) {
+        throw new NotFoundException('PT weekly availability slot not found');
+      }
+
+      const win = weeklySlot.window;
+      if (!win.isActive) {
+        throw new BadRequestException('PT availability window is inactive');
+      }
+      if (!weeklySlot.isAvailable) {
+        throw new BadRequestException('This PT slot is not available');
+      }
+
+      const slotPt = await tx.account.findFirst({
+        where: {
+          id: win.ptAccountId,
+          role: Role.PT,
+          status: AccountStatus.ACTIVE,
+        },
+        select: { id: true },
+      });
+      if (!slotPt) {
+        throw new BadRequestException(
+          'This availability is not linked to an active PT',
+        );
+      }
+      if (win.branchId !== userPackage.branchId) {
+        throw new BadRequestException(
+          'Selected slot does not belong to your package branch',
+        );
+      }
+
+      const sessionDow = isoDowMon1Sun7ForCalendarDate(dto.sessionDate);
+      if (sessionDow !== weeklySlot.dayOfWeek) {
+        throw new BadRequestException(
+          'sessionDate weekday does not match this weekly slot',
+        );
+      }
+
       if (
-        Number.isNaN(requestedStart.getTime()) ||
-        Number.isNaN(requestedEnd.getTime())
+        !calendarDateOverlapsWindow(dto.sessionDate, win.fromDate, win.toDate)
       ) {
-        throw new BadRequestException('Invalid sessionDate or shift time');
+        throw new BadRequestException(
+          'Requested date is outside PT availability window',
+        );
+      }
+
+      let requestedStart: Date;
+      let requestedEnd: Date;
+      try {
+        const bounds = utcBoundsForCalendarSlot(
+          dto.sessionDate,
+          weeklySlot.startTime,
+          weeklySlot.endTime,
+        );
+        requestedStart = bounds.start;
+        requestedEnd = bounds.end;
+      } catch {
+        throw new BadRequestException('Invalid session times for slot');
       }
       if (requestedEnd <= requestedStart) {
-        throw new BadRequestException('Invalid shift template time range');
+        throw new BadRequestException('Invalid slot time range');
       }
 
-      if (
-        requestedStart < selectedSlot.fromDate ||
-        requestedStart > selectedSlot.toDate
-      ) {
-        throw new BadRequestException(
-          'Requested date is outside PT shift schedule range',
-        );
-      }
       if (
         requestedStart < userPackage.startAt ||
         requestedStart > userPackage.endAt
@@ -733,10 +986,10 @@ export class UserPackageService {
         );
       }
 
-      const usedSeats = await tx.ptAssistRequest.count({
+      const taken = await tx.ptAssistRequest.count({
         where: {
-          ptAccountId: selectedSlot.ptAccountId,
-          branchId: selectedSlot.branchId,
+          ptAccountId: win.ptAccountId,
+          branchId: win.branchId,
           startTime: requestedStart,
           endTime: requestedEnd,
           status: {
@@ -744,14 +997,14 @@ export class UserPackageService {
           },
         },
       });
-      if (usedSeats >= selectedSlot.maxStudents) {
-        throw new BadRequestException('Selected slot is full');
+      if (taken >= 1) {
+        throw new BadRequestException('This time slot is already booked');
       }
 
       const dupPending = await tx.ptAssistRequest.findFirst({
         where: {
           accountId,
-          ptAccountId: selectedSlot.ptAccountId,
+          ptAccountId: win.ptAccountId,
           status: PtAssistRequestStatus.PENDING,
           startTime: requestedStart,
           endTime: requestedEnd,
@@ -769,8 +1022,8 @@ export class UserPackageService {
         data: {
           accountId,
           userPackageId: userPackage.id,
-          branchId: selectedSlot.branchId,
-          ptAccountId: selectedSlot.ptAccountId,
+          branchId: win.branchId,
+          ptAccountId: win.ptAccountId,
           startTime: requestedStart,
           endTime: requestedEnd,
           note: dto.note,

@@ -24,6 +24,7 @@ interface DataType {
   unit: 'DAY' | 'MONTH';
   durationValue: number;
   hasPt: boolean;
+  ptSessionsIncluded?: number | null;
   price: number;
   isActive: boolean;
   createdAt: string;
@@ -61,6 +62,13 @@ const columns: TableProps<DataType>['columns'] = [
     title: 'Has PT',
     render: (_value, record: DataType) =>
       record.hasPt ? <CheckOutlined /> : <CloseOutlined />,
+  },
+  {
+    title: 'PT sessions',
+    dataIndex: 'ptSessionsIncluded',
+    key: 'ptSessionsIncluded',
+    render: (_value, record: DataType) =>
+      record.hasPt ? (record.ptSessionsIncluded ?? '—') : '—',
   },
   {
     title: 'Price',

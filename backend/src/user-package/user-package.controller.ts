@@ -21,6 +21,7 @@ import { CreateWorkoutHistoryDto } from './dto/create-workout-history.dto';
 import { FilterWorkoutHistoryDto } from './dto/filter-workout-history.dto';
 import { FilterPtTrainingSlotsForUserDto } from './dto/filter-pt-training-slots.dto';
 import { FilterAvailablePtDto } from './dto/filter-available-pt.dto';
+import { PtWeekGridQueryDto } from './dto/pt-week-grid-query.dto';
 
 @Controller('user-package')
 export class UserPackageController {
@@ -78,6 +79,13 @@ export class UserPackageController {
   @Get('available-pts')
   async getAvailablePTs(@Query() filter: FilterAvailablePtDto) {
     return this.userPackageService.getAvailablePTs(filter);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  @Get('pt-week-booking-grid')
+  async getPtWeekBookingGrid(@Query() q: PtWeekGridQueryDto) {
+    return this.userPackageService.getPtWeekBookingGrid(q);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

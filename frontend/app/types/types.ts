@@ -69,6 +69,7 @@ export interface Package {
   unit: 'DAY' | 'MONTH';
   durationValue: number;
   hasPt: boolean;
+  ptSessionsIncluded?: number | null;
   price: number;
   description: string | null;
   isActive: boolean;
@@ -88,6 +89,7 @@ export interface CreatePackageRequest {
   unit: 'DAY' | 'MONTH';
   durationValue: number;
   hasPt: boolean;
+  ptSessionsIncluded?: number;
   price: number;
 }
 
@@ -115,7 +117,6 @@ export interface BranchesResponse {
 export interface PurchasePackageRequest {
   packageId: string;
   branchId: string;
-  ptAccountId?: string;
 }
 
 export interface PurchasePackageResponse {
@@ -128,7 +129,10 @@ export interface MyPurchasePackage {
   accountId: string;
   packageId: string;
   branchId: string;
-  ptAccountId: string;
+  ptAccountId?: string | null;
+  ptSessionsGranted?: number | null;
+  ptSessionsRemaining?: number | null;
+  ptAssistSessionsUsed?: number;
   programId?: string | null;
   status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
   startAt: string | null;
@@ -140,7 +144,7 @@ export interface MyPurchasePackage {
   updatedAt: string;
   branch: Branch;
   package: Package;
-  ptAccount: PtAccount | null;
+  ptAccount?: PtAccount | null;
 }
 
 export interface MyPurchasePackagesResponse {
@@ -374,6 +378,21 @@ export interface PTAssistSchedule {
 export interface PTAssistSchedulesResponse {
   message: string;
   data: PTAssistSchedule[];
+}
+
+export interface CreatePtAssistRequestRequest {
+  userPackageId: string;
+  slotId: string;
+  sessionDate: string;
+  note?: string;
+}
+
+export interface CreatePtAssistRequestResponse {
+  message: string;
+  data: {
+    id: string;
+    status: 'PENDING';
+  };
 }
 
 export interface CreatePTTrainingSlotRequest {

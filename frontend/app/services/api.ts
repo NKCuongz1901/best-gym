@@ -24,6 +24,8 @@ import {
   CreateProgramDayExerciseResponse,
   CreateProgramDayRequest,
   CreateProgramDayResponse,
+  CreatePtAssistRequestRequest,
+  CreatePtAssistRequestResponse,
   CreatePTTrainingSlotRequest,
   CreateProgramResponse,
   CreateWorkoutHistoryRequest,
@@ -200,6 +202,7 @@ export const getAvailablePTs = async (filter: {
   return res as unknown as AvailablePtResponse;
 };
 
+// legacy (PT duyệt cấp gói) - flow mới đã chuyển sang duyệt theo từng buổi
 export const getTraineeRequests = async (): Promise<any> => {
   const res = await axios.get<TraineeRequestsResponse>(
     API.PT.GET_REQUESTS_LIST,
@@ -214,6 +217,7 @@ export const getAcceptedTraineeRequests = async (): Promise<any> => {
   return res;
 };
 
+// legacy (PT duyệt cấp gói)
 export const approveTraineeRequest = async (
   request: ApproveTraineeRequestRequest,
 ): Promise<any> => {
@@ -224,6 +228,7 @@ export const approveTraineeRequest = async (
   return res;
 };
 
+// legacy (PT duyệt cấp gói)
 export const rejectTraineeRequest = async (
   request: RejectTraineeRequestRequest,
 ): Promise<any> => {
@@ -486,6 +491,16 @@ export const getListWorkoutHistory = async (
   const res = await axios.get<ListWorkoutHistoryResponse>(
     API.USER.GET_LIST_WORKOUT_HISTORY,
     { params: { from: filter?.from, to: filter?.to } },
+  );
+  return res;
+};
+
+export const createPtAssistRequest = async (
+  request: CreatePtAssistRequestRequest,
+): Promise<any> => {
+  const res = await axios.post<CreatePtAssistRequestResponse>(
+    API.USER.CREATE_PT_ASSIST_REQUEST,
+    request,
   );
   return res;
 };

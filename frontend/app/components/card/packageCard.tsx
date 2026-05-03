@@ -35,7 +35,14 @@ function getFeatures(pkg: Package): PackageFeature[] {
     { label: 'Phòng thay đồ, tủ đồ', article: 'locker-room' },
   ];
   if (pkg.hasPt) {
-    features.push({ label: 'Huấn luyện viên cá nhân', article: 'personal-training' });
+    const sessions = pkg.ptSessionsIncluded ?? 0;
+    features.push({
+      label:
+        sessions > 0
+          ? `${sessions} buổi PT cá nhân`
+          : 'Huấn luyện viên cá nhân',
+      article: 'personal-training',
+    });
   }
   features.push({ label: 'Hỗ trợ tư vấn dinh dưỡng', article: 'nutrition-support' });
   return features;

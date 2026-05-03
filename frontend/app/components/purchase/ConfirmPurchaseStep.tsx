@@ -2,18 +2,16 @@
 
 import { Descriptions, Result } from 'antd';
 import { motion } from 'motion/react';
-import type { Branch, Package, PtAccount } from '@/app/types/types';
+import type { Branch, Package } from '@/app/types/types';
 
 interface ConfirmPurchaseStepProps {
   selectedPackage: Package | null;
   selectedBranch: Branch | null;
-  selectedPt?: PtAccount | null;
 }
 
 export default function ConfirmPurchaseStep({
   selectedPackage,
   selectedBranch,
-  selectedPt,
 }: ConfirmPurchaseStepProps) {
   if (!selectedPackage || !selectedBranch) {
     return (
@@ -27,6 +25,7 @@ export default function ConfirmPurchaseStep({
 
   const unitLabel = selectedPackage.unit === 'DAY' ? 'Ngày' : 'Tháng';
   const durationText = `${selectedPackage.durationValue} ${unitLabel}`;
+  const ptSessions = selectedPackage.ptSessionsIncluded ?? 0;
 
   return (
     <div>
@@ -69,15 +68,19 @@ export default function ConfirmPurchaseStep({
             {selectedBranch.address && ` - ${selectedBranch.address}`}
           </Descriptions.Item>
           {selectedPackage.hasPt && (
-            <Descriptions.Item label="Huấn luyện viên cá nhân">
-              {selectedPt
-                ? selectedPt.profile?.name || selectedPt.email
-                : 'Chưa chọn'}
+            <Descriptions.Item label="Số buổi PT">
+              {ptSessions > 0 ? `${ptSessions} buổi` : 'Chưa cấu hình'}
             </Descriptions.Item>
           )}
         </Descriptions>
+
+        {selectedPackage.hasPt ? (
+          <p className="mt-4 text-center text-xs text-neutral-500">
+            Sau khi đăng ký, bạn có thể đặt từng buổi tập với PT trong mục
+            &quot;Gói tập của tôi&quot;.
+          </p>
+        ) : null}
       </motion.div>
     </div>
   );
 }
-

@@ -26,13 +26,15 @@ type FieldType = {
   unit?: 'DAY' | 'MONTH';
   durationValue?: number;
   hasPt?: boolean;
+  ptSessionsIncluded?: number;
   price?: number;
 };
 
 function CreatePackageForm(props: CreatePackageFormProps) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<FieldType>();
   const { isOpen, setIsOpen, onClose } = props;
   const queryClient = useQueryClient();
+  const watchHasPt = Form.useWatch('hasPt', form);
 
   const { mutate, isPending } = useMutation({
     mutationFn: (body: CreatePackageRequest) => createPackage(body),
@@ -48,8 +50,20 @@ function CreatePackageForm(props: CreatePackageFormProps) {
   });
 
   const onFinish = async (values: FieldType) => {
-    mutate(values as CreatePackageRequest);
+    const payload: CreatePackageRequest = {
+      name: values.name ?? '',
+      description: values.description ?? '',
+      unit: values.unit as 'DAY' | 'MONTH',
+      durationValue: values.durationValue ?? 0,
+      hasPt: !!values.hasPt,
+      price: values.price ?? 0,
+    };
+    if (values.hasPt) {
+      payload.ptSessionsIncluded = values.ptSessionsIncluded ?? 0;
+    }
+    mutate(payload);
   };
+
   return (
     <Modal
       open={isOpen}
@@ -136,13 +150,36 @@ function CreatePackageForm(props: CreatePackageFormProps) {
             <Form.Item<FieldType>
               label="Is PT included?"
               name="hasPt"
-              valuePropName="checked" // rất quan trọng
-              initialValue={false} // giá trị mặc định: false
+              valuePropName="checked"
+              initialValue={false}
             >
               <Checkbox>Is PT included?</Checkbox>
             </Form.Item>
           </Col>
         </Row>
+        {watchHasPt ? (
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item<FieldType>
+                labelCol={{ span: 24 }}
+                label="PT sessions included"
+                name="ptSessionsIncluded"
+                rules={[
+                  {
+                    required: true,
+                    message: 'Pls enter number of PT sessions!',
+                  },
+                ]}
+              >
+                <InputNumber
+                  placeholder="e.g. 8"
+                  min={1}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        ) : null}
       </Form>
     </Modal>
   );

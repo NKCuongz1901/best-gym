@@ -89,12 +89,6 @@ enum SessionCompletion {
 }
 
 
-enum ShiftType {
-  MORNING   // 07:00-09:00
-  AFTERNOON // 15:00-17:00
-  EVENING   // 18:00-20:00
-}
-
 model Account {
   id                     String        @id @default(uuid())
   email                  String        @unique
@@ -128,10 +122,7 @@ model Account {
   ptSessionReportsWritten  PtSessionReport[] @relation("PtSessionReportsPT")
   ptSessionReportsReceived PtSessionReport[] @relation("PtSessionReportsUser")
 
-  /**
-   * ✅ NEW: PT đăng ký ca làm việc theo range ngày + chi nhánh
-   */
-  ptShiftSchedules PtShiftSchedule[] @relation("PtShiftSchedulesPT")
+  ptAvailabilityWindows PtAvailabilityWindow[]
 }
 
 model Profile {
@@ -166,10 +157,7 @@ model Branch {
   checkins         CheckIn[]
   ptAssistRequests PtAssistRequest[]
 
-  /**
-   * ✅ NEW: Branch có nhiều ca PT đăng ký
-   */
-  ptShiftSchedules PtShiftSchedule[]
+  ptAvailabilityWindows PtAvailabilityWindow[]
 }
 
 model Package {
@@ -178,6 +166,8 @@ model Package {
   unit          PackageUnit
   durationValue Int
   hasPt         Boolean    @default(false)
+  /// Số buổi PT (bắt buộc khi hasPt = true trong service)
+  ptSessionsIncluded Int?
   price         Int
   description   String?
   isActive      Boolean    @default(true)
@@ -201,9 +191,12 @@ model UserPackage {
   branchId String
   branch   Branch @relation(fields: [branchId], references: [id])
 
-  // PT assigned to the user package (fixed PT)
+  // Legacy: PT từng được gán khi mua; flow mới không set khi purchase
   ptAccountId String?
   ptAccount   Account? @relation("UserPackagesPT", fields: [ptAccountId], references: [id])
+
+  /// Số buổi PT cho subscription này (copy từ package lúc mua khi có PT); quota thực tế = đếm PtAssistRequest
+  ptSessionsGranted Int?
 
   status UserPackageStatus @default(PENDING)
 
@@ -427,46 +420,41 @@ model PtSessionReport {
   @@index([accountId, createdAt])
 }
 
-/**
- * NEW: 3 shift templates (seed 3 rows)
- */
-model PtShiftTemplate {
-  id        String    @id @default(uuid())
-  type      ShiftType @unique
-  startTime String   
-  endTime   String    
-  isActive  Boolean   @default(true)
+/// PT làm việc tại chi nhánh trong khoảng ngày [fromDate, toDate]
+model PtAvailabilityWindow {
+  id          String @id @default(uuid())
+  ptAccountId String
+  ptAccount   Account @relation(fields: [ptAccountId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
+  fromDate DateTime
+  toDate   DateTime
+
+  isActive  Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  schedules PtShiftSchedule[]
-}
-
-
-model PtShiftSchedule {
-  id              String @id @default(uuid())
-
-  ptAccountId     String
-  ptAccount       Account @relation("PtShiftSchedulesPT", fields: [ptAccountId], references: [id], onDelete: Cascade)
-
-  branchId        String
-  branch          Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  shiftTemplateId String
-  shiftTemplate   PtShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
-
-  fromDate    DateTime
-  toDate      DateTime
-
-  maxStudents Int     @default(1)
-  isActive    Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  weeklySlots PtWeeklySlot[]
 
   @@index([ptAccountId, branchId])
-  @@index([shiftTemplateId])
-  @@index([ptAccountId, fromDate, toDate])
   @@index([branchId, fromDate, toDate])
+}
+
+/// Ô trong thời khoá biểu tuần (1 = Thứ 2 … 7 = Chủ nhật ISO); chỉ lưu ô PT bật (rảnh)
+model PtWeeklySlot {
+  id       String               @id @default(uuid())
+  windowId String
+  window   PtAvailabilityWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
+
+  dayOfWeek Int
+  startTime String
+  endTime   String
+
+  isAvailable Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([windowId, dayOfWeek, startTime, endTime])
+  @@index([windowId])
 }
