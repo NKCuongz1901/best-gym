@@ -5,17 +5,19 @@ import {
   createPtAssistRequest,
   getAvailablePTs,
   getPTAssistSchedule,
+  getPtWeekBookingGrid,
 } from "@/services/api";
 import { useAuthStore } from "@/stores/auth.store";
 import { useMyPurchasePackages } from "@/stores/useMyPurchasePackages";
 import {
+  AvailablePtAccount,
   MyPurchasePackage,
   PTAssistSchedule,
-  AvailablePtShiftSchedule,
+  PtWeekGridCell,
 } from "@/types/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -172,15 +174,23 @@ const formatSlotTimeLabel = (startTime: string, endTime: string) =>
   `${formatTimeValue(startTime)} - ${formatTimeValue(endTime)}`;
 
 const formatDayKey = (date: Date) =>
-  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    date.getUTCDate(),
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
   ).padStart(2, "0")}`;
+
+const parseYmdToLocalDate = (ymd: string) => {
+  const [year, month, day] = ymd.split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+  return new Date(year, month - 1, day);
+};
 
 const getDateRangeInDays = (fromIso: string, toIso: string) => {
   const fromDate = new Date(fromIso);
   const toDate = new Date(toIso);
-  fromDate.setUTCHours(0, 0, 0, 0);
-  toDate.setUTCHours(0, 0, 0, 0);
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(0, 0, 0, 0);
 
   if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
     return [];
@@ -190,9 +200,28 @@ const getDateRangeInDays = (fromIso: string, toIso: string) => {
   const cursor = new Date(fromDate);
   while (cursor <= toDate) {
     result.push(formatDayKey(cursor));
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    cursor.setDate(cursor.getDate() + 1);
   }
   return result;
+};
+
+const getIsoWeekStart = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return formatDayKey(d);
+};
+
+const DAY_OF_WEEK_LABELS: Record<number, string> = {
+  1: "Thứ 2",
+  2: "Thứ 3",
+  3: "Thứ 4",
+  4: "Thứ 5",
+  5: "Thứ 6",
+  6: "Thứ 7",
+  7: "CN",
 };
 
 export default function HomeScreen() {
@@ -207,10 +236,16 @@ export default function HomeScreen() {
   const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
     null,
   );
-  const [selectedSlotId, setSelectedSlotId] = useState("");
-  const [selectedSessionDate, setSelectedSessionDate] = useState("");
+  const [selectedPtId, setSelectedPtId] = useState("");
+  const [weekStart, setWeekStart] = useState(() => getIsoWeekStart(new Date()));
+  const [selectedCell, setSelectedCell] = useState<{
+    weeklySlotId: string;
+    sessionDate: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
   const [note, setNote] = useState("");
-  const { data: availablePtData, isLoading: isLoadingPtSlots } = useQuery({
+  const { data: availablePtData, isLoading: isLoadingPts } = useQuery({
     queryKey: ["available-pts-for-package", selectedPackage?.id],
     queryFn: () =>
       getAvailablePTs({
@@ -219,6 +254,16 @@ export default function HomeScreen() {
         to: selectedPackage?.endAt?.slice(0, 10),
       }),
     enabled: !!selectedPackage?.id && !!selectedPackage?.branchId,
+  });
+  const { data: weekGridData, isLoading: isLoadingWeekGrid } = useQuery({
+    queryKey: ["pt-week-booking-grid", selectedPackage?.id, selectedPtId, weekStart],
+    queryFn: () =>
+      getPtWeekBookingGrid({
+        branchId: selectedPackage?.branchId ?? "",
+        ptAccountId: selectedPtId,
+        weekStart,
+      }),
+    enabled: !!selectedPackage?.id && !!selectedPackage?.branchId && !!selectedPtId,
   });
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
@@ -240,8 +285,9 @@ export default function HomeScreen() {
         text2: response.message,
       });
       setSelectedPackage(null);
-      setSelectedSlotId("");
-      setSelectedSessionDate("");
+      setSelectedPtId("");
+      setSelectedCell(null);
+      setWeekStart(getIsoWeekStart(new Date()));
       setNote("");
       await refetch();
     },
@@ -256,8 +302,9 @@ export default function HomeScreen() {
 
   const handleOpenPtRequestModal = (item: MyPurchasePackage) => {
     setSelectedPackage(item);
-    setSelectedSlotId("");
-    setSelectedSessionDate("");
+    setSelectedPtId("");
+    setSelectedCell(null);
+    setWeekStart(getIsoWeekStart(new Date()));
     setNote("");
   };
 
@@ -267,65 +314,40 @@ export default function HomeScreen() {
     }
 
     setSelectedPackage(null);
-    setSelectedSlotId("");
-    setSelectedSessionDate("");
+    setSelectedPtId("");
+    setSelectedCell(null);
+    setWeekStart(getIsoWeekStart(new Date()));
   };
 
   const handleCreatePtRequest = () => {
-    if (!selectedPackage || !selectedSlotId || !selectedSessionDate) {
+    if (!selectedPackage || !selectedCell) {
       Toast.show({
         type: "error",
-        text1: "Vui lòng chọn ca dạy và ngày tập",
+        text1: "Vui lòng chọn PT và khung giờ",
       });
       return;
     }
 
     ptRequestMutation.mutate({
       userPackageId: selectedPackage.id,
-      slotId: selectedSlotId,
-      sessionDate: selectedSessionDate,
+      slotId: selectedCell.weeklySlotId,
+      sessionDate: selectedCell.sessionDate,
       note: note.trim() || undefined,
     });
   };
-
-  const selectedPtShifts = useMemo<AvailablePtShiftSchedule[]>(() => {
-    if (!selectedPackage?.ptAccountId) {
-      return [];
-    }
-    const pt = (availablePtData?.data ?? []).find(
-      (item) => item.id === selectedPackage.ptAccountId,
-    );
-    return pt?.ptShiftSchedules ?? [];
-  }, [availablePtData, selectedPackage?.ptAccountId]);
-
-  const selectedShift = useMemo(
-    () => selectedPtShifts.find((shift) => shift.id === selectedSlotId) ?? null,
-    [selectedPtShifts, selectedSlotId],
+  const availablePts = useMemo<AvailablePtAccount[]>(() => availablePtData?.data ?? [], [
+    availablePtData,
+  ]);
+  const selectedPt = useMemo(
+    () => availablePts.find((item) => item.id === selectedPtId) ?? null,
+    [availablePts, selectedPtId],
   );
+  const weekDays = weekGridData?.data?.days ?? [];
+  const weekRows = weekGridData?.data?.gridRows ?? [];
 
-  const selectableSessionDates = useMemo(() => {
-    if (!selectedShift || !selectedPackage?.startAt || !selectedPackage?.endAt) {
-      return [];
-    }
-    const minFrom = new Date(selectedShift.fromDate) > new Date(selectedPackage.startAt)
-      ? selectedShift.fromDate
-      : selectedPackage.startAt;
-    const maxTo =
-      new Date(selectedShift.toDate) < new Date(selectedPackage.endAt)
-        ? selectedShift.toDate
-        : selectedPackage.endAt;
-
-    const allDays = getDateRangeInDays(minFrom, maxTo);
-    const nowDay = formatDayKey(new Date());
-    return allDays.filter((day) => day >= nowDay).slice(0, 21);
-  }, [selectedShift, selectedPackage?.startAt, selectedPackage?.endAt]);
-
-  React.useEffect(() => {
-    if (!selectedSessionDate || selectableSessionDates.includes(selectedSessionDate)) {
-      return;
-    }
-    setSelectedSessionDate("");
-  }, [selectedSessionDate, selectableSessionDates]);
+  useEffect(() => {
+    setSelectedCell(null);
+  }, [selectedPtId, weekStart]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -541,42 +563,38 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <Text style={styles.inputLabel}>Chọn ca dạy của PT</Text>
-            {isLoadingPtSlots ? (
+            <Text style={styles.inputLabel}>Chọn huấn luyện viên</Text>
+            {isLoadingPts ? (
               <View style={styles.slotLoadingBox}>
                 <ActivityIndicator color="#22C55E" />
-                <Text style={styles.slotLoadingText}>Đang tải danh sách ca dạy...</Text>
+                <Text style={styles.slotLoadingText}>Đang tải danh sách PT...</Text>
               </View>
-            ) : selectedPtShifts.length ? (
+            ) : availablePts.length ? (
               <View style={styles.slotList}>
-                {selectedPtShifts.map((slot) => {
-                  const isActive = slot.id === selectedSlotId;
+                {availablePts.map((pt) => {
+                  const isActive = pt.id === selectedPtId;
+                  const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
+                    (acc, win) => acc + (win.weeklySlots?.length ?? 0),
+                    0,
+                  );
                   return (
                     <Pressable
-                      key={slot.id}
+                      key={pt.id}
                       onPress={() => {
-                        setSelectedSlotId(slot.id);
-                        setSelectedSessionDate("");
+                        setSelectedPtId(pt.id);
                       }}
                       style={[styles.slotCard, isActive && styles.slotCardActive]}
                     >
                       <View style={styles.slotCardHeader}>
                         <Text style={[styles.slotDate, isActive && styles.slotDateActive]}>
-                          {slot.shiftTemplate.type === "MORNING"
-                            ? "Ca sáng"
-                            : slot.shiftTemplate.type === "AFTERNOON"
-                              ? "Ca chiều"
-                              : "Ca tối"}
+                          {pt.profile?.name || pt.email}
                         </Text>
                       </View>
                       <Text style={[styles.slotTime, isActive && styles.slotTimeActive]}>
-                        {formatSlotTimeLabel(slot.shiftTemplate.startTime, slot.shiftTemplate.endTime)}
+                        {pt.email}
                       </Text>
                       <Text style={[styles.slotBranch, isActive && styles.slotBranchActive]}>
-                        {slot.branch.name}
-                      </Text>
-                      <Text style={[styles.slotNote, isActive && styles.slotNoteActive]}>
-                        Hiệu lực: {formatSlotDateLabel(slot.fromDate)} - {formatSlotDateLabel(slot.toDate)}
+                        {totalSlots} khung giờ / tuần
                       </Text>
                     </Pressable>
                   );
@@ -585,48 +603,145 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.slotEmptyBox}>
                 <Text style={styles.slotEmptyText}>
-                  PT chưa mở ca dạy phù hợp cho gói này.
+                  Chưa có PT khả dụng cho chi nhánh này.
                 </Text>
               </View>
             )}
 
-            {selectedShift ? (
+            {selectedPt ? (
               <>
-                <Text style={styles.inputLabel}>Chọn ngày tập</Text>
-                {selectableSessionDates.length ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.horizontalSelectorContent}
-                  >
-                    {selectableSessionDates.map((date) => {
-                      const active = date === selectedSessionDate;
-                      return (
-                        <Pressable
-                          key={date}
-                          style={[styles.selectorChip, active && styles.selectorChipActive]}
-                          onPress={() => setSelectedSessionDate(date)}
-                        >
-                          <Text
-                            style={[
-                              styles.selectorChipText,
-                              active && styles.selectorChipTextActive,
-                            ]}
-                          >
-                            {formatSlotDateLabel(date)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                <View style={styles.weekHeader}>
+                  <Text style={styles.inputLabel}>Chọn khung giờ trong tuần</Text>
+                  <View style={styles.weekActions}>
+                    <Pressable
+                      style={styles.weekNavButton}
+                      onPress={() => {
+                        const prev = parseYmdToLocalDate(weekStart);
+                        if (!prev) {
+                          return;
+                        }
+                        prev.setDate(prev.getDate() - 7);
+                        const minWeek = getIsoWeekStart(new Date());
+                        const prevWeekStart = getIsoWeekStart(prev);
+                        if (prevWeekStart >= minWeek) {
+                          setWeekStart(prevWeekStart);
+                        }
+                      }}
+                    >
+                      <Ionicons name="chevron-back" size={16} color="#F8FAFC" />
+                    </Pressable>
+                    <Pressable
+                      style={styles.weekNavButton}
+                      onPress={() => {
+                        const next = parseYmdToLocalDate(weekStart);
+                        if (!next) {
+                          return;
+                        }
+                        next.setDate(next.getDate() + 7);
+                        setWeekStart(getIsoWeekStart(next));
+                      }}
+                    >
+                      <Ionicons name="chevron-forward" size={16} color="#F8FAFC" />
+                    </Pressable>
+                  </View>
+                </View>
+
+                {isLoadingWeekGrid ? (
+                  <View style={styles.slotLoadingBox}>
+                    <ActivityIndicator color="#22C55E" />
+                    <Text style={styles.slotLoadingText}>Đang tải lịch tuần...</Text>
+                  </View>
+                ) : weekDays.length && weekRows.length ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.weekGridWrap}>
+                      <View style={styles.weekDayHeaderRow}>
+                        {weekDays.map((day) => (
+                          <View key={day.date} style={styles.weekDayHeaderCell}>
+                            <Text style={styles.weekDayText}>
+                              {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
+                            </Text>
+                            <Text style={styles.weekDateText}>
+                              {new Date(`${day.date}T00:00:00.000Z`).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                              })}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                      {weekRows.map((row) => (
+                        <View key={row.key} style={styles.weekSlotRow}>
+                          {weekDays.map((day) => {
+                            const cell = day.slots.find((s) => s.gridKey === row.key);
+                            const isFree = cell?.state === "FREE" && !!cell.weeklySlotId;
+                            const isActive =
+                              !!cell &&
+                              !!selectedCell &&
+                              selectedCell.weeklySlotId === cell.weeklySlotId &&
+                              selectedCell.sessionDate === day.date;
+                            const cellStyle = [
+                              styles.weekSlotCell,
+                              isFree ? styles.weekSlotCellFree : styles.weekSlotCellDisabled,
+                              isActive && styles.weekSlotCellActive,
+                            ];
+
+                            return (
+                              <Pressable
+                                key={`${row.key}-${day.date}`}
+                                style={cellStyle}
+                                disabled={!isFree}
+                                onPress={() => {
+                                  if (!isFree || !cell) {
+                                    return;
+                                  }
+                                  setSelectedCell({
+                                    weeklySlotId: cell.weeklySlotId as string,
+                                    sessionDate: day.date,
+                                    startTime: cell.startTime,
+                                    endTime: cell.endTime,
+                                  });
+                                }}
+                              >
+                                <Text style={styles.weekSlotTimeText}>
+                                  {formatSlotTimeLabel(row.startTime, row.endTime)}
+                                </Text>
+                                <Text style={styles.weekSlotStatusText}>
+                                  {cell?.state === "FREE"
+                                    ? "TRỐNG"
+                                    : cell?.state === "OCCUPIED"
+                                      ? "ĐÃ ĐẶT"
+                                      : cell?.state === "PASSED"
+                                        ? "ĐÃ QUA"
+                                        : "—"}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ))}
+                    </View>
                   </ScrollView>
                 ) : (
                   <View style={styles.slotEmptyBox}>
                     <Text style={styles.slotEmptyText}>
-                      Không có ngày hợp lệ trong khung thời gian của ca dạy này.
+                      PT chưa mở lịch tuần cho giai đoạn này.
                     </Text>
                   </View>
                 )}
               </>
+            ) : null}
+
+            {selectedCell ? (
+              <View style={styles.selectedCellBox}>
+                <Text style={styles.selectedCellText}>
+                  Đã chọn:{" "}
+                  {new Date(`${selectedCell.sessionDate}T00:00:00.000Z`).toLocaleDateString(
+                    "vi-VN",
+                    { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" },
+                  )}{" "}
+                  • {formatSlotTimeLabel(selectedCell.startTime, selectedCell.endTime)}
+                </Text>
+              </View>
             ) : null}
 
             <Text style={styles.inputLabel}>Ghi chú</Text>
@@ -1043,6 +1158,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
+  },
+  weekHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  weekActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  weekNavButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: "#1A2332",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekGridWrap: {
+    marginBottom: 14,
+    gap: 8,
+  },
+  weekDayHeaderRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  weekDayHeaderCell: {
+    width: 94,
+    borderRadius: 12,
+    backgroundColor: "#182235",
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  weekDayText: {
+    color: "#F8FAFC",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  weekDateText: {
+    color: "#94A3B8",
+    fontSize: 11,
+    marginTop: 3,
+  },
+  weekSlotRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  weekSlotCell: {
+    width: 94,
+    minHeight: 58,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekSlotCellFree: {
+    borderColor: "#334155",
+    backgroundColor: "#0F172A",
+  },
+  weekSlotCellDisabled: {
+    borderColor: "rgba(148,163,184,0.2)",
+    backgroundColor: "#111827",
+    opacity: 0.6,
+  },
+  weekSlotCellActive: {
+    borderColor: "#22C55E",
+    backgroundColor: "rgba(34,197,94,0.16)",
+  },
+  weekSlotTimeText: {
+    color: "#E2E8F0",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  weekSlotStatusText: {
+    color: "#94A3B8",
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  selectedCellBox: {
+    borderRadius: 14,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.45)",
+    padding: 10,
+    marginBottom: 10,
+  },
+  selectedCellText: {
+    color: "#DCFCE7",
+    fontSize: 12,
+    lineHeight: 18,
   },
   noteInput: {
     minHeight: 88,

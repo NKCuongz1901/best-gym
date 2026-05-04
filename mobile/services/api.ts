@@ -4,6 +4,7 @@ import {
   CheckInRequest,
   CheckInResponse,
   AvailablePtResponse,
+  PtWeekBookingGridResponse,
   CreateWorkoutHistoryRequest,
   CreateWorkoutHistoryResponse,
   CreatePtAssistRequest,
@@ -111,7 +112,6 @@ export const getPtTrainingSlotsForUser = async (params: {
 
 export const getAvailablePTs = async (params: {
   branchId: string;
-  shiftType?: "MORNING" | "AFTERNOON" | "EVENING";
   from?: string;
   to?: string;
   search?: string;
@@ -120,6 +120,20 @@ export const getAvailablePTs = async (params: {
     params,
   });
   return res as unknown as AvailablePtResponse;
+};
+
+export const getPtWeekBookingGrid = async (params: {
+  branchId: string;
+  ptAccountId: string;
+  weekStart: string;
+}): Promise<PtWeekBookingGridResponse> => {
+  const res = await axios.get<PtWeekBookingGridResponse>(
+    API.USER.GET_PT_WEEK_BOOKING_GRID,
+    {
+      params,
+    },
+  );
+  return res as unknown as PtWeekBookingGridResponse;
 };
 
 export const getPTAssistSchedule = async (params: {

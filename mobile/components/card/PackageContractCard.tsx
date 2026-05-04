@@ -39,17 +39,15 @@ const getStatusLabel = (status: MyPurchasePackage["status"]) => {
 
 export default function PackageContractCard({ item, onRequestPt }: Props) {
   const ptName = useMemo(() => {
-    return (
-      item.ptAccount?.profile?.name || item.ptAccount?.email || "Không có PT"
-    );
-  }, [item.ptAccount]);
+    if (!item.package.hasPt) {
+      return "Không có PT";
+    }
+    return item.ptAccount?.profile?.name || item.ptAccount?.email || "Chọn theo từng buổi";
+  }, [item.package.hasPt, item.ptAccount]);
 
   const branchAddress =
     item.branch?.address || item.branch?.name || "Chưa có địa chỉ";
-  const canRequestPt =
-    item.package.hasPt &&
-    item.status === "ACTIVE" &&
-    Boolean(item.ptAccountId && item.ptAccount);
+  const canRequestPt = item.package.hasPt && item.status === "ACTIVE";
 
   return (
     <View style={styles.card}>
