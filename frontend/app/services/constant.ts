@@ -21,6 +21,8 @@ export interface API_PROPS {
   };
   PACKAGE: {
     GET_ALL: string;
+    UPDATE_PACKAGE: (packageId: string) => string;
+    DELETE_PACKAGE: (packageId: string) => string;
   };
   PT: {
     GET_ALL: string;
@@ -105,6 +107,8 @@ export const API: API_PROPS = {
   },
   PACKAGE: {
     GET_ALL: '/package',
+    UPDATE_PACKAGE: (packageId: string) => `/package/${packageId}`,
+    DELETE_PACKAGE: (packageId: string) => `/package/${packageId}`,
   },
   PT: {
     GET_ALL: '/account/pt-accounts',

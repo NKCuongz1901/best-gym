@@ -31,9 +31,12 @@ import {
   UpdatePtKpiPayoutRequest,
   UpdatePtKpiPayoutResponse,
   UpsertPtKpiPolicyRequest,
+  UpdatePackageRequest,
+  UpdatePackageResponse,
   UpsertPtKpiPolicyResponse,
   CreatePackageRequest,
   CreatePackageResponse,
+  DeletePackageResponse,
   CreateProgramDayExerciseRequest,
   CreateProgramDayExerciseResponse,
   CreateProgramDayRequest,
@@ -163,6 +166,7 @@ export const getPackages = async (
       page: filter.page,
       itemsPerPage: filter.itemsPerPage,
       unit: filter.unit,
+      ...(filter.isActive !== undefined ? { isActive: filter.isActive } : {}),
     },
   });
   return res;
@@ -174,6 +178,26 @@ export const createPackage = async (
   const res = await axios.post<CreatePackageResponse>(
     API.ADMIN.CREATE_PACKAGE,
     request,
+  );
+  return res;
+};
+
+export const updatePackage = async (
+  packageId: string,
+  request: UpdatePackageRequest,
+): Promise<any> => {
+  const res = await axios.put<UpdatePackageResponse>(
+    API.PACKAGE.UPDATE_PACKAGE(packageId),
+    request,
+  );
+  return res;
+};
+
+export const deletePackage = async (
+  packageId: string,
+): Promise<any> => {
+  const res = await axios.delete<DeletePackageResponse>(
+    API.PACKAGE.DELETE_PACKAGE(packageId),
   );
   return res;
 };

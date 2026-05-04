@@ -15,6 +15,7 @@ export const appRoute = {
   home: {
     root: '/',
     packages: '/packages',
+    coaches: '/coaches',
     profile: '/profile',
     workoutHistory: '/my-workout-history',
     programLearn: (programId: string) => `/programs/${programId}/learn`,

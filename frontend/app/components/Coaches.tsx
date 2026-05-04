@@ -1,6 +1,8 @@
 "use client";
 
+import { appRoute } from "@/app/config/appRoute";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "antd";
 
 export default function Coaches() {
@@ -49,9 +51,11 @@ export default function Coaches() {
             </p>
 
             <div className="mt-10">
-              <Button type="primary" size="large">
-                Explore More
-              </Button>
+              <Link href={appRoute.home.coaches}>
+                <Button type="primary" size="large">
+                  Xem đội ngũ PT
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

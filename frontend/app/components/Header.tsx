@@ -38,7 +38,10 @@ const menuItems = [
     label: <Link href={appRoute.home.packages}>Packages</Link>,
   },
   { key: '/exercises', label: <Link href="/exercises">Exercises</Link> },
-  { key: '/events', label: <Link href="/events">Coaches</Link> },
+  {
+    key: '/coaches',
+    label: <Link href={appRoute.home.coaches}>Coaches</Link>,
+  },
 ];
 
 export default function Header() {

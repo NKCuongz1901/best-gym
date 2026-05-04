@@ -103,6 +103,23 @@ export interface CreatePackageResponse {
   data: Package;
 }
 
+export type UpdatePackageRequest = Partial<
+  Omit<CreatePackageRequest, 'description'> & {
+    description?: string | null;
+  }
+> & {
+  isActive?: boolean;
+};
+
+export interface UpdatePackageResponse {
+  message: string;
+  data: Package;
+}
+
+export interface DeletePackageResponse {
+  message: string;
+}
+
 export interface Branch {
   id: string;
   name: string;
