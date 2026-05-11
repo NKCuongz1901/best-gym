@@ -7,12 +7,17 @@ import {
   AccountStatus,
   PtAssistRequestStatus,
   Role,
+  ShiftType,
   UserPackageStatus,
 } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PT_BOOKING_GRID_SLOTS } from 'src/pt-schedule/grid-slots.constants';
+import {
+  PT_BOOKING_GRID_SLOTS,
+  type PtGridSlotDef,
+} from 'src/pt-schedule/grid-slots.constants';
 import {
   findGridSlotDef,
+  getGridSlotDefsForShift,
   normalizeHhMm,
   PT_TIMEZONE,
 } from 'src/pt-schedule/pt-schedule.helpers';
@@ -33,7 +38,12 @@ export class PersonalTrainerService {
       data: {
         timeZone: PT_TIMEZONE,
         dayOfWeekLegend: '1 = Monday … 7 = Sunday (ISO)',
-        slots: [...PT_BOOKING_GRID_SLOTS],
+        slots: PT_BOOKING_GRID_SLOTS.map((row) => ({
+          key: row.key,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          shiftType: row.shiftType,
+        })),
       },
     };
   }
@@ -529,6 +539,14 @@ export class PersonalTrainerService {
       throw new NotFoundException('Branch not found or inactive');
     }
 
+    const nSlots = dto.slots?.length ?? 0;
+    const nShift = dto.shiftSelections?.length ?? 0;
+    if (nSlots < 1 && nShift < 1) {
+      throw new BadRequestException(
+        'Provide at least one slot in slots and/or at least one shiftSelections entry',
+      );
+    }
+
     const overlap = await this.prisma.ptAvailabilityWindow.findFirst({
       where: {
         ptAccountId,
@@ -551,26 +569,55 @@ export class PersonalTrainerService {
       startTime: string;
       endTime: string;
       isAvailable: boolean;
+      shiftType: ShiftType;
     }> = [];
 
-    for (const s of dto.slots) {
+    const addWeeklyFromGridDef = (dayOfWeek: number, def: PtGridSlotDef) => {
+      const start = normalizeHhMm(def.startTime);
+      const end = normalizeHhMm(def.endTime);
+      const key = `${dayOfWeek}|${start}|${end}`;
+      if (seen.has(key)) {
+        throw new BadRequestException(`Duplicate slot in payload: ${key}`);
+      }
+      seen.add(key);
+      weeklyCreates.push({
+        dayOfWeek,
+        startTime: start,
+        endTime: end,
+        isAvailable: true,
+        shiftType: def.shiftType,
+      });
+    };
+
+    for (const s of dto.slots ?? []) {
       const def = findGridSlotDef(s.startTime, s.endTime);
       if (!def) {
         throw new BadRequestException(
           `Unknown grid slot ${s.startTime}-${s.endTime}; use GET /pt/booking-slot-grid-definition`,
         );
       }
-      const key = `${s.dayOfWeek}|${def.startTime}|${def.endTime}`;
-      if (seen.has(key)) {
-        throw new BadRequestException(`Duplicate slot in payload: ${key}`);
+      addWeeklyFromGridDef(s.dayOfWeek, def);
+    }
+
+    for (const sel of dto.shiftSelections ?? []) {
+      const defs = getGridSlotDefsForShift(sel.shiftType);
+      if (defs.length === 0) {
+        throw new BadRequestException(
+          `No grid rows for shift ${sel.shiftType}; use GET /pt/booking-slot-grid-definition`,
+        );
       }
-      seen.add(key);
-      weeklyCreates.push({
-        dayOfWeek: s.dayOfWeek,
-        startTime: normalizeHhMm(def.startTime),
-        endTime: normalizeHhMm(def.endTime),
-        isAvailable: true,
-      });
+      const uniqueDays = [...new Set(sel.dayOfWeeks)];
+      for (const d of uniqueDays) {
+        for (const def of defs) {
+          addWeeklyFromGridDef(d, def);
+        }
+      }
+    }
+
+    if (weeklyCreates.length === 0) {
+      throw new BadRequestException(
+        'No weekly slots to create; add slots and/or shiftSelections',
+      );
     }
 
     const window = await this.prisma.ptAvailabilityWindow.create({

@@ -14,6 +14,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
+  Checkbox,
   DatePicker,
   Descriptions,
   Form,
@@ -36,6 +37,7 @@ import {
   getPTAssistRequests,
   getPTAssistSchedule,
   getPTTrainingSlots,
+  getPtBookingGridDefinition,
   rejectPTAssistRequest,
   reportUserSession,
 } from '@/app/services/api';
@@ -44,24 +46,35 @@ import type {
   Branch,
   CreatePTTrainingSlotRequest,
   PtAvailabilityWindow,
+  PtBookingGridDefinitionResponse,
+  PtShiftType,
   PTAssistRequest,
   PTAssistSchedule,
   PTAssistSchedulesResponse,
   ReportUserSessionRequest,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
+import { DAY_OF_WEEK_SELECT_OPTIONS } from '@/app/utils/common';
 
 dayjs.extend(isoWeek);
 
-const STANDARD_GRID_ROWS: Array<{ startTime: string; endTime: string }> = [
-  { startTime: '06:00', endTime: '08:00' },
-  { startTime: '08:00', endTime: '10:00' },
-  { startTime: '10:00', endTime: '12:00' },
-  { startTime: '13:00', endTime: '15:00' },
-  { startTime: '15:00', endTime: '17:00' },
-  { startTime: '17:00', endTime: '19:00' },
-  { startTime: '19:00', endTime: '21:00' },
-];
+const SHIFT_ORDER: PtShiftType[] = ['MORNING', 'AFTERNOON', 'EVENING'];
+
+const SHIFT_FORM_KEYS: Record<
+  PtShiftType,
+  'morningDays' | 'afternoonDays' | 'eveningDays'
+> = {
+  MORNING: 'morningDays',
+  AFTERNOON: 'afternoonDays',
+  EVENING: 'eveningDays',
+};
+
+/** Hiển thị 3 option theo yêu cầu; BE vẫn dùng MORNING / AFTERNOON / EVENING. */
+const SHIFT_LABEL_VI: Record<PtShiftType, string> = {
+  MORNING: 'Sáng',
+  AFTERNOON: 'Trưa',
+  EVENING: 'Tối',
+};
 
 function toYyyyMmDd(iso?: string) {
   return iso ? dayjs(iso).format('YYYY-MM-DD') : undefined;
@@ -186,6 +199,9 @@ export default function PTSchedulePage() {
     branchId: string;
     fromDate: Dayjs;
     toDate: Dayjs;
+    morningDays: number[];
+    afternoonDays: number[];
+    eveningDays: number[];
   }>();
 
   const [range, setRange] = useState<FILTER_PT_ASSIST_SCHEDULE_PROPS>(() => {
@@ -293,6 +309,24 @@ export default function PTSchedulePage() {
     enabled: setupSlotsOpen,
   });
 
+  const { data: gridDefRes, isLoading: isLoadingGridDef } =
+    useQuery<PtBookingGridDefinitionResponse>({
+      queryKey: ['pt-booking-grid-definition'],
+      queryFn: () => getPtBookingGridDefinition(),
+      enabled: setupSlotsOpen && isLoggedIn && user?.role === 'PT',
+    });
+
+  const shiftSlotSummaries = useMemo(() => {
+    const slots = gridDefRes?.data?.slots ?? [];
+    return SHIFT_ORDER.map((st) => ({
+      shiftType: st,
+      label: SHIFT_LABEL_VI[st],
+      ranges: slots
+        .filter((s) => s.shiftType === st)
+        .map((s) => `${s.startTime}–${s.endTime}`),
+    }));
+  }, [gridDefRes?.data?.slots]);
+
   const { mutateAsync: submitTrainingSlot, isPending: isCreatingTrainingSlot } =
     useMutation({
       mutationFn: (payload: CreatePTTrainingSlotRequest) =>
@@ -347,6 +381,9 @@ export default function PTSchedulePage() {
       branchId: '',
       fromDate: dayjs(),
       toDate: dayjs().add(13, 'day'),
+      morningDays: [],
+      afternoonDays: [],
+      eveningDays: [],
     });
     setSetupSlotsOpen(true);
   };
@@ -354,20 +391,33 @@ export default function PTSchedulePage() {
   const handleSaveTeachingSlots = async () => {
     try {
       const values = await setupForm.validateFields();
-      const slotsPayload: CreatePTTrainingSlotRequest['slots'] =
-        STANDARD_GRID_ROWS.flatMap((row) =>
-          [1, 2, 3, 4, 5, 6, 7].map((dow) => ({
-            dayOfWeek: dow,
-            startTime: row.startTime,
-            endTime: row.endTime,
-          })),
+      const shiftSelections: NonNullable<
+        CreatePTTrainingSlotRequest['shiftSelections']
+      > = [];
+      for (const st of SHIFT_ORDER) {
+        const key = SHIFT_FORM_KEYS[st];
+        const raw = values[key] as number[] | undefined;
+        const days = [...new Set(raw ?? [])].filter((d) => d >= 1 && d <= 7);
+        if (days.length > 0) {
+          shiftSelections.push({
+            shiftType: st,
+            dayOfWeeks: days.sort((a, b) => a - b),
+          });
+        }
+      }
+
+      if (shiftSelections.length === 0) {
+        message.warning(
+          'Vui lòng chọn ít nhất một ca và ít nhất một thứ trong tuần.',
         );
+        return;
+      }
 
       await submitTrainingSlot({
         branchId: values.branchId,
         fromDate: values.fromDate.format('YYYY-MM-DD'),
         toDate: values.toDate.format('YYYY-MM-DD'),
-        slots: slotsPayload,
+        shiftSelections,
       });
 
       queryClient.invalidateQueries({ queryKey: ['pt-training-slots'] });
@@ -673,7 +723,7 @@ export default function PTSchedulePage() {
         confirmLoading={isCreatingTrainingSlot}
         okText="Lưu"
         cancelText="Hủy"
-        width={560}
+        width={640}
         destroyOnClose
         styles={{
           body: { background: '#171717' },
@@ -682,11 +732,16 @@ export default function PTSchedulePage() {
         }}
       >
         <p className="mb-4 text-xs text-neutral-400">
-          Đăng ký chi nhánh và khoảng ngày bạn dạy ở chi nhánh đó. Trong khoảng
-          thời gian này, học viên có thể đặt buổi PT với bạn ở các khung giờ
-          chuẩn (06:00–08:00, 08:00–10:00, …, 19:00–21:00) tất cả các ngày
-          trong tuần.
+          Chọn chi nhánh, khoảng ngày hiệu lực, rồi với mỗi khung{' '}
+          <strong>Sáng</strong>, <strong>Trưa</strong> hoặc <strong>Tối</strong>{' '}
+          hãy tick các <strong>thứ trong tuần</strong> bạn dạy. Hệ thống tạo các ô
+          giờ chuẩn tương ứng (xem dòng khung giờ dưới mỗi option).
         </p>
+        {isLoadingGridDef ? (
+          <div className="mb-4 flex justify-center py-6">
+            <Spin />
+          </div>
+        ) : null}
         <Form form={setupForm} layout="vertical">
           <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 p-4">
             <Form.Item
@@ -745,6 +800,31 @@ export default function PTSchedulePage() {
                 />
               </Form.Item>
             </div>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <p className="text-xs font-medium text-neutral-300">
+              Sáng / Trưa / Tối — chọn thứ dạy (1 = Thứ 2 … 7 = Chủ nhật)
+            </p>
+            {shiftSlotSummaries.map(({ shiftType, label, ranges }) => (
+              <div
+                key={shiftType}
+                className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4"
+              >
+                <div className="mb-1 text-sm font-semibold text-white">
+                  {label}{' '}
+                  <span className="font-normal text-neutral-400">
+                    ({ranges.length ? ranges.join(' · ') : '—'})
+                  </span>
+                </div>
+                <Form.Item className="mb-0!" name={SHIFT_FORM_KEYS[shiftType]}>
+                  <Checkbox.Group
+                    options={DAY_OF_WEEK_SELECT_OPTIONS}
+                    className="flex flex-wrap gap-x-4 gap-y-2 [&_.ant-checkbox+span]:text-neutral-200"
+                  />
+                </Form.Item>
+              </div>
+            ))}
           </div>
         </Form>
       </Modal>

@@ -419,14 +419,24 @@ export interface CreatePtAssistRequestResponse {
   };
 }
 
+export type PtShiftType = 'MORNING' | 'AFTERNOON' | 'EVENING';
+
 export interface CreatePTTrainingSlotRequest {
   branchId: string;
   fromDate: string;
   toDate: string;
-  slots: Array<{
+  /** Từng ô lưới cụ thể (tuỳ chọn nếu đã dùng shiftSelections) */
+  slots?: Array<{
     dayOfWeek: number;
     startTime: string;
     endTime: string;
+  }>;
+  /**
+   * Chọn ca + thứ trong tuần (1 = Thứ 2 … 7 = Chủ nhật). BE bung toàn bộ ô lưới thuộc ca đó.
+   */
+  shiftSelections?: Array<{
+    shiftType: PtShiftType;
+    dayOfWeeks: number[];
   }>;
 }
 
@@ -434,6 +444,8 @@ export interface PtBookingGridSlotDef {
   key: string;
   startTime: string;
   endTime: string;
+  /** Có trên GET booking-slot-grid-definition; tuần booking có thể không gửi. */
+  shiftType?: PtShiftType;
 }
 
 export interface PtBookingGridDefinitionResponse {

@@ -100,6 +100,12 @@ enum PtMonthlyRewardPayoutSource {
   MANUAL_OVERRIDE
 }
 
+enum ShiftType{
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
 
 model Account {
   id                     String        @id @default(uuid())
@@ -474,6 +480,7 @@ model PtWeeklySlot {
   dayOfWeek Int
   startTime String
   endTime   String
+  shiftType ShiftType?
 
   isAvailable Boolean @default(true)
   createdAt   DateTime @default(now())

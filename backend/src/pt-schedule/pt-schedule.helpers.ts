@@ -1,5 +1,6 @@
 import { addDays } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { ShiftType } from 'generated/prisma/enums';
 import {
   PT_BOOKING_GRID_SLOTS,
   PtGridSlotDef,
@@ -34,6 +35,13 @@ export function findGridSlotDef(
     (slot) =>
       normalizeHhMm(slot.startTime) === s && normalizeHhMm(slot.endTime) === e,
   );
+}
+
+/** All official grid rows that belong to this shift (for PT shiftSelections). */
+export function getGridSlotDefsForShift(
+  shiftType: ShiftType,
+): PtGridSlotDef[] {
+  return PT_BOOKING_GRID_SLOTS.filter((row) => row.shiftType === shiftType);
 }
 
 export function utcBoundsForCalendarSlot(

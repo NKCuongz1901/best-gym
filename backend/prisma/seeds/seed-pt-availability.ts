@@ -3,7 +3,7 @@ import { addMonths } from 'date-fns';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { PrismaClient } from '../../generated/prisma/client';
-import { AccountStatus, Role } from '../../generated/prisma/enums';
+import { AccountStatus, Role, ShiftType } from '../../generated/prisma/enums';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
@@ -54,8 +54,18 @@ export async function seedPtAvailability() {
 
   const days = [1, 2, 3, 4, 5, 6];
   const slots = days.flatMap((dayOfWeek) => [
-    { dayOfWeek, startTime: '15:00', endTime: '17:00' },
-    { dayOfWeek, startTime: '17:00', endTime: '19:00' },
+    {
+      dayOfWeek,
+      startTime: '15:00',
+      endTime: '17:00',
+      shiftType: ShiftType.AFTERNOON,
+    },
+    {
+      dayOfWeek,
+      startTime: '17:00',
+      endTime: '19:00',
+      shiftType: ShiftType.EVENING,
+    },
   ]);
 
   await prisma.ptAvailabilityWindow.create({
