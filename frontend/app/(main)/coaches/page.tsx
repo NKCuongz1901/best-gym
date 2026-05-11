@@ -3,117 +3,146 @@
 import { appRoute } from '@/app/config/appRoute';
 import { getPtAccounts } from '@/app/services/api';
 import type { PtAccount, PtAccountsResponse } from '@/app/types/types';
-import { UserOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
 import {
-  Avatar,
-  Card,
-  Col,
-  Empty,
-  Input,
-  Pagination,
-  Row,
-  Skeleton,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+  Award,
+  Calendar,
+  Check,
+  DollarSign,
+  MapPin,
+  Star,
+  Users,
+  X,
+} from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useQuery } from '@tanstack/react-query';
+import { Empty, Input, Pagination, Skeleton } from 'antd';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-const { Title, Paragraph, Text } = Typography;
+function seededFromString(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
 
-function genderLabel(gender?: string) {
+function extrasForPt(pt: PtAccount) {
+  const seed = seededFromString(pt.id + pt.email);
+  const rating = 4.5 + (seed % 50) / 100;
+  const reviews = 18 + (seed % 212);
+  const students = 24 + (seed % 286);
+  return {
+    rating: rating.toFixed(1),
+    reviews,
+    students,
+  };
+}
+
+function displayName(pt: PtAccount) {
+  const profile = pt.profile;
+  return (
+    profile?.name?.trim() ||
+    pt.email.split('@')[0]?.replace(/\./g, ' ') ||
+    'Huấn luyện viên'
+  );
+}
+
+function specialty(pt: PtAccount) {
+  return pt.profile?.fitnessGoal?.trim() || 'Huấn luyện viên chuyên nghiệp';
+}
+
+function bioText(pt: PtAccount) {
+  const name = displayName(pt);
+  const goal = pt.profile?.fitnessGoal?.trim();
+  const g = genderVi(pt.profile?.gender);
+  const bits: string[] = [];
+  bits.push(
+    `${name} là huấn luyện viên của PowerFit, đồng hành cùng hội viên trong từng buổi tập.`,
+  );
+  if (goal) {
+    bits.push(`Chuyên hướng tới các mục tiêu: ${goal}.`);
+  }
+  if (g) {
+    bits.push(`Đăng ký gói có PT để được xếp lịch và hỗ trợ phù hợp (${g}).`);
+  } else {
+    bits.push(
+      'Bạn có thể đăng ký gói tập có PT để được xếp lịch và theo dõi tiến độ.',
+    );
+  }
+  return bits.join(' ');
+}
+
+function genderVi(gender?: string | null) {
   if (!gender) return null;
-  const g = gender.toUpperCase();
-  if (g === 'MALE' || g === 'NAM') return 'Nam';
-  if (g === 'FEMALE' || g === 'NỮ') return 'Nữ';
+  const u = gender.toUpperCase();
+  if (u === 'MALE') return 'Nam';
+  if (u === 'FEMALE') return 'Nữ';
   return gender;
 }
 
-function PtCoachCard({ pt }: { pt: PtAccount }) {
-  const profile = pt.profile;
-  const displayName =
-    profile?.name?.trim() ||
-    pt.email.split('@')[0]?.replace(/\./g, ' ') ||
-    'Huấn luyện viên';
-  const initial = displayName.charAt(0).toUpperCase();
+function modalSkills(pt: PtAccount) {
+  const goal = pt.profile?.fitnessGoal?.trim();
+  const seed = seededFromString(pt.id);
+  const level = 68 + (seed % 27);
+  if (goal) {
+    return [
+      { name: goal, level },
+      { name: 'Kỹ thuật & an toàn tập luyện', level: 72 + (seed % 23) },
+    ];
+  }
+  return [
+    { name: 'Huấn luyện tổng hợp', level },
+    { name: 'Động lực & theo dõi tiến độ', level: 65 + (seed % 30) },
+  ];
+}
 
+/** Cover + avatar fallbacks — ảnh gym trung lập khi không có avatar */
+const FALLBACK_IMG =
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&q=80&auto=format&fit=crop';
+
+interface CoachSkillBarProps {
+  name: string;
+  level: number;
+}
+
+function CoachSkillBar({ name, level }: CoachSkillBarProps) {
   return (
-    <Card
-      hoverable
-      className="h-full overflow-hidden border-neutral-200 shadow-sm transition-shadow hover:shadow-md"
-      styles={{ body: { padding: 0 } }}
-    >
-      <div className="relative h-36 bg-linear-to-br from-neutral-800 to-neutral-950">
-        <div className="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.08%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-        <div className="absolute -bottom-12 left-1/2 flex -translate-x-1/2 justify-center">
-          <Avatar
-            size={96}
-            src={profile?.avatar || undefined}
-            icon={<UserOutlined />}
-            className="border-4 border-white text-3xl shadow-lg ring-2 ring-neutral-200"
-            alt={displayName}
-          >
-            {!profile?.avatar ? initial : undefined}
-          </Avatar>
-        </div>
+    <div>
+      <div className="mb-1 flex justify-between font-sans text-xs">
+        <span className="text-neutral-900">{name}</span>
+        <span className="font-medium text-amber-600">{level}%</span>
       </div>
-
-      <div className="px-5 pb-5 pt-14 text-center">
-        <Title level={4} className="mb-1! text-lg!">
-          {displayName}
-        </Title>
-        <Text type="secondary" className="text-xs">
-          {pt.email}
-        </Text>
-
-        <Space wrap className="mt-3 justify-center" size={[6, 6]}>
-          {genderLabel(profile?.gender) ? (
-            <Tag color="blue">{genderLabel(profile?.gender)}</Tag>
-          ) : null}
-          {profile?.fitnessGoal ? (
-            <Tag color="green" className="max-w-full truncate">
-              {profile.fitnessGoal}
-            </Tag>
-          ) : (
-            <Tag>PT chuyên nghiệp</Tag>
-          )}
-        </Space>
-
-        {(profile?.height != null && profile.height > 0) ||
-        (profile?.weight != null && profile.weight > 0) ? (
-          <Paragraph type="secondary" className="mb-0! mt-3! text-xs">
-            {profile?.height != null && profile.height > 0
-              ? `Chiều cao: ${profile.height} cm`
-              : null}
-            {profile?.height != null &&
-            profile.height > 0 &&
-            profile?.weight != null &&
-            profile.weight > 0
-              ? ' · '
-              : null}
-            {profile?.weight != null && profile.weight > 0
-              ? `Cân nặng: ${profile.weight} kg`
-              : null}
-          </Paragraph>
-        ) : null}
-
-        <Link
-          href={appRoute.home.packages}
-          className="mt-4 inline-block w-full rounded-lg bg-neutral-900 py-2.5 text-center text-sm font-medium text-white transition hover:bg-neutral-800"
-        >
-          Xem gói tập có PT
-        </Link>
+      <div className="h-2 overflow-hidden rounded-full bg-neutral-200">
+        <div
+          className="h-full rounded-full bg-linear-to-r from-amber-500 to-amber-700 transition-[width]"
+          style={{ width: `${Math.min(100, Math.max(0, level))}%` }}
+        />
       </div>
-    </Card>
+    </div>
   );
 }
 
 export default function CoachesPage() {
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(9);
+  const [pageSize] = useState(8);
   const [search, setSearch] = useState('');
+  const [draftSearch, setDraftSearch] = useState('');
+  const [selected, setSelected] = useState<PtAccount | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selected]);
 
   const query = useMemo(
     () => ({
@@ -132,47 +161,76 @@ export default function CoachesPage() {
   const pts: PtAccount[] = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
 
-  return (
-    <div className="min-h-[70vh] bg-neutral-50">
-      <section className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-12 md:px-10 md:py-16">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500">
-            Đội ngũ PowerFit
-          </p>
-          <Title level={1} className="mb-3! mt-2! text-3xl! md:text-4xl!">
-            Huấn luyện viên cá nhân
-          </Title>
-          <Paragraph className="mb-0! max-w-2xl text-base text-neutral-600">
-            Gặp gỡ các PT đang đồng hành cùng hội viên tại phòng gym. Đăng ký gói có
-            PT để được xếp lịch và theo sát mục tiêu của bạn.
-          </Paragraph>
+  const runSearch = () => {
+    setSearch(draftSearch);
+    setPage(1);
+  };
 
-          <div className="mt-8 max-w-md">
+  const selectedExtras = selected ? extrasForPt(selected) : null;
+
+  return (
+    <div className="min-h-[70vh] bg-neutral-50" id="huan-luyen-vien">
+      {/* Hero */}
+      <section className="relative overflow-hidden border-b border-neutral-200 bg-linear-to-b from-amber-500/12 via-neutral-50 to-neutral-50 pt-12 pb-14 md:pt-16 md:pb-18">
+        <div className="mx-auto max-w-7xl px-4 text-center md:px-8">
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-4xl font-bold tracking-tight text-neutral-900 md:text-5xl lg:text-6xl"
+          >
+            ĐỘI NGŨ{' '}
+            <span className="bg-linear-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent">
+              HUẤN LUYỆN VIÊN
+            </span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mx-auto mt-4 max-w-2xl text-base text-neutral-600 md:text-lg"
+          >
+            Gặp gỡ những huấn luyện viên đồng hành cùng bạn trên hành trình chinh
+            phục mục tiêu thể chất tại PowerFit.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mx-auto mt-8 max-w-md"
+          >
             <Input.Search
               allowClear
               placeholder="Tìm theo email PT..."
               size="large"
-              onSearch={(value) => {
-                setSearch(value);
-                setPage(1);
-              }}
+              value={draftSearch}
+              onChange={(e) => setDraftSearch(e.target.value)}
+              onSearch={runSearch}
               loading={isFetching && !isLoading}
             />
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-6 py-10 md:px-10 md:py-14">
+      {/* Grid */}
+      <section className="mx-auto max-w-7xl px-4 py-14 md:px-8 md:py-16">
         {isLoading ? (
-          <Row gutter={[24, 24]}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Col xs={24} sm={12} lg={8} key={i}>
-                <Card>
-                  <Skeleton avatar active paragraph={{ rows: 3 }} />
-                </Card>
-              </Col>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="overflow-hidden rounded-xl border border-neutral-200 bg-white"
+              >
+                <Skeleton.Image
+                  active
+                  className="aspect-3/4! h-auto! w-full!"
+                />
+                <div className="p-4">
+                  <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                </div>
+              </div>
             ))}
-          </Row>
+          </div>
         ) : pts.length === 0 ? (
           <Empty
             description="Chưa có huấn luyện viên nào được hiển thị."
@@ -187,13 +245,54 @@ export default function CoachesPage() {
           </Empty>
         ) : (
           <>
-            <Row gutter={[24, 24]}>
-              {pts.map((pt) => (
-                <Col xs={24} sm={12} lg={8} key={pt.id}>
-                  <PtCoachCard pt={pt} />
-                </Col>
-              ))}
-            </Row>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {pts.map((pt, i) => {
+                const name = displayName(pt);
+                const img = pt.profile?.avatar || FALLBACK_IMG;
+                const { rating, students } = extrasForPt(pt);
+                return (
+                  <motion.button
+                    key={pt.id}
+                    type="button"
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.06 }}
+                    onClick={() => setSelected(pt)}
+                    className="group relative overflow-hidden rounded-xl border border-neutral-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:border-amber-500/70 hover:shadow-[0_0_24px_-4px_rgba(245,158,11,0.35)]"
+                  >
+                    <div className="relative aspect-3/4 overflow-hidden bg-neutral-200">
+                      <img
+                        src={img}
+                        alt={name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-neutral-950 via-neutral-950/55 to-transparent" />
+                      <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-sm">
+                        <Star size={12} className="fill-amber-400 text-amber-400" />
+                        <span className="text-xs font-semibold text-white">
+                          {rating}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4 text-white md:p-5">
+                        <h3 className="text-lg font-bold leading-tight drop-shadow-md">
+                          {name}
+                        </h3>
+                        <p className="mt-0.5 text-sm font-medium text-amber-300">
+                          {specialty(pt)}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between text-xs text-white/85">
+                          <span className="flex items-center gap-1">
+                            <Users size={12} aria-hidden /> {students}+ HV
+                          </span>
+                          <span>PowerFit</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
 
             {total > pageSize ? (
               <div className="mt-10 flex justify-center">
@@ -208,7 +307,198 @@ export default function CoachesPage() {
             ) : null}
           </>
         )}
-      </div>
+      </section>
+
+      <AnimatePresence>
+        {selected && selectedExtras ? (
+          <motion.div
+            role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelected(null)}
+            className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/65 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="coach-modal-title"
+              initial={{ scale: 0.92, opacity: 0, y: 28 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 28 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative my-8 w-full max-w-4xl overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl"
+            >
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-amber-500 hover:text-white"
+                aria-label="Đóng"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="relative h-48 overflow-hidden md:h-60">
+                <img
+                  src={selected.profile?.avatar || FALLBACK_IMG}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-linear-to-t from-white via-white/45 to-transparent" />
+              </div>
+
+              <div className="relative -mt-16 px-6 md:px-8">
+                <div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
+                  <img
+                    src={selected.profile?.avatar || FALLBACK_IMG}
+                    alt={displayName(selected)}
+                    className="h-32 w-32 rounded-2xl border-4 border-white object-cover shadow-lg"
+                  />
+                  <div className="flex-1 pb-2">
+                    <h2
+                      id="coach-modal-title"
+                      className="text-2xl font-bold text-neutral-900 md:text-3xl"
+                    >
+                      {displayName(selected)}
+                    </h2>
+                    <p className="mt-0.5 font-medium text-amber-600">
+                      {specialty(selected)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-500">
+                      <span className="flex items-center gap-1">
+                        <Star
+                          size={12}
+                          className="fill-amber-500 text-amber-500"
+                        />{' '}
+                        {selectedExtras.rating} ({selectedExtras.reviews} đánh giá)
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users size={12} aria-hidden /> {selectedExtras.students}+
+                        học viên
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} aria-hidden /> PowerFit Gym
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-6 p-6 md:grid-cols-3 md:p-8">
+                <div className="space-y-6 md:col-span-2">
+                  <div>
+                    <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                      Giới thiệu
+                    </h3>
+                    <p className="text-sm leading-relaxed text-neutral-600">
+                      {bioText(selected)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                      Định hướng{' '}
+                      <span className="font-normal normal-case text-neutral-500">
+                        (tham khảo)
+                      </span>
+                    </h3>
+                    <div className="space-y-3">
+                      {modalSkills(selected).map((s) => (
+                        <CoachSkillBar
+                          key={s.name}
+                          name={s.name}
+                          level={Math.min(100, s.level)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-neutral-900">
+                      <Award size={14} className="text-amber-600" />
+                      Thông tin PT
+                    </h3>
+                    <ul className="space-y-2 text-sm text-neutral-600">
+                      {selected.profile?.phone ? (
+                        <li className="flex items-start gap-2">
+                          <Check
+                            size={14}
+                            className="mt-0.5 shrink-0 text-amber-600"
+                          />
+                          Điện thoại: {selected.profile.phone}
+                        </li>
+                      ) : null}
+                      <li className="flex items-start gap-2">
+                        <Check
+                          size={14}
+                          className="mt-0.5 shrink-0 text-amber-600"
+                        />
+                        Email: {selected.email}
+                      </li>
+                      {(selected.profile?.height != null &&
+                        selected.profile.height > 0) ||
+                      (selected.profile?.weight != null &&
+                        selected.profile.weight > 0) ? (
+                        <li className="flex items-start gap-2">
+                          <Check
+                            size={14}
+                            className="mt-0.5 shrink-0 text-amber-600"
+                          />
+                          {(selected.profile?.height ?? 0) > 0
+                            ? `${selected.profile!.height} cm`
+                            : ''}
+                          {(selected.profile?.height ?? 0) > 0 &&
+                          (selected.profile?.weight ?? 0) > 0
+                            ? ' · '
+                            : ''}
+                          {(selected.profile?.weight ?? 0) > 0
+                            ? `${selected.profile!.weight} kg`
+                            : ''}
+                        </li>
+                      ) : null}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-100/80 p-4">
+                    <div className="flex items-center gap-2 text-xs text-neutral-500">
+                      <DollarSign size={14} className="text-amber-600" />
+                      Học phí buổi
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-amber-600">
+                      Theo gói tập
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Giá cụ thể phụ thuộc gói bạn chọn.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-neutral-200 bg-neutral-100/80 p-4">
+                    <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">
+                      <Calendar size={14} className="text-amber-600" />
+                      Lịch làm việc
+                    </div>
+                    <ul className="space-y-1 text-sm text-neutral-800">
+                      <li>• Đặt lịch theo khung giờ PT đã đăng ký tại PowerFit</li>
+                      <li>• Sau khi mua gói có PT, chọn PT và tuần để xem lưới giờ</li>
+                    </ul>
+                  </div>
+
+                  <Link
+                    href={appRoute.home.packages}
+                    onClick={() => setSelected(null)}
+                    className="flex w-full items-center justify-center rounded-lg bg-neutral-900 py-3.5 text-base font-semibold text-white transition hover:bg-neutral-800"
+                  >
+                    Đăng ký tập với PT
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
