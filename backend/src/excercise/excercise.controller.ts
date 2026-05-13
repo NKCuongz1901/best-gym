@@ -24,7 +24,7 @@ export class ExcerciseController {
   constructor(private readonly excerciseService: ExcerciseService) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.PT)
+  @Roles(Role.ADMIN, Role.PT, Role.USER)
   @Get()
   findAll(@Req() req: any, @Query() filterExcerciseDto: FilterExcerciseDto) {
     return this.excerciseService.findAll(filterExcerciseDto, {
@@ -41,7 +41,10 @@ export class ExcerciseController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.PT)
-  async create(@Req() req: any, @Body() createExcerciseDto: CreateExcerciseDto) {
+  async create(
+    @Req() req: any,
+    @Body() createExcerciseDto: CreateExcerciseDto,
+  ) {
     return this.excerciseService.create(createExcerciseDto, {
       userId: req.user.userId,
       role: req.user.role,

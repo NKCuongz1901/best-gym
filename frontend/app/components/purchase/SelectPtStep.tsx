@@ -16,14 +16,13 @@ import {
 import {
   CalendarOutlined,
   CheckOutlined,
-  EnvironmentOutlined,
   MailOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { motion } from 'motion/react';
 import dayjs from 'dayjs';
 import type { AvailablePtAccount } from '@/app/types/types';
-import { formatDate, formatDayOfWeekVietnamese } from '@/app/utils/common';
+import { formatDate } from '@/app/utils/common';
 
 const { Text, Paragraph } = Typography;
 
@@ -33,10 +32,6 @@ function genderVi(g?: string | null) {
   if (u === 'MALE') return 'Nam';
   if (u === 'FEMALE') return 'Nữ';
   return g;
-}
-
-function formatTimeRange(start: string, end: string) {
-  return `${start} – ${end}`;
 }
 
 interface SelectPtStepProps {
@@ -201,72 +196,30 @@ export default function SelectPtStep({
                                 </span>
                               </div>
                             ) : null}
-
-                            {(pt.profile?.height != null && pt.profile.height > 0) ||
-                            (pt.profile?.weight != null && pt.profile.weight > 0) ? (
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-neutral-700">
-                                {pt.profile?.height != null && pt.profile.height > 0 ? (
-                                  <span>
-                                    Chiều cao: <strong>{pt.profile.height} cm</strong>
-                                  </span>
-                                ) : null}
-                                {pt.profile?.weight != null && pt.profile.weight > 0 ? (
-                                  <span>
-                                    Cân nặng: <strong>{pt.profile.weight} kg</strong>
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : null}
                           </div>
 
-                          {(pt.ptAvailabilityWindows?.length ?? 0) > 0 ? (
-                            <>
-                              <Divider className="my-3! text-neutral-200" />
-                              <Paragraph className="mb-2! text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                                Lịch rảnh theo chi nhánh
-                              </Paragraph>
-                              <div className="max-h-48 space-y-3 overflow-y-auto pr-1">
-                                {pt.ptAvailabilityWindows!.map((win) => (
-                                  <div
-                                    key={win.id}
-                                    className="rounded-md border border-neutral-200 bg-white px-2.5 py-2"
-                                  >
-                                    <div className="flex items-start gap-2 text-sm">
-                                      <EnvironmentOutlined className="mt-0.5 shrink-0 text-primary" />
-                                      <div>
-                                        <div className="font-medium text-neutral-900">
-                                          {win.branch?.name ?? 'Chi nhánh'}
-                                        </div>
-                                        <div className="text-xs text-neutral-500">
-                                          {formatDate(win.fromDate)} → {formatDate(win.toDate)}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    {(win.weeklySlots?.length ?? 0) > 0 ? (
-                                      <ul className="mt-2 space-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-600">
-                                        {win.weeklySlots!.map((slot) => (
-                                          <li key={slot.id}>
-                                            <strong className="text-neutral-800">
-                                              {formatDayOfWeekVietnamese(slot.dayOfWeek)}
-                                            </strong>
-                                            : {formatTimeRange(slot.startTime, slot.endTime)}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    ) : (
-                                      <p className="mt-2 text-xs text-neutral-400">
-                                        Chưa có khung giờ trong tuần.
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
+                          <Divider className="my-3! text-neutral-200" />
+                          <Paragraph className="mb-2! text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                            Chiều cao & cân nặng
+                          </Paragraph>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm">
+                              <div className="text-xs text-neutral-500">Chiều cao</div>
+                              <div className="font-semibold text-neutral-900">
+                                {pt.profile?.height != null && pt.profile.height > 0
+                                  ? `${pt.profile.height} cm`
+                                  : '180 cm'}
                               </div>
-                            </>
-                          ) : (
-                            <p className="mt-2 text-xs text-neutral-500">
-                              Chưa có cửa sổ lịch dạy trong khoảng bạn lọc.
-                            </p>
-                          )}
+                            </div>
+                            <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm">
+                              <div className="text-xs text-neutral-500">Cân nặng</div>
+                              <div className="font-semibold text-neutral-900">
+                                {pt.profile?.weight != null && pt.profile.weight > 0
+                                  ? `${pt.profile.weight} kg`
+                                  : '70 kg'}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </>
                     ) : null}

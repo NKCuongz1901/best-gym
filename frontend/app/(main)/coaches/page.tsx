@@ -97,9 +97,33 @@ function modalSkills(pt: PtAccount) {
   ];
 }
 
-/** Cover + avatar fallbacks — ảnh gym trung lập khi không có avatar */
+/** Chỉ dùng khi API không trả `profile.avatar` (null / rỗng). */
 const FALLBACK_IMG =
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&q=80&auto=format&fit=crop';
+
+/**
+ * Ảnh đại diện PT: luôn ưu tiên `profile.avatar` từ API.
+ * Đường dẫn tương đối (`/uploads/...`) được nối với `NEXT_PUBLIC_API_URL`.
+ */
+function resolveCoachAvatarSrc(pt: PtAccount): string {
+  const raw = pt.profile?.avatar?.trim();
+  if (!raw) return FALLBACK_IMG;
+
+  if (
+    raw.startsWith('http://') ||
+    raw.startsWith('https://') ||
+    raw.startsWith('data:')
+  ) {
+    return raw;
+  }
+
+  const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+  if (!base) {
+    return raw.startsWith('/') ? raw : `/${raw}`;
+  }
+  if (raw.startsWith('/')) return `${base}${raw}`;
+  return `${base}/${raw}`;
+}
 
 interface CoachSkillBarProps {
   name: string;
@@ -248,7 +272,7 @@ export default function CoachesPage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {pts.map((pt, i) => {
                 const name = displayName(pt);
-                const img = pt.profile?.avatar || FALLBACK_IMG;
+                const img = resolveCoachAvatarSrc(pt);
                 const { rating, students } = extrasForPt(pt);
                 return (
                   <motion.button
@@ -341,7 +365,7 @@ export default function CoachesPage() {
 
               <div className="relative h-48 overflow-hidden md:h-60">
                 <img
-                  src={selected.profile?.avatar || FALLBACK_IMG}
+                  src={resolveCoachAvatarSrc(selected)}
                   alt=""
                   className="h-full w-full object-cover"
                 />
@@ -351,7 +375,7 @@ export default function CoachesPage() {
               <div className="relative -mt-16 px-6 md:px-8">
                 <div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
                   <img
-                    src={selected.profile?.avatar || FALLBACK_IMG}
+                    src={resolveCoachAvatarSrc(selected)}
                     alt={displayName(selected)}
                     className="h-32 w-32 rounded-2xl border-4 border-white object-cover shadow-lg"
                   />
