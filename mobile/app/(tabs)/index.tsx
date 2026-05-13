@@ -13,7 +13,6 @@ import {
   AvailablePtAccount,
   MyPurchasePackage,
   PTAssistSchedule,
-  PtWeekGridCell,
 } from "@/types/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,7 +25,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -224,6 +222,26 @@ const DAY_OF_WEEK_LABELS: Record<number, string> = {
   7: "CN",
 };
 
+/** Cùng tập khóa lưới chuẩn như web — giảm số hàng hiển thị */
+const STANDARD_GRID_KEYS = new Set([
+  "R06",
+  "R08",
+  "R10",
+  "R13",
+  "R15",
+  "R17",
+  "R19",
+]);
+
+type FreeBookingOption = {
+  id: string;
+  sessionDate: string;
+  weeklySlotId: string;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: number;
+};
+
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const isPt = user?.role === "PT";
@@ -244,7 +262,7 @@ export default function HomeScreen() {
     startTime: string;
     endTime: string;
   } | null>(null);
-  const [note, setNote] = useState("");
+  const [showFullWeekGrid, setShowFullWeekGrid] = useState(false);
   const { data: availablePtData, isLoading: isLoadingPts } = useQuery({
     queryKey: ["available-pts-for-package", selectedPackage?.id],
     queryFn: () =>
@@ -288,7 +306,7 @@ export default function HomeScreen() {
       setSelectedPtId("");
       setSelectedCell(null);
       setWeekStart(getIsoWeekStart(new Date()));
-      setNote("");
+      setShowFullWeekGrid(false);
       await refetch();
     },
     onError: (error: any) => {
@@ -305,7 +323,7 @@ export default function HomeScreen() {
     setSelectedPtId("");
     setSelectedCell(null);
     setWeekStart(getIsoWeekStart(new Date()));
-    setNote("");
+    setShowFullWeekGrid(false);
   };
 
   const handleClosePtRequestModal = () => {
@@ -317,6 +335,7 @@ export default function HomeScreen() {
     setSelectedPtId("");
     setSelectedCell(null);
     setWeekStart(getIsoWeekStart(new Date()));
+    setShowFullWeekGrid(false);
   };
 
   const handleCreatePtRequest = () => {
@@ -332,7 +351,6 @@ export default function HomeScreen() {
       userPackageId: selectedPackage.id,
       slotId: selectedCell.weeklySlotId,
       sessionDate: selectedCell.sessionDate,
-      note: note.trim() || undefined,
     });
   };
   const availablePts = useMemo<AvailablePtAccount[]>(() => availablePtData?.data ?? [], [
@@ -345,8 +363,42 @@ export default function HomeScreen() {
   const weekDays = weekGridData?.data?.days ?? [];
   const weekRows = weekGridData?.data?.gridRows ?? [];
 
+  const visibleWeekRows = useMemo(() => {
+    const filtered = weekRows.filter((r) => STANDARD_GRID_KEYS.has(r.key));
+    return filtered.length ? filtered : weekRows;
+  }, [weekRows]);
+
+  const freeBookingOptions = useMemo(() => {
+    const out: FreeBookingOption[] = [];
+    for (const day of weekDays) {
+      for (const row of visibleWeekRows) {
+        const cell = day.slots.find((s) => s.gridKey === row.key);
+        if (cell?.state === "FREE" && cell.weeklySlotId) {
+          out.push({
+            id: `${day.date}-${cell.weeklySlotId}`,
+            sessionDate: day.date,
+            weeklySlotId: cell.weeklySlotId,
+            startTime: cell.startTime,
+            endTime: cell.endTime,
+            dayOfWeek: day.dayOfWeek,
+          });
+        }
+      }
+    }
+    out.sort((a, b) => {
+      const d = a.sessionDate.localeCompare(b.sessionDate);
+      if (d !== 0) return d;
+      return a.startTime.localeCompare(b.startTime);
+    });
+    return out;
+  }, [weekDays, visibleWeekRows]);
+
   useEffect(() => {
     setSelectedCell(null);
+  }, [selectedPtId, weekStart]);
+
+  useEffect(() => {
+    setShowFullWeekGrid(false);
   }, [selectedPtId, weekStart]);
 
   return (
@@ -651,76 +703,159 @@ export default function HomeScreen() {
                     <ActivityIndicator color="#22C55E" />
                     <Text style={styles.slotLoadingText}>Đang tải lịch tuần...</Text>
                   </View>
-                ) : weekDays.length && weekRows.length ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.weekGridWrap}>
-                      <View style={styles.weekDayHeaderRow}>
-                        {weekDays.map((day) => (
-                          <View key={day.date} style={styles.weekDayHeaderCell}>
-                            <Text style={styles.weekDayText}>
-                              {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
-                            </Text>
-                            <Text style={styles.weekDateText}>
-                              {new Date(`${day.date}T00:00:00.000Z`).toLocaleDateString("vi-VN", {
+                ) : weekDays.length && visibleWeekRows.length ? (
+                  <>
+                    <Text style={styles.weekCompactHint}>
+                      Chỉ hiển thị khung giờ còn trống. Dùng mũi tên để đổi tuần.
+                    </Text>
+                    {freeBookingOptions.length ? (
+                      <ScrollView
+                        style={styles.freeSlotListScroll}
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {freeBookingOptions.map((opt) => {
+                          const isActive =
+                            selectedCell?.weeklySlotId === opt.weeklySlotId &&
+                            selectedCell?.sessionDate === opt.sessionDate;
+                          const d = parseYmdToLocalDate(opt.sessionDate);
+                          const datePart = d
+                            ? d.toLocaleDateString("vi-VN", {
                                 day: "2-digit",
                                 month: "2-digit",
-                              })}
-                            </Text>
-                          </View>
-                        ))}
+                              })
+                            : opt.sessionDate;
+                          return (
+                            <Pressable
+                              key={opt.id}
+                              style={[styles.freeSlotRow, isActive && styles.freeSlotRowActive]}
+                              onPress={() =>
+                                setSelectedCell({
+                                  weeklySlotId: opt.weeklySlotId,
+                                  sessionDate: opt.sessionDate,
+                                  startTime: opt.startTime,
+                                  endTime: opt.endTime,
+                                })
+                              }
+                            >
+                              <View style={styles.freeSlotRowMain}>
+                                <Text style={styles.freeSlotDay}>
+                                  {DAY_OF_WEEK_LABELS[opt.dayOfWeek] ?? "—"}{" "}
+                                  <Text style={styles.freeSlotDate}>{datePart}</Text>
+                                </Text>
+                                <Text style={styles.freeSlotTime}>
+                                  {formatSlotTimeLabel(opt.startTime, opt.endTime)}
+                                </Text>
+                              </View>
+                              <Ionicons
+                                name={isActive ? "checkmark-circle" : "chevron-forward"}
+                                size={20}
+                                color={isActive ? "#22C55E" : "#64748B"}
+                              />
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    ) : (
+                      <View style={styles.slotEmptyBox}>
+                        <Text style={styles.slotEmptyText}>
+                          Tuần này không còn khung trống. Thử tuần sau hoặc chọn PT khác.
+                        </Text>
                       </View>
-                      {weekRows.map((row) => (
-                        <View key={row.key} style={styles.weekSlotRow}>
-                          {weekDays.map((day) => {
-                            const cell = day.slots.find((s) => s.gridKey === row.key);
-                            const isFree = cell?.state === "FREE" && !!cell.weeklySlotId;
-                            const isActive =
-                              !!cell &&
-                              !!selectedCell &&
-                              selectedCell.weeklySlotId === cell.weeklySlotId &&
-                              selectedCell.sessionDate === day.date;
-                            const cellStyle = [
-                              styles.weekSlotCell,
-                              isFree ? styles.weekSlotCellFree : styles.weekSlotCellDisabled,
-                              isActive && styles.weekSlotCellActive,
-                            ];
+                    )}
 
-                            return (
-                              <Pressable
-                                key={`${row.key}-${day.date}`}
-                                style={cellStyle}
-                                disabled={!isFree}
-                                onPress={() => {
-                                  if (!isFree || !cell) {
-                                    return;
-                                  }
-                                  setSelectedCell({
-                                    weeklySlotId: cell.weeklySlotId as string,
-                                    sessionDate: day.date,
-                                    startTime: cell.startTime,
-                                    endTime: cell.endTime,
-                                  });
-                                }}
-                              >
-                                <Text style={styles.weekSlotTimeText}>
-                                  {formatSlotTimeLabel(row.startTime, row.endTime)}
-                                </Text>
-                                <Text style={styles.weekSlotStatusText}>
-                                  {cell?.state === "FREE"
-                                    ? "TRỐNG"
-                                    : cell?.state === "OCCUPIED"
-                                      ? "ĐÃ ĐẶT"
-                                      : cell?.state === "PASSED"
-                                        ? "ĐÃ QUA"
-                                        : "—"}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      ))}
-                    </View>
-                  </ScrollView>
+                    <Pressable
+                      style={styles.weekGridToggle}
+                      onPress={() => setShowFullWeekGrid((v) => !v)}
+                    >
+                      <Text style={styles.weekGridToggleText}>
+                        {showFullWeekGrid ? "Ẩn lưới tuần" : "Xem lưới tuần (chi tiết)"}
+                      </Text>
+                      <Ionicons
+                        name={showFullWeekGrid ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color="#94A3B8"
+                      />
+                    </Pressable>
+
+                    {showFullWeekGrid ? (
+                      <ScrollView
+                        style={styles.weekGridOuterScroll}
+                        nestedScrollEnabled
+                        showsVerticalScrollIndicator
+                      >
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          <View style={styles.weekGridWrap}>
+                            <View style={styles.weekDayHeaderRow}>
+                              {weekDays.map((day) => (
+                                <View key={day.date} style={styles.weekDayHeaderCell}>
+                                  <Text style={styles.weekDayText}>
+                                    {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
+                                  </Text>
+                                  <Text style={styles.weekDateText}>
+                                    {new Date(`${day.date}T12:00:00`).toLocaleDateString("vi-VN", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                    })}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                            {visibleWeekRows.map((row) => (
+                              <View key={row.key} style={styles.weekSlotRow}>
+                                {weekDays.map((day) => {
+                                  const cell = day.slots.find((s) => s.gridKey === row.key);
+                                  const isFree = cell?.state === "FREE" && !!cell.weeklySlotId;
+                                  const isActive =
+                                    !!cell &&
+                                    !!selectedCell &&
+                                    selectedCell.weeklySlotId === cell.weeklySlotId &&
+                                    selectedCell.sessionDate === day.date;
+                                  const cellStyle = [
+                                    styles.weekSlotCell,
+                                    isFree ? styles.weekSlotCellFree : styles.weekSlotCellDisabled,
+                                    isActive && styles.weekSlotCellActive,
+                                  ];
+
+                                  return (
+                                    <Pressable
+                                      key={`${row.key}-${day.date}`}
+                                      style={cellStyle}
+                                      disabled={!isFree}
+                                      onPress={() => {
+                                        if (!isFree || !cell) {
+                                          return;
+                                        }
+                                        setSelectedCell({
+                                          weeklySlotId: cell.weeklySlotId as string,
+                                          sessionDate: day.date,
+                                          startTime: cell.startTime,
+                                          endTime: cell.endTime,
+                                        });
+                                      }}
+                                    >
+                                      <Text style={styles.weekSlotTimeText}>
+                                        {formatSlotTimeLabel(row.startTime, row.endTime)}
+                                      </Text>
+                                      <Text style={styles.weekSlotStatusText}>
+                                        {cell?.state === "FREE"
+                                          ? "TRỐNG"
+                                          : cell?.state === "OCCUPIED"
+                                            ? "ĐÃ ĐẶT"
+                                            : cell?.state === "PASSED"
+                                              ? "ĐÃ QUA"
+                                              : "—"}
+                                      </Text>
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            ))}
+                          </View>
+                        </ScrollView>
+                      </ScrollView>
+                    ) : null}
+                  </>
                 ) : (
                   <View style={styles.slotEmptyBox}>
                     <Text style={styles.slotEmptyText}>
@@ -743,17 +878,6 @@ export default function HomeScreen() {
                 </Text>
               </View>
             ) : null}
-
-            <Text style={styles.inputLabel}>Ghi chú</Text>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              placeholder="Ví dụ: muốn tập phần thân trên"
-              placeholderTextColor="#64748B"
-              multiline
-              numberOfLines={3}
-              style={styles.noteInput}
-            />
 
             <Text style={styles.helperText}>
               Chỉ có thể đặt lịch theo các ca dạy PT đã mở từ hệ thống.
@@ -1177,6 +1301,68 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  weekCompactHint: {
+    color: "#64748B",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  freeSlotListScroll: {
+    maxHeight: 220,
+    marginBottom: 10,
+  },
+  freeSlotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: "#182235",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 8,
+  },
+  freeSlotRowActive: {
+    borderColor: "#22C55E",
+    backgroundColor: "rgba(34,197,94,0.12)",
+  },
+  freeSlotRowMain: {
+    flex: 1,
+    marginRight: 10,
+  },
+  freeSlotDay: {
+    color: "#F8FAFC",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  freeSlotDate: {
+    color: "#94A3B8",
+    fontWeight: "600",
+  },
+  freeSlotTime: {
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  weekGridToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  weekGridToggleText: {
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  weekGridOuterScroll: {
+    maxHeight: 260,
+    marginBottom: 14,
+  },
   weekGridWrap: {
     marginBottom: 14,
     gap: 8,
@@ -1208,7 +1394,7 @@ const styles = StyleSheet.create({
   },
   weekSlotCell: {
     width: 94,
-    minHeight: 58,
+    minHeight: 48,
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 6,
@@ -1253,17 +1439,6 @@ const styles = StyleSheet.create({
     color: "#DCFCE7",
     fontSize: 12,
     lineHeight: 18,
-  },
-  noteInput: {
-    minHeight: 88,
-    borderRadius: 18,
-    backgroundColor: "#182235",
-    color: "#F8FAFC",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    textAlignVertical: "top",
-    marginBottom: 10,
-    fontSize: 14,
   },
   helperText: {
     color: "#94A3B8",

@@ -51,16 +51,16 @@ type EditFormState = {
 };
 
 const formatDate = (value?: string | null) => {
-  if (!value) return "Dang cap nhat";
+  if (!value) return "Đang cập nhật";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Dang cap nhat";
+  if (Number.isNaN(date.getTime())) return "Đang cập nhật";
   return date.toLocaleDateString("vi-VN");
 };
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return "Dang cap nhat";
+  if (!value) return "Đang cập nhật";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Dang cap nhat";
+  if (Number.isNaN(date.getTime())) return "Đang cập nhật";
   return date.toLocaleString("vi-VN");
 };
 
@@ -104,30 +104,30 @@ const computeCheckInStreak = (raw: Record<string, { id: string }[]>) => {
 };
 
 const bmiLabel = (bmi: number) => {
-  if (bmi < 18.5) return "Thieu can";
-  if (bmi < 25) return "Binh thuong";
-  if (bmi < 30) return "Thua can";
-  return "Beo phi";
+  if (bmi < 18.5) return "Thiếu cân";
+  if (bmi < 25) return "Bình thường";
+  if (bmi < 30) return "Thừa cân";
+  return "Béo phì";
 };
 
 const genderLabel = (gender?: string | null) => {
   if (gender === "MALE") return "Nam";
-  if (gender === "FEMALE") return "Nu";
-  return "Dang cap nhat";
+  if (gender === "FEMALE") return "Nữ";
+  return "Đang cập nhật";
 };
 
 const fitnessGoalLabel = (goal?: string | null) => {
   switch (goal) {
     case "LOSE_WEIGHT":
-      return "Giam can";
+      return "Giảm cân";
     case "GAIN_MUSCLE":
-      return "Tang co";
+      return "Tăng cơ";
     case "IMPROVE_HEALTH":
-      return "Cai thien suc khoe";
+      return "Cải thiện sức khỏe";
     case "MAINTAIN_WEIGHT":
-      return "Duy tri can nang";
+      return "Duy trì cân nặng";
     default:
-      return "Dang cap nhat";
+      return "Đang cập nhật";
   }
 };
 
@@ -231,14 +231,14 @@ export default function ProfileScreen() {
       setEditOpen(false);
       Toast.show({
         type: "success",
-        text1: "Da cap nhat ho so",
+        text1: "Đã cập nhật hồ sơ",
       });
     },
     onError: () => {
       Toast.show({
         type: "error",
-        text1: "Cap nhat that bai",
-        text2: "Vui long thu lai sau.",
+        text1: "Cập nhật thất bại",
+        text2: "Vui lòng thử lại sau.",
       });
     },
   });
@@ -272,7 +272,7 @@ export default function ProfileScreen() {
   }, [profile?.height, profile?.weight]);
 
   const displayName =
-    profile?.name?.trim() || profile?.email?.split("@")[0] || user?.email || "Thanh vien";
+    profile?.name?.trim() || profile?.email?.split("@")[0] || user?.email || "Thành viên";
 
   const handleLogout = async () => {
     await logout();
@@ -297,7 +297,7 @@ export default function ProfileScreen() {
     if (form.height.trim()) {
       const height = Number(form.height);
       if (Number.isNaN(height)) {
-        Toast.show({ type: "error", text1: "Chieu cao khong hop le" });
+        Toast.show({ type: "error", text1: "Chiều cao không hợp lệ" });
         return;
       }
       payload.height = height;
@@ -306,7 +306,7 @@ export default function ProfileScreen() {
     if (form.weight.trim()) {
       const weight = Number(form.weight);
       if (Number.isNaN(weight)) {
-        Toast.show({ type: "error", text1: "Can nang khong hop le" });
+        Toast.show({ type: "error", text1: "Cân nặng không hợp lệ" });
         return;
       }
       payload.weight = weight;
@@ -316,8 +316,8 @@ export default function ProfileScreen() {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(form.dateOfBirth.trim())) {
         Toast.show({
           type: "error",
-          text1: "Ngay sinh khong hop le",
-          text2: "Nhap theo dinh dang YYYY-MM-DD",
+          text1: "Ngày sinh không hợp lệ",
+          text2: "Nhập theo định dạng YYYY-MM-DD",
         });
         return;
       }
@@ -342,7 +342,7 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#22C55E" />
-          <Text style={styles.stateText}>Dang tai thong tin tai khoan...</Text>
+          <Text style={styles.stateText}>Đang tải thông tin tài khoản...</Text>
         </View>
       </SafeAreaView>
     );
@@ -352,8 +352,17 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerState}>
-          <Text style={styles.errorTitle}>Khong tai duoc ho so</Text>
-          <Text style={styles.stateText}>Vui long thu lai sau.</Text>
+          <Text style={styles.errorTitle}>Không tải được hồ sơ</Text>
+          <Text style={styles.stateText}>Vui lòng thử lại sau.</Text>
+          <Pressable
+            style={styles.errorLogoutButton}
+            onPress={handleLogout}
+            accessibilityRole="button"
+            accessibilityLabel="Đăng xuất"
+          >
+            <Ionicons name="log-out-outline" size={20} color="#F8FAFC" />
+            <Text style={styles.errorLogoutText}>Đăng xuất</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -363,13 +372,23 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.screenTitle}>Tai khoan</Text>
-            <Text style={styles.screenSubtitle}>Quan ly thong tin va tien do tap luyen cua ban.</Text>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.screenTitle}>Tài khoản</Text>
+            <Text style={styles.screenSubtitle}>Quản lý thông tin và tiến độ tập luyện của bạn.</Text>
           </View>
-          <Pressable style={styles.editHeaderButton} onPress={openEditModal}>
-            <Ionicons name="create-outline" size={20} color="#F8FAFC" />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={styles.logoutHeaderButton}
+              onPress={handleLogout}
+              accessibilityRole="button"
+              accessibilityLabel="Đăng xuất"
+            >
+              <Ionicons name="log-out-outline" size={20} color="#F87171" />
+            </Pressable>
+            <Pressable style={styles.editHeaderButton} onPress={openEditModal}>
+              <Ionicons name="create-outline" size={20} color="#F8FAFC" />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.profileHero}>
@@ -386,13 +405,13 @@ export default function ProfileScreen() {
               <Text style={styles.profileName}>{displayName}</Text>
               <Text style={styles.profileEmail}>{profile.email}</Text>
               <Text style={styles.profileSince}>
-                Thanh vien tu {formatDate(profile.createdAt)}
+                Thành viên từ {formatDate(profile.createdAt)}
               </Text>
             </View>
           </View>
 
           <Pressable style={styles.primaryAction} onPress={openEditModal}>
-            <Text style={styles.primaryActionText}>Cap nhat ho so</Text>
+            <Text style={styles.primaryActionText}>Cập nhật hồ sơ</Text>
           </Pressable>
         </View>
 
@@ -400,18 +419,18 @@ export default function ProfileScreen() {
           <StatCard
             icon={<Ionicons name="calendar-outline" size={20} color="#22C55E" />}
             value={String(totalCheckIns)}
-            label="Luot check-in"
+            label="Lượt check-in"
           />
           <StatCard
             icon={<Ionicons name="flame-outline" size={20} color="#F97316" />}
             value={`${checkInStreak}`}
-            label="Ngay lien tiep"
+            label="Ngày liên tiếp"
             accent="#F97316"
           />
           <StatCard
             icon={<MaterialCommunityIcons name="dumbbell" size={20} color="#A855F7" />}
             value={String(user?.role === "USER" ? ptAcceptedCount : 0)}
-            label="Buoi PT"
+            label="Buổi PT"
             accent="#A855F7"
           />
           <StatCard
@@ -423,17 +442,17 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Lich tap hom nay</Text>
+          <Text style={styles.cardTitle}>Lịch tập hôm nay</Text>
           {user?.role !== "USER" ? (
-            <Text style={styles.mutedText}>Dang cap nhat</Text>
+            <Text style={styles.mutedText}>Đang cập nhật</Text>
           ) : !todayExercise?.programDay || !todayExercise.exercises?.length ? (
-            <Text style={styles.mutedText}>Hom nay ban chua co bai tap.</Text>
+            <Text style={styles.mutedText}>Hôm nay bạn chưa có bài tập.</Text>
           ) : (
             <View>
               <View style={styles.todaySummary}>
                 <Text style={styles.todayTitle}>{todayExercise.programDay.title}</Text>
                 <Text style={styles.todayNote}>
-                  {todayExercise.programDay.note || "San sang cho buoi tap hom nay."}
+                  {todayExercise.programDay.note || "Sẵn sàng cho buổi tập hôm nay."}
                 </Text>
               </View>
 
@@ -452,36 +471,36 @@ export default function ProfileScreen() {
               ))}
 
               <Pressable style={styles.secondaryAction} onPress={openTodayWorkout}>
-                <Text style={styles.secondaryActionText}>Bat dau tap ngay</Text>
+                <Text style={styles.secondaryActionText}>Bắt đầu tập ngay</Text>
               </Pressable>
             </View>
           )}
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Thong tin ca nhan</Text>
-          <InfoRow label="Ho ten" value={profile.name?.trim() || "Dang cap nhat"} />
+          <Text style={styles.cardTitle}>Thông tin cá nhân</Text>
+          <InfoRow label="Họ tên" value={profile.name?.trim() || "Đang cập nhật"} />
           <InfoRow label="Email" value={profile.email} />
-          <InfoRow label="So dien thoai" value={profile.phone?.trim() || "Dang cap nhat"} />
-          <InfoRow label="Gioi tinh" value={genderLabel(profile.gender)} />
-          <InfoRow label="Ngay sinh" value={formatDate(profile.dateOfBirth)} />
+          <InfoRow label="Số điện thoại" value={profile.phone?.trim() || "Đang cập nhật"} />
+          <InfoRow label="Giới tính" value={genderLabel(profile.gender)} />
+          <InfoRow label="Ngày sinh" value={formatDate(profile.dateOfBirth)} />
           <InfoRow
-            label="Chieu cao"
-            value={profile.height != null ? `${profile.height} cm` : "Dang cap nhat"}
+            label="Chiều cao"
+            value={profile.height != null ? `${profile.height} cm` : "Đang cập nhật"}
           />
           <InfoRow
-            label="Can nang"
-            value={profile.weight != null ? `${profile.weight} kg` : "Dang cap nhat"}
+            label="Cân nặng"
+            value={profile.weight != null ? `${profile.weight} kg` : "Đang cập nhật"}
           />
-          <InfoRow label="Muc tieu" value={fitnessGoalLabel(profile.fitnessGoal)} />
+          <InfoRow label="Mục tiêu" value={fitnessGoalLabel(profile.fitnessGoal)} />
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Buoi tap voi PT gan day</Text>
+          <Text style={styles.cardTitle}>Buổi tập với PT gần đây</Text>
           {user?.role !== "USER" ? (
-            <Text style={styles.mutedText}>Dang cap nhat</Text>
+            <Text style={styles.mutedText}>Đang cập nhật</Text>
           ) : recentPtSessions.length === 0 ? (
-            <Text style={styles.mutedText}>Chua co lich su buoi PT.</Text>
+            <Text style={styles.mutedText}>Chưa có lịch sử buổi PT.</Text>
           ) : (
             recentPtSessions.map((session) => (
               <View key={session.id} style={styles.ptItem}>
@@ -494,13 +513,13 @@ export default function ProfileScreen() {
                 <View style={styles.ptStatusChip}>
                   <Text style={styles.ptStatusText}>
                     {session.status === "ACCEPTED"
-                      ? "Da xac nhan"
+                      ? "Đã xác nhận"
                       : session.status === "PENDING"
-                        ? "Cho xac nhan"
+                        ? "Chờ xác nhận"
                         : session.status === "REJECTED"
-                          ? "Tu choi"
+                          ? "Từ chối"
                           : session.status === "CANCELLED"
-                            ? "Da huy"
+                            ? "Đã hủy"
                             : session.status}
                   </Text>
                 </View>
@@ -509,31 +528,24 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tac vu</Text>
-          <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#F8FAFC" />
-            <Text style={styles.logoutText}>Dang xuat</Text>
-          </Pressable>
-        </View>
       </ScrollView>
 
       <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Cap nhat thong tin</Text>
+            <Text style={styles.modalTitle}>Cập nhật thông tin</Text>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalContent}>
-              <Text style={styles.inputLabel}>Ho ten</Text>
+              <Text style={styles.inputLabel}>Họ tên</Text>
               <TextInput
                 value={form.name}
                 onChangeText={(value) => setForm((prev) => ({ ...prev, name: value }))}
-                placeholder="Nguyen Van A"
+                placeholder="Nguyễn Văn A"
                 placeholderTextColor="#64748B"
                 style={styles.input}
               />
 
-              <Text style={styles.inputLabel}>So dien thoai</Text>
+              <Text style={styles.inputLabel}>Số điện thoại</Text>
               <TextInput
                 value={form.phone}
                 onChangeText={(value) => setForm((prev) => ({ ...prev, phone: value }))}
@@ -552,7 +564,7 @@ export default function ProfileScreen() {
                 style={styles.input}
               />
 
-              <Text style={styles.inputLabel}>Ngay sinh</Text>
+              <Text style={styles.inputLabel}>Ngày sinh</Text>
               <TextInput
                 value={form.dateOfBirth}
                 onChangeText={(value) => setForm((prev) => ({ ...prev, dateOfBirth: value }))}
@@ -563,7 +575,7 @@ export default function ProfileScreen() {
 
               <View style={styles.doubleRow}>
                 <View style={styles.doubleField}>
-                  <Text style={styles.inputLabel}>Chieu cao (cm)</Text>
+                  <Text style={styles.inputLabel}>Chiều cao (cm)</Text>
                   <TextInput
                     value={form.height}
                     onChangeText={(value) => setForm((prev) => ({ ...prev, height: value }))}
@@ -574,7 +586,7 @@ export default function ProfileScreen() {
                   />
                 </View>
                 <View style={styles.doubleField}>
-                  <Text style={styles.inputLabel}>Can nang (kg)</Text>
+                  <Text style={styles.inputLabel}>Cân nặng (kg)</Text>
                   <TextInput
                     value={form.weight}
                     onChangeText={(value) => setForm((prev) => ({ ...prev, weight: value }))}
@@ -586,12 +598,12 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              <Text style={styles.inputLabel}>Gioi tinh</Text>
+              <Text style={styles.inputLabel}>Giới tính</Text>
               <View style={styles.chipRow}>
                 {[
-                  { id: "", label: "Bo trong" },
+                  { id: "", label: "Bỏ trống" },
                   { id: "MALE", label: "Nam" },
-                  { id: "FEMALE", label: "Nu" },
+                  { id: "FEMALE", label: "Nữ" },
                 ].map((item) => {
                   const isActive = form.gender === item.id;
                   return (
@@ -613,14 +625,14 @@ export default function ProfileScreen() {
                 })}
               </View>
 
-              <Text style={styles.inputLabel}>Muc tieu</Text>
+              <Text style={styles.inputLabel}>Mục tiêu</Text>
               <View style={styles.chipRow}>
                 {[
-                  { id: "", label: "Bo trong" },
-                  { id: "LOSE_WEIGHT", label: "Giam can" },
-                  { id: "GAIN_MUSCLE", label: "Tang co" },
-                  { id: "IMPROVE_HEALTH", label: "Suc khoe" },
-                  { id: "MAINTAIN_WEIGHT", label: "Duy tri" },
+                  { id: "", label: "Bỏ trống" },
+                  { id: "LOSE_WEIGHT", label: "Giảm cân" },
+                  { id: "GAIN_MUSCLE", label: "Tăng cơ" },
+                  { id: "IMPROVE_HEALTH", label: "Cải thiện sức khỏe" },
+                  { id: "MAINTAIN_WEIGHT", label: "Duy trì cân nặng" },
                 ].map((item) => {
                   const isActive = form.fitnessGoal === item.id;
                   return (
@@ -645,7 +657,7 @@ export default function ProfileScreen() {
 
             <View style={styles.modalActions}>
               <Pressable style={styles.modalSecondaryButton} onPress={() => setEditOpen(false)}>
-                <Text style={styles.modalSecondaryText}>Huy</Text>
+                <Text style={styles.modalSecondaryText}>Hủy</Text>
               </Pressable>
               <Pressable
                 style={styles.modalPrimaryButton}
@@ -655,7 +667,7 @@ export default function ProfileScreen() {
                 {updateProfileMutation.isPending ? (
                   <ActivityIndicator color="#08110A" />
                 ) : (
-                  <Text style={styles.modalPrimaryText}>Luu</Text>
+                  <Text style={styles.modalPrimaryText}>Lưu</Text>
                 )}
               </Pressable>
             </View>
@@ -695,12 +707,38 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
   },
+  errorLogoutButton: {
+    marginTop: 28,
+    minWidth: 200,
+    height: 50,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: "#DC2626",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  errorLogoutText: {
+    color: "#F8FAFC",
+    fontSize: 15,
+    fontWeight: "800",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: 12,
     marginBottom: 18,
+  },
+  headerTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   screenTitle: {
     color: "#F8FAFC",
@@ -719,6 +757,16 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: "#111827",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutHeaderButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(220,38,38,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.45)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -947,20 +995,6 @@ const styles = StyleSheet.create({
     color: "#CBD5E1",
     fontSize: 11,
     fontWeight: "700",
-  },
-  logoutButton: {
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: "#DC2626",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  logoutText: {
-    color: "#F8FAFC",
-    fontSize: 15,
-    fontWeight: "800",
   },
   modalOverlay: {
     flex: 1,
