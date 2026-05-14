@@ -19,6 +19,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Modal,
   Pressable,
@@ -29,6 +30,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+const PT_BOOKING_MODAL_BODY_MAX_H = Math.min(520, SCREEN_HEIGHT * 0.58);
 
 const categories = [
   {
@@ -615,6 +619,13 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
+            <ScrollView
+              style={styles.modalBodyScroll}
+              contentContainerStyle={styles.modalBodyScrollContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+            >
             <Text style={styles.inputLabel}>Chọn huấn luyện viên</Text>
             {isLoadingPts ? (
               <View style={styles.slotLoadingBox}>
@@ -622,7 +633,7 @@ export default function HomeScreen() {
                 <Text style={styles.slotLoadingText}>Đang tải danh sách PT...</Text>
               </View>
             ) : availablePts.length ? (
-              <View style={styles.slotList}>
+              <View style={styles.ptListBlock}>
                 {availablePts.map((pt) => {
                   const isActive = pt.id === selectedPtId;
                   const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
@@ -882,6 +893,7 @@ export default function HomeScreen() {
             <Text style={styles.helperText}>
               Chỉ có thể đặt lịch theo các ca dạy PT đã mở từ hệ thống.
             </Text>
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <Pressable
@@ -1114,6 +1126,19 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     borderTopWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+    maxHeight: "88%",
+  },
+  modalBodyScroll: {
+    maxHeight: PT_BOOKING_MODAL_BODY_MAX_H,
+    marginBottom: 8,
+  },
+  modalBodyScrollContent: {
+    paddingBottom: 12,
+    flexGrow: 1,
+  },
+  ptListBlock: {
+    gap: 10,
+    marginBottom: 14,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1207,11 +1232,6 @@ const styles = StyleSheet.create({
   slotLoadingText: {
     color: "#94A3B8",
     fontSize: 13,
-  },
-  slotList: {
-    maxHeight: 260,
-    marginBottom: 14,
-    gap: 10,
   },
   slotCard: {
     borderRadius: 16,
