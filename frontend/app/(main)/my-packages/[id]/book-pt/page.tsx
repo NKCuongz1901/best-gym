@@ -33,6 +33,10 @@ import type {
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
 import SelectPtStep from '@/app/components/purchase/SelectPtStep';
+import {
+  filterAvailablePtsByBuoi,
+  type PtShiftBuoiFilter,
+} from '@/app/lib/ptShiftClientFilter';
 
 dayjs.extend(isoWeek);
 
@@ -74,6 +78,7 @@ export default function BookPtSessionPage() {
   const [ptSearch, setPtSearch] = useState('');
   const [ptFromDate, setPtFromDate] = useState<string | undefined>(undefined);
   const [ptToDate, setPtToDate] = useState<string | undefined>(undefined);
+  const [ptShiftBuoi, setPtShiftBuoi] = useState<PtShiftBuoiFilter>('all');
   const [weekStart, setWeekStart] = useState<dayjs.Dayjs>(() =>
     dayjs().startOf('isoWeek'),
   );
@@ -118,6 +123,22 @@ export default function BookPtSessionPage() {
   });
 
   const pts: AvailablePtAccount[] = ptsRes?.data ?? [];
+
+  const filteredPts = useMemo(
+    () =>
+      filterAvailablePtsByBuoi(pts, ptShiftBuoi, {
+        from: ptFromDate,
+        to: ptToDate,
+      }),
+    [pts, ptShiftBuoi, ptFromDate, ptToDate],
+  );
+
+  useEffect(() => {
+    if (!selectedPtId) return;
+    if (!filteredPts.some((p) => p.id === selectedPtId)) {
+      setSelectedPtId(null);
+    }
+  }, [selectedPtId, filteredPts]);
 
   const selectedPt = useMemo(
     () => pts.find((pt) => pt.id === selectedPtId) ?? null,
@@ -312,12 +333,14 @@ export default function BookPtSessionPage() {
         <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
           <SelectPtStep
             loading={isLoadingPts}
-            pts={pts}
+            pts={filteredPts}
             selectedPtId={selectedPtId}
             onSelect={(pt) => setSelectedPtId(pt.id)}
             search={ptSearch}
             fromDate={ptFromDate}
             toDate={ptToDate}
+            shiftBuoi={ptShiftBuoi}
+            onShiftBuoiChange={setPtShiftBuoi}
             onSearchChange={(v) => setPtSearch(v)}
             onDateRangeChange={(from, to) => {
               setPtFromDate(from);

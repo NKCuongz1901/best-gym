@@ -9,6 +9,7 @@ import {
   Empty,
   Input,
   Row,
+  Segmented,
   Skeleton,
   Tag,
   Typography,
@@ -22,6 +23,7 @@ import {
 import { motion } from 'motion/react';
 import dayjs from 'dayjs';
 import type { AvailablePtAccount } from '@/app/types/types';
+import type { PtShiftBuoiFilter } from '@/app/lib/ptShiftClientFilter';
 import { formatDate } from '@/app/utils/common';
 
 const { Text, Paragraph } = Typography;
@@ -42,6 +44,8 @@ interface SelectPtStepProps {
   search: string;
   fromDate?: string;
   toDate?: string;
+  shiftBuoi: PtShiftBuoiFilter;
+  onShiftBuoiChange: (value: PtShiftBuoiFilter) => void;
   onSearchChange: (value: string) => void;
   onDateRangeChange: (from?: string, to?: string) => void;
 }
@@ -54,6 +58,8 @@ export default function SelectPtStep({
   search,
   fromDate,
   toDate,
+  shiftBuoi,
+  onShiftBuoiChange,
   onSearchChange,
   onDateRangeChange,
 }: SelectPtStepProps) {
@@ -72,7 +78,7 @@ export default function SelectPtStep({
         </p>
       </motion.div>
 
-      <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-white p-3 md:grid-cols-2">
+      <div className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-neutral-200 bg-white p-3 md:grid-cols-2 lg:grid-cols-3">
         <Input
           allowClear
           placeholder="Tìm theo tên/email PT"
@@ -93,6 +99,20 @@ export default function SelectPtStep({
             )
           }
         />
+        <div className="flex flex-col gap-1.5 lg:col-span-1">
+          <span className="text-xs text-neutral-500">Buổi (lọc trên máy)</span>
+          <Segmented<PtShiftBuoiFilter>
+            block
+            value={shiftBuoi}
+            onChange={(v) => onShiftBuoiChange(v as PtShiftBuoiFilter)}
+            options={[
+              { label: 'Tất cả', value: 'all' },
+              { label: 'Sáng', value: 'morning' },
+              { label: 'Trưa', value: 'noon' },
+              { label: 'Tối', value: 'evening' },
+            ]}
+          />
+        </div>
       </div>
 
       {loading ? (
