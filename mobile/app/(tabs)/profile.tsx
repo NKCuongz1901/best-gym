@@ -20,7 +20,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -200,29 +201,53 @@ export default function ProfileScreen() {
     fitnessGoal: "",
   });
 
-  const { data: profileRes, isLoading: profileLoading, isError: profileError } = useQuery<ProfileResponse>({
+  const {
+    data: profileRes,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useQuery<ProfileResponse>({
     queryKey: ["account-profile"],
     queryFn: getProfile,
     enabled: !!accessToken,
   });
 
-  const { data: checkInRes } = useQuery<CheckInHistoryResponse>({
+  const { data: checkInRes, refetch: refetchCheckIns } = useQuery<CheckInHistoryResponse>({
     queryKey: ["profile-checkins"],
     queryFn: getCheckInHistory,
     enabled: !!accessToken,
   });
 
-  const { data: ptHistoryRes } = useQuery<PTTrainingHistoriesResponse>({
+  const { data: ptHistoryRes, refetch: refetchPtHistory } = useQuery<PTTrainingHistoriesResponse>({
     queryKey: ["profile-pt-history"],
     queryFn: () => getPTTrainingHistory(),
     enabled: !!accessToken && user?.role === "USER",
   });
 
-  const { data: todayExerciseRes } = useQuery<TodayExcerciseResponse>({
-    queryKey: ["profile-today-exercises"],
-    queryFn: getTodayExercise,
-    enabled: !!accessToken && user?.role === "USER",
-  });
+  const { data: todayExerciseRes, refetch: refetchTodayExercise } =
+    useQuery<TodayExcerciseResponse>({
+      queryKey: ["profile-today-exercises"],
+      queryFn: getTodayExercise,
+      enabled: !!accessToken && user?.role === "USER",
+    });
+
+  const handleRefreshProfile = useCallback(async () => {
+    if (!accessToken) return;
+    const tasks: Promise<unknown>[] = [refetchProfile(), refetchCheckIns()];
+    if (user?.role === "USER") {
+      tasks.push(refetchPtHistory(), refetchTodayExercise());
+    }
+    await Promise.all(tasks);
+  }, [
+    accessToken,
+    refetchCheckIns,
+    refetchProfile,
+    refetchPtHistory,
+    refetchTodayExercise,
+    user?.role,
+  ]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshProfile);
 
   const updateProfileMutation = useMutation({
     mutationFn: updateProfile,
@@ -340,10 +365,13 @@ export default function ProfileScreen() {
   if (profileLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centerState}>
+        <ScrollView
+          contentContainerStyle={styles.centerState}
+          refreshControl={refreshControl}
+        >
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.stateText}>Đang tải thông tin tài khoản...</Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -351,7 +379,10 @@ export default function ProfileScreen() {
   if (profileError || !profile) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centerState}>
+        <ScrollView
+          contentContainerStyle={styles.centerState}
+          refreshControl={refreshControl}
+        >
           <Text style={styles.errorTitle}>Không tải được hồ sơ</Text>
           <Text style={styles.stateText}>Vui lòng thử lại sau.</Text>
           <Pressable
@@ -363,14 +394,18 @@ export default function ProfileScreen() {
             <Ionicons name="log-out-outline" size={20} color="#F8FAFC" />
             <Text style={styles.errorLogoutText}>Đăng xuất</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         <View style={styles.header}>
           <View style={styles.headerTextBlock}>
             <Text style={styles.screenTitle}>Tài khoản</Text>

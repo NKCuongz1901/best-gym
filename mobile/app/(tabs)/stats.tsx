@@ -4,7 +4,8 @@ import { PTAssistSchedule, WorkoutHistory } from "@/types/types";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -132,7 +133,7 @@ export default function StatsScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [ptStatusFilter, setPtStatusFilter] = useState<PtStatusFilter>("ALL");
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch: refetchWorkoutHistory } = useQuery({
     queryKey: ["workout-history"],
     queryFn: () => getListWorkoutHistory(),
     enabled: !isPt,
@@ -141,11 +142,22 @@ export default function StatsScreen() {
     data: ptAssistData,
     isLoading: isLoadingPtHistory,
     isError: isPtHistoryError,
+    refetch: refetchPtTeachingHistory,
   } = useQuery({
     queryKey: ["pt-teaching-history"],
     queryFn: () => getPTAssistSchedule(getHistoryRange()),
     enabled: isPt,
   });
+
+  const handleRefreshStats = useCallback(async () => {
+    if (isPt) {
+      await refetchPtTeachingHistory();
+    } else {
+      await refetchWorkoutHistory();
+    }
+  }, [isPt, refetchPtTeachingHistory, refetchWorkoutHistory]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshStats);
 
   const histories = useMemo<WorkoutHistory[]>(() => {
     const list = data?.data ?? [];
@@ -192,6 +204,7 @@ export default function StatsScreen() {
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={styles.header}>
           <Text style={styles.title}>

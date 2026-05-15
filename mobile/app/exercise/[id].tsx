@@ -2,11 +2,13 @@ import { getExerciseById } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -102,11 +104,17 @@ export default function ExerciseDetailScreen() {
   const exerciseId = getStringParam(params.id);
   const [playerError, setPlayerError] = useState(false);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["exercise-detail", exerciseId],
     queryFn: () => getExerciseById(exerciseId),
     enabled: !!exerciseId,
   });
+
+  const handleRefreshExercise = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshExercise);
 
   const exercise = data?.data;
   const embedUrl = useMemo(
@@ -157,19 +165,30 @@ export default function ExerciseDetailScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.stateText}>Đang tải video bài tập...</Text>
-        </View>
+        </ScrollView>
       ) : isError || !exercise ? (
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <Text style={styles.errorTitle}>Không tải được bài tập</Text>
           <Text style={styles.stateText}>
             Vui lòng thử lại sau hoặc kiểm tra lại dữ liệu video.
           </Text>
-        </View>
+        </ScrollView>
       ) : (
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.contentScroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
+        >
           <View style={styles.videoCard}>
             {embedUrl ? (
               <>
@@ -238,7 +257,7 @@ export default function ExerciseDetailScreen() {
             <Text style={styles.sectionTitle}>Gợi ý</Text>
             <Text style={styles.exerciseDescription}>{exercise.suggestion}</Text>
           </View>
-        </View>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -277,8 +296,10 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     fontSize: 14,
   },
-  content: {
+  contentScroll: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: 20,
     paddingBottom: 20,
   },

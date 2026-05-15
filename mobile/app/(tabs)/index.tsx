@@ -20,7 +20,8 @@ import {
 } from "@/types/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -301,11 +302,25 @@ export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const isPt = user?.role === "PT";
   const { data, isLoading, isRefetching, refetch } = useMyPurchasePackages(!isPt);
-  const { data: ptScheduleData, isLoading: isLoadingPtSchedule } = useQuery({
+  const {
+    data: ptScheduleData,
+    isLoading: isLoadingPtSchedule,
+    refetch: refetchPtSchedule,
+  } = useQuery({
     queryKey: ["home", "pt-assist-schedule"],
     queryFn: () => getPTAssistSchedule(getHomeScheduleRange()),
     enabled: isPt,
   });
+
+  const handleRefreshHome = useCallback(async () => {
+    if (isPt) {
+      await refetchPtSchedule();
+    } else {
+      await refetch();
+    }
+  }, [isPt, refetch, refetchPtSchedule]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshHome);
   const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
     null,
   );
@@ -527,6 +542,7 @@ export default function HomeScreen() {
         <ScrollView
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         >
           <View style={styles.header}>
             <View style={styles.userInfo}>

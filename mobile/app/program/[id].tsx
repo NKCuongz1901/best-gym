@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -78,10 +79,16 @@ export default function ProgramDetailScreen() {
   const programId = getStringParam(params.id);
   const [expandedDayId, setExpandedDayId] = useState("");
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["programs", "detail-source"],
     queryFn: () => getPrograms({ page: 1, itemsPerPage: 100 }),
   });
+
+  const handleRefreshProgram = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshProgram);
 
   const programs = useMemo(() => data?.data ?? [], [data]);
   const program = useMemo<Program | undefined>(
@@ -105,10 +112,13 @@ export default function ProgramDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.stateText}>Đang tải chương trình tập...</Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -116,12 +126,15 @@ export default function ProgramDetailScreen() {
   if (isError || !program) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <Text style={styles.errorTitle}>Không tải được chương trình tập</Text>
           <Text style={styles.stateText}>
             Vui lòng thử lại sau hoặc kiểm tra lại dữ liệu chương trình.
           </Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -130,7 +143,10 @@ export default function ProgramDetailScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={refreshControl}
+      >
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.headerButton}>
             <Ionicons name="arrow-back" size={22} color="#F8FAFC" />

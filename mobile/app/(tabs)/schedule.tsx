@@ -4,6 +4,7 @@ import {
   getPTTrainingHistory,
   reportUserSession,
 } from "@/services/api";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useAuthStore } from "@/stores/auth.store";
 import {
   CheckInHistoryItem,
@@ -13,7 +14,7 @@ import {
 } from "@/types/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   InteractionManager,
@@ -168,7 +169,7 @@ export default function ScheduleScreen() {
     bodyNote: "",
   });
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch: refetchCheckInHistory } = useQuery({
     queryKey: ["check-in-history"],
     queryFn: getCheckInHistory,
   });
@@ -176,6 +177,7 @@ export default function ScheduleScreen() {
     data: ptHistoryData,
     isLoading: isLoadingPtHistory,
     isError: isPtHistoryError,
+    refetch: refetchPtTrainingHistory,
   } = useQuery({
     queryKey: ["pt-training-history"],
     queryFn: () => getPTTrainingHistory(),
@@ -185,11 +187,24 @@ export default function ScheduleScreen() {
     data: ptAssistData,
     isLoading: isLoadingPtAssist,
     isError: isPtAssistError,
+    refetch: refetchPtAssistSchedule,
   } = useQuery({
     queryKey: ["pt-assist-schedule", ptCalendarMonth],
     queryFn: () => getPTAssistSchedule(getMonthRange(ptCalendarMonth)),
     enabled: isPt,
   });
+
+  const handleRefreshSchedule = useCallback(async () => {
+    const tasks: Promise<unknown>[] = [refetchCheckInHistory()];
+    if (isPt) {
+      tasks.push(refetchPtAssistSchedule());
+    } else {
+      tasks.push(refetchPtTrainingHistory());
+    }
+    await Promise.all(tasks);
+  }, [isPt, refetchCheckInHistory, refetchPtAssistSchedule, refetchPtTrainingHistory]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshSchedule);
 
   const groupedHistory = useMemo(
     () => data?.data ?? {},
@@ -425,6 +440,7 @@ export default function ScheduleScreen() {
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
       >
         <View style={styles.header}>
           <Text style={styles.title}>Lịch tập</Text>

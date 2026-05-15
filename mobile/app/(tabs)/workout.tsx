@@ -4,11 +4,13 @@ import { Exercise, Program } from "@/types/types";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -171,6 +173,7 @@ export default function WorkoutScreen() {
     data: exercisesResponse,
     isLoading: isLoadingExercises,
     isError: isExercisesError,
+    refetch: refetchExercises,
   } = useQuery({
     queryKey: ["exercises"],
     queryFn: () => getExercises({ page: 1, itemsPerPage: 20 }),
@@ -180,10 +183,17 @@ export default function WorkoutScreen() {
     data: programsResponse,
     isLoading: isLoadingPrograms,
     isError: isProgramsError,
+    refetch: refetchPrograms,
   } = useQuery({
     queryKey: ["programs"],
     queryFn: () => getPrograms({ page: 1, itemsPerPage: 20 }),
   });
+
+  const handleRefreshWorkout = useCallback(async () => {
+    await Promise.all([refetchExercises(), refetchPrograms()]);
+  }, [refetchExercises, refetchPrograms]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshWorkout);
 
   const exercises = useMemo(
     () => exercisesResponse?.data ?? [],
@@ -223,17 +233,23 @@ export default function WorkoutScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <ActivityIndicator size="large" color="#22C55E" />
           <Text style={styles.stateText}>Đang tải dữ liệu workout...</Text>
-        </View>
+        </ScrollView>
       ) : isError ? (
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <Text style={styles.errorTitle}>Không tải được dữ liệu</Text>
           <Text style={styles.stateText}>
             Vui lòng thử lại sau hoặc kiểm tra kết nối mạng.
           </Text>
-        </View>
+        </ScrollView>
       ) : isExercisesTab ? (
         <FlatList
           data={exercises}
@@ -241,6 +257,7 @@ export default function WorkoutScreen() {
           renderItem={({ item }) => <ExerciseCard item={item} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
           ListEmptyComponent={
             <EmptyState message="Hiện chưa có bài tập nào để hiển thị." />
           }
@@ -252,6 +269,7 @@ export default function WorkoutScreen() {
           renderItem={({ item }) => <ProgramCard item={item} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
           ListEmptyComponent={
             <EmptyState message="Hiện chưa có chương trình tập nào để hiển thị." />
           }

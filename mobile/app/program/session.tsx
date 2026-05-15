@@ -5,7 +5,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -87,14 +88,20 @@ export default function ProgramSessionScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [completionNote, setCompletionNote] = useState("");
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch: refetchPrograms } = useQuery({
     queryKey: ["programs", "session-source"],
     queryFn: () => getPrograms({ page: 1, itemsPerPage: 100 }),
   });
-  const { data: purchasesRes } = useQuery({
+  const { data: purchasesRes, refetch: refetchPackages } = useQuery({
     queryKey: ["my-packages", "for-learning"],
     queryFn: () => getMyPurchasePackages(),
   });
+
+  const handleRefreshSession = useCallback(async () => {
+    await Promise.all([refetchPrograms(), refetchPackages()]);
+  }, [refetchPrograms, refetchPackages]);
+
+  const { refreshControl } = usePullToRefresh(handleRefreshSession);
 
   const programs = useMemo(() => data?.data ?? [], [data]);
   const program = useMemo<Program | undefined>(
@@ -251,10 +258,13 @@ export default function ProgramSessionScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <ActivityIndicator size="large" color="#A435F0" />
           <Text style={styles.stateText}>Đang chuẩn bị khóa học...</Text>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -262,7 +272,10 @@ export default function ProgramSessionScreen() {
   if (isError || !program || !currentDay || !selectedLesson || !currentExercise) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.stateContainer}>
+        <ScrollView
+          contentContainerStyle={styles.stateContainer}
+          refreshControl={refreshControl}
+        >
           <Text style={styles.errorTitle}>Không thể mở buổi học</Text>
           <Text style={styles.stateText}>
             Không tìm thấy nội dung chương trình hoặc bài học được chọn.
@@ -270,7 +283,7 @@ export default function ProgramSessionScreen() {
           <Pressable onPress={() => router.back()} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>Quay lại</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -298,7 +311,10 @@ export default function ProgramSessionScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={refreshControl}
+      >
         <View style={styles.videoCard}>
           <Image source={{ uri: currentExercise.thumbnail }} style={styles.videoImage} contentFit="cover" />
           <View style={styles.videoOverlay} />
