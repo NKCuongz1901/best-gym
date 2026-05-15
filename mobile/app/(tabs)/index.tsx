@@ -2,6 +2,10 @@ import PackageContractCard from "@/components/card/PackageContractCard";
 import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
 import {
+  filterAvailablePtsByBuoi,
+  type PtShiftBuoiFilter,
+} from "@/lib/ptShiftClientFilter";
+import {
   createPtAssistRequest,
   getAvailablePTs,
   getPTAssistSchedule,
@@ -26,8 +30,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
@@ -237,6 +243,51 @@ const STANDARD_GRID_KEYS = new Set([
   "R19",
 ]);
 
+const PT_SHIFT_BUOI_OPTIONS: { value: PtShiftBuoiFilter; label: string }[] = [
+  { value: "all", label: "Tất cả" },
+  { value: "morning", label: "Sáng" },
+  { value: "noon", label: "Trưa" },
+  { value: "evening", label: "Tối" },
+];
+
+const formatYmdDisplay = (ymd?: string) => {
+  if (!ymd) return "Chọn ngày";
+  const date = parseYmdToLocalDate(ymd);
+  if (!date) return ymd;
+  return date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+const buildPtFilterMarkedDates = (from?: string, to?: string) => {
+  if (!from) return {};
+  const end = to || from;
+  const fromDate = parseYmdToLocalDate(from);
+  const toDate = parseYmdToLocalDate(end);
+  if (!fromDate || !toDate) return {};
+
+  const marked: Record<
+    string,
+    { startingDay?: boolean; endingDay?: boolean; color: string; textColor: string }
+  > = {};
+  const cursor = new Date(fromDate);
+  while (cursor <= toDate) {
+    const ymd = formatDayKey(cursor);
+    const isStart = ymd === from;
+    const isEnd = ymd === end;
+    marked[ymd] = {
+      color: isStart || isEnd ? "#22C55E" : "rgba(34,197,94,0.35)",
+      textColor: isStart || isEnd ? "#08110A" : "#F8FAFC",
+      ...(isStart ? { startingDay: true } : {}),
+      ...(isEnd ? { endingDay: true } : {}),
+    };
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return marked;
+};
+
 type FreeBookingOption = {
   id: string;
   sessionDate: string;
@@ -267,13 +318,25 @@ export default function HomeScreen() {
     endTime: string;
   } | null>(null);
   const [showFullWeekGrid, setShowFullWeekGrid] = useState(false);
+  const [ptSearch, setPtSearch] = useState("");
+  const [ptFromDate, setPtFromDate] = useState<string | undefined>(undefined);
+  const [ptToDate, setPtToDate] = useState<string | undefined>(undefined);
+  const [ptShiftBuoi, setPtShiftBuoi] = useState<PtShiftBuoiFilter>("all");
+  const [showPtDateCalendar, setShowPtDateCalendar] = useState(false);
   const { data: availablePtData, isLoading: isLoadingPts } = useQuery({
-    queryKey: ["available-pts-for-package", selectedPackage?.id],
+    queryKey: [
+      "available-pts-for-package",
+      selectedPackage?.id,
+      ptFromDate,
+      ptToDate,
+      ptSearch,
+    ],
     queryFn: () =>
       getAvailablePTs({
         branchId: selectedPackage?.branchId ?? "",
-        from: selectedPackage?.startAt?.slice(0, 10),
-        to: selectedPackage?.endAt?.slice(0, 10),
+        from: ptFromDate,
+        to: ptToDate,
+        search: ptSearch.trim() || undefined,
       }),
     enabled: !!selectedPackage?.id && !!selectedPackage?.branchId,
   });
@@ -311,6 +374,11 @@ export default function HomeScreen() {
       setSelectedCell(null);
       setWeekStart(getIsoWeekStart(new Date()));
       setShowFullWeekGrid(false);
+      setPtSearch("");
+      setPtFromDate(undefined);
+      setPtToDate(undefined);
+      setPtShiftBuoi("all");
+      setShowPtDateCalendar(false);
       await refetch();
     },
     onError: (error: any) => {
@@ -322,12 +390,21 @@ export default function HomeScreen() {
     },
   });
 
+  const resetPtBookingFilters = () => {
+    setPtSearch("");
+    setPtFromDate(undefined);
+    setPtToDate(undefined);
+    setPtShiftBuoi("all");
+    setShowPtDateCalendar(false);
+  };
+
   const handleOpenPtRequestModal = (item: MyPurchasePackage) => {
     setSelectedPackage(item);
     setSelectedPtId("");
     setSelectedCell(null);
     setWeekStart(getIsoWeekStart(new Date()));
     setShowFullWeekGrid(false);
+    resetPtBookingFilters();
   };
 
   const handleClosePtRequestModal = () => {
@@ -340,6 +417,21 @@ export default function HomeScreen() {
     setSelectedCell(null);
     setWeekStart(getIsoWeekStart(new Date()));
     setShowFullWeekGrid(false);
+    resetPtBookingFilters();
+  };
+
+  const handlePtFilterDayPress = (dateString: string) => {
+    if (!ptFromDate || (ptFromDate && ptToDate)) {
+      setPtFromDate(dateString);
+      setPtToDate(undefined);
+      return;
+    }
+    if (dateString < ptFromDate) {
+      setPtFromDate(dateString);
+      setPtToDate(undefined);
+      return;
+    }
+    setPtToDate(dateString);
   };
 
   const handleCreatePtRequest = () => {
@@ -360,10 +452,34 @@ export default function HomeScreen() {
   const availablePts = useMemo<AvailablePtAccount[]>(() => availablePtData?.data ?? [], [
     availablePtData,
   ]);
-  const selectedPt = useMemo(
-    () => availablePts.find((item) => item.id === selectedPtId) ?? null,
-    [availablePts, selectedPtId],
+  const filteredPts = useMemo(
+    () =>
+      filterAvailablePtsByBuoi(availablePts, ptShiftBuoi, {
+        from: ptFromDate,
+        to: ptToDate,
+      }),
+    [availablePts, ptShiftBuoi, ptFromDate, ptToDate],
   );
+  const ptFilterMarkedDates = useMemo(
+    () => buildPtFilterMarkedDates(ptFromDate, ptToDate),
+    [ptFromDate, ptToDate],
+  );
+  const hasActivePtFilters =
+    !!ptSearch.trim() ||
+    !!ptFromDate ||
+    !!ptToDate ||
+    ptShiftBuoi !== "all";
+  const selectedPt = useMemo(
+    () => filteredPts.find((item) => item.id === selectedPtId) ?? null,
+    [filteredPts, selectedPtId],
+  );
+
+  useEffect(() => {
+    if (!selectedPtId) return;
+    if (!filteredPts.some((pt) => pt.id === selectedPtId)) {
+      setSelectedPtId("");
+    }
+  }, [selectedPtId, filteredPts]);
   const weekDays = weekGridData?.data?.days ?? [];
   const weekRows = weekGridData?.data?.gridRows ?? [];
 
@@ -627,14 +743,119 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator
             >
             <Text style={styles.inputLabel}>Chọn huấn luyện viên</Text>
+
+            <View style={styles.ptFilterBox}>
+              <TextInput
+                style={styles.ptFilterSearch}
+                placeholder="Tìm theo tên/email PT"
+                placeholderTextColor="#64748B"
+                value={ptSearch}
+                onChangeText={setPtSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <Pressable
+                style={styles.ptFilterDateRow}
+                onPress={() => setShowPtDateCalendar((v) => !v)}
+              >
+                <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                <Text style={styles.ptFilterDateText} numberOfLines={1}>
+                  {ptFromDate && ptToDate
+                    ? `${formatYmdDisplay(ptFromDate)} – ${formatYmdDisplay(ptToDate)}`
+                    : ptFromDate
+                      ? `Từ ${formatYmdDisplay(ptFromDate)} (chọn đến ngày)`
+                      : "Chọn khoảng ngày (tùy chọn)"}
+                </Text>
+                <Ionicons
+                  name={showPtDateCalendar ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color="#64748B"
+                />
+              </Pressable>
+
+              {showPtDateCalendar ? (
+                <View style={styles.ptFilterCalendarWrap}>
+                  <Calendar
+                    markingType="period"
+                    markedDates={ptFilterMarkedDates}
+                    onDayPress={(day) => handlePtFilterDayPress(day.dateString)}
+                    hideExtraDays
+                    theme={{
+                      calendarBackground: "#101826",
+                      monthTextColor: "#F8FAFC",
+                      dayTextColor: "#F8FAFC",
+                      textDisabledColor: "#475569",
+                      todayTextColor: "#22C55E",
+                      arrowColor: "#22C55E",
+                      textSectionTitleColor: "#94A3B8",
+                      textMonthFontWeight: "800",
+                      textDayFontWeight: "700",
+                      textDayHeaderFontWeight: "700",
+                    }}
+                    style={styles.ptFilterCalendar}
+                  />
+                  <Text style={styles.ptFilterCalendarHint}>
+                    Chạm ngày bắt đầu, rồi chạm ngày kết thúc.
+                  </Text>
+                </View>
+              ) : null}
+
+              {(ptFromDate || ptToDate) && (
+                <Pressable
+                  style={styles.ptFilterClearDates}
+                  onPress={() => {
+                    setPtFromDate(undefined);
+                    setPtToDate(undefined);
+                  }}
+                >
+                  <Text style={styles.ptFilterClearDatesText}>Xóa khoảng ngày</Text>
+                </Pressable>
+              )}
+
+              <Text style={styles.ptFilterBuoiLabel}>Buổi (lọc trên máy)</Text>
+              <View style={styles.ptFilterBuoiRow}>
+                {PT_SHIFT_BUOI_OPTIONS.map((opt) => {
+                  const isActive = ptShiftBuoi === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      style={[styles.ptFilterBuoiChip, isActive && styles.ptFilterBuoiChipActive]}
+                      onPress={() => setPtShiftBuoi(opt.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.ptFilterBuoiChipText,
+                          isActive && styles.ptFilterBuoiChipTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {hasActivePtFilters ? (
+                <Pressable
+                  style={styles.ptFilterResetAll}
+                  onPress={() => {
+                    resetPtBookingFilters();
+                  }}
+                >
+                  <Text style={styles.ptFilterResetAllText}>Xóa tất cả bộ lọc</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
             {isLoadingPts ? (
               <View style={styles.slotLoadingBox}>
                 <ActivityIndicator color="#22C55E" />
                 <Text style={styles.slotLoadingText}>Đang tải danh sách PT...</Text>
               </View>
-            ) : availablePts.length ? (
+            ) : filteredPts.length ? (
               <View style={styles.ptListBlock}>
-                {availablePts.map((pt) => {
+                {filteredPts.map((pt) => {
                   const isActive = pt.id === selectedPtId;
                   const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
                     (acc, win) => acc + (win.weeklySlots?.length ?? 0),
@@ -666,7 +887,9 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.slotEmptyBox}>
                 <Text style={styles.slotEmptyText}>
-                  Chưa có PT khả dụng cho chi nhánh này.
+                  {availablePts.length
+                    ? "Không có PT phù hợp bộ lọc. Thử đổi từ khóa, khoảng ngày hoặc buổi."
+                    : "Chưa có PT khả dụng cho chi nhánh này."}
                 </Text>
               </View>
             )}
@@ -1171,6 +1394,101 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     marginBottom: 10,
+  },
+  ptFilterBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#0B1220",
+    padding: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  ptFilterSearch: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#182235",
+    paddingHorizontal: 14,
+    color: "#F8FAFC",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  ptFilterDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: "#182235",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  ptFilterDateText: {
+    flex: 1,
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  ptFilterCalendarWrap: {
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#101826",
+  },
+  ptFilterCalendar: {
+    borderRadius: 12,
+  },
+  ptFilterCalendarHint: {
+    color: "#64748B",
+    fontSize: 11,
+    lineHeight: 16,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  ptFilterClearDates: {
+    alignSelf: "flex-start",
+  },
+  ptFilterClearDatesText: {
+    color: "#19F07C",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  ptFilterBuoiLabel: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  ptFilterBuoiRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  ptFilterBuoiChip: {
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "#182235",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ptFilterBuoiChipActive: {
+    backgroundColor: "#22C55E",
+  },
+  ptFilterBuoiChipText: {
+    color: "#CBD5E1",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  ptFilterBuoiChipTextActive: {
+    color: "#08110A",
+  },
+  ptFilterResetAll: {
+    alignSelf: "flex-start",
+    marginTop: 2,
+  },
+  ptFilterResetAllText: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
   horizontalSelectorContent: {
     paddingBottom: 14,
