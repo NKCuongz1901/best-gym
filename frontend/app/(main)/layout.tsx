@@ -10,7 +10,7 @@ export default function MainLayout({
   return (
     <>
       <Header />
-      <main>{children}</main>
+      <main className="pt-[88px]">{children}</main>
       <Footer />
       <ChatBot />
     </>

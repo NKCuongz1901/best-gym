@@ -1,7 +1,7 @@
 import type { AdminAnalyticsMetricKey } from '@/app/types/types';
 import { formatNumber } from '@/app/utils/common';
 
-export type GroupBy = 'day' | 'month';
+export type GroupBy = 'day' | 'month' | 'year';
 
 export const formatVnd = (value: number | null | undefined): string => {
   const num = Number(value ?? 0);
@@ -100,6 +100,7 @@ const VI_MONTH = [
 
 export const formatBucket = (bucket: string, groupBy: GroupBy): string => {
   if (!bucket) return '';
+  if (groupBy === 'year') return bucket;
   if (groupBy === 'month') {
     const [y, m] = bucket.split('-');
     if (y && m) return `${VI_MONTH[Number(m) - 1] ?? m}/${y}`;
@@ -108,6 +109,12 @@ export const formatBucket = (bucket: string, groupBy: GroupBy): string => {
   const [, m, d] = bucket.split('-');
   if (m && d) return `${d}/${m}`;
   return bucket;
+};
+
+export const GROUP_BY_LABEL: Record<GroupBy, string> = {
+  day: 'Theo ngày',
+  month: 'Theo tháng',
+  year: 'Theo năm',
 };
 
 export const PACKAGE_DONUT_COLORS = [

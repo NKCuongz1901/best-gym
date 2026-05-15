@@ -61,6 +61,59 @@ describe('AdminAnalyticsService', () => {
     );
   });
 
+  it('builds revenue timeseries grouped by year', async () => {
+    prismaMock.userPackage.findMany.mockResolvedValue([
+      {
+        createdAt: new Date('2025-06-15T03:00:00.000Z'),
+        status: UserPackageStatus.ACTIVE,
+        packageId: 'pkg-1',
+        package: { name: 'P1', price: 100000 },
+        branchId: 'br-1',
+        branch: { name: 'B1' },
+      },
+      {
+        createdAt: new Date('2025-12-01T10:00:00.000Z'),
+        status: UserPackageStatus.ACTIVE,
+        packageId: 'pkg-1',
+        package: { name: 'P1', price: 200000 },
+        branchId: 'br-1',
+        branch: { name: 'B1' },
+      },
+      {
+        createdAt: new Date('2026-01-10T10:00:00.000Z'),
+        status: UserPackageStatus.PENDING,
+        packageId: 'pkg-1',
+        package: { name: 'P1', price: 150000 },
+        branchId: 'br-1',
+        branch: { name: 'B1' },
+      },
+    ]);
+
+    const result = await service.getRevenueTimeseries({
+      from: '2025-01-01',
+      to: '2026-12-31',
+      groupBy: 'year',
+    });
+
+    expect(result.data).toHaveLength(2);
+    expect(result.data[0]).toEqual(
+      expect.objectContaining({
+        bucket: '2025',
+        grossRevenue: 300000,
+        activeRevenue: 300000,
+        purchasesCount: 2,
+      }),
+    );
+    expect(result.data[1]).toEqual(
+      expect.objectContaining({
+        bucket: '2026',
+        grossRevenue: 150000,
+        activeRevenue: 0,
+        purchasesCount: 1,
+      }),
+    );
+  });
+
   it('returns operations metrics counts', async () => {
     prismaMock.account.count.mockResolvedValue(5);
     prismaMock.userPackage.count.mockResolvedValue(3);

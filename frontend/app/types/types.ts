@@ -892,7 +892,7 @@ export interface PtMonthlyKpiResponse {
 export interface AdminAnalyticsQuery {
   from?: string;
   to?: string;
-  groupBy?: 'day' | 'month';
+  groupBy?: 'day' | 'month' | 'year';
   branchId?: string;
   packageId?: string;
 }

@@ -14,8 +14,8 @@ export class AdminAnalyticsQueryDto {
   to?: string;
 
   @IsOptional()
-  @IsIn(['day', 'month'])
-  groupBy?: 'day' | 'month';
+  @IsIn(['day', 'month', 'year'])
+  groupBy?: 'day' | 'month' | 'year';
 
   @IsOptional()
   @IsUUID()

@@ -1,6 +1,7 @@
 'use client';
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Descriptions,
   Modal,
@@ -19,6 +20,8 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircleOutlined, TeamOutlined } from '@ant-design/icons';
 
 import { getCheckInHistory, getPTTrainingHistory } from '@/app/services/api';
+import { useAuthStore } from '@/app/stores/authStore';
+import { appRoute } from '@/app/config/appRoute';
 import type {
   CheckInHistoryItem,
   CheckInHistoryResponse,
@@ -80,6 +83,15 @@ function ptStatusLabel(status: PTTrainingHistory['status']): string {
 }
 
 export default function MySchedulePage() {
+  const router = useRouter();
+  const { isLoggedIn, loading: authLoading } = useAuthStore();
+
+  useEffect(() => {
+    if (!authLoading && !isLoggedIn) {
+      router.replace(appRoute.home.root);
+    }
+  }, [authLoading, isLoggedIn, router]);
+
   const checkInCalendarRef = useRef<InstanceType<typeof FullCalendar> | null>(
     null,
   );
@@ -97,6 +109,7 @@ export default function MySchedulePage() {
   const { data, isLoading, isError } = useQuery<CheckInHistoryResponse>({
     queryKey: ['check-in-history'],
     queryFn: () => getCheckInHistory(),
+    enabled: isLoggedIn,
   });
 
   const {
@@ -106,6 +119,7 @@ export default function MySchedulePage() {
   } = useQuery<PTTrainingHistoriesResponse>({
     queryKey: ['pt-training-history'],
     queryFn: () => getPTTrainingHistory(),
+    enabled: isLoggedIn,
   });
 
   /** FullCalendar đo sai kích thước khi nằm trong tab ẩn; cần updateSize khi tab hiện / dữ liệu xong. */
@@ -370,6 +384,14 @@ export default function MySchedulePage() {
       </div>
     </>
   );
+
+  if (!isLoggedIn) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-16 pt-8 md:pt-12">

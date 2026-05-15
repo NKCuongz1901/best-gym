@@ -17,6 +17,7 @@ import {
   formatBucket,
   formatPct,
   formatVnd,
+  GROUP_BY_LABEL,
   pctColor,
   type GroupBy,
 } from '@/app/lib/analyticsLabels';
@@ -436,6 +437,7 @@ export default function AdminPage() {
               options={[
                 { label: 'Theo ngày', value: 'day' },
                 { label: 'Theo tháng', value: 'month' },
+                { label: 'Theo năm', value: 'year' },
               ]}
             />
           </Space>
@@ -538,7 +540,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <span>Doanh thu theo thời gian</span>
               <Text type="secondary" className="text-xs!">
-                {groupBy === 'day' ? 'Theo ngày' : 'Theo tháng'}
+                {GROUP_BY_LABEL[groupBy]}
               </Text>
             </div>
           }

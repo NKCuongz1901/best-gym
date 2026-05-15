@@ -45,7 +45,7 @@ import {
   message,
 } from 'antd';
 import { AxiosError } from 'axios';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -80,9 +80,8 @@ export default function PtExercisesPage() {
   const [createForm] = Form.useForm<ExerciseFormValues>();
   const [createVideoPreviewUrl, setCreateVideoPreviewUrl] = useState('');
   const [createVideoLoadOk, setCreateVideoLoadOk] = useState(false);
-  const [createVideoCheckTriggered, setCreateVideoCheckTriggered] = useState(
-    false,
-  );
+  const [createVideoCheckTriggered, setCreateVideoCheckTriggered] =
+    useState(false);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editForm] = Form.useForm<ExerciseFormValues>();
@@ -102,28 +101,46 @@ export default function PtExercisesPage() {
     search: undefined,
   });
   const [showInactive, setShowInactive] = useState(false);
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
 
   const { data, isLoading } = useQuery<ExercisesResponse>({
-    queryKey: ['pt-exercises', filters, showInactive],
+    queryKey: ['pt-exercises', filters.search],
     queryFn: () =>
       getExercises({
-        ...filters,
-        // Always default true via BE; toggle adds inactive by listing both passes
+        page: 1,
+        itemsPerPage: 500,
+        search: filters.search,
       }),
   });
 
   const exercises: Exercise[] = data?.data ?? [];
-  const filteredExercises = showInactive
-    ? exercises
-    : exercises.filter((ex) => ex.isActive);
 
-  const { data: detailRes, isLoading: detailLoading, isError: detailError } =
-    useQuery<ExerciseDetailResponse>({
-      queryKey: ['pt-exercise-detail', selectedExerciseId],
-      queryFn: () => getExerciseById(selectedExerciseId!),
-      enabled: Boolean(drawerOpen && selectedExerciseId),
-      retry: 1,
-    });
+  const filteredExercises = useMemo(() => {
+    let list = exercises;
+    if (!showInactive) {
+      list = list.filter((ex) => ex.isActive);
+    }
+    if (showOnlyMine && currentUserId) {
+      list = list.filter((ex) => ex.createdById === currentUserId);
+    }
+    return list;
+  }, [exercises, showInactive, showOnlyMine, currentUserId]);
+
+  const paginatedExercises = useMemo(() => {
+    const start = ((filters.page ?? 1) - 1) * (filters.itemsPerPage ?? 10);
+    return filteredExercises.slice(start, start + (filters.itemsPerPage ?? 10));
+  }, [filteredExercises, filters.page, filters.itemsPerPage]);
+
+  const {
+    data: detailRes,
+    isLoading: detailLoading,
+    isError: detailError,
+  } = useQuery<ExerciseDetailResponse>({
+    queryKey: ['pt-exercise-detail', selectedExerciseId],
+    queryFn: () => getExerciseById(selectedExerciseId!),
+    enabled: Boolean(drawerOpen && selectedExerciseId),
+    retry: 1,
+  });
 
   const detail = detailRes?.data;
 
@@ -243,7 +260,9 @@ export default function PtExercisesPage() {
     try {
       const values = await createForm.validateFields();
       if (!createVideoCheckTriggered || !createVideoLoadOk) {
-        message.warning('Vui lòng kiểm tra URL video hiển thị được trước khi tạo.');
+        message.warning(
+          'Vui lòng kiểm tra URL video hiển thị được trước khi tạo.',
+        );
         return;
       }
       submitCreateExercise({
@@ -309,7 +328,9 @@ export default function PtExercisesPage() {
     try {
       const values = await editForm.validateFields();
       if (!editVideoCheckTriggered || !editVideoLoadOk) {
-        message.warning('Vui lòng kiểm tra URL video hiển thị được trước khi lưu.');
+        message.warning(
+          'Vui lòng kiểm tra URL video hiển thị được trước khi lưu.',
+        );
         return;
       }
       submitUpdateExercise({
@@ -338,8 +359,8 @@ export default function PtExercisesPage() {
       icon: <ExclamationCircleOutlined />,
       content: (
         <span>
-          Bạn có chắc muốn xóa bài tập{' '}
-          <Text strong>{record.name}</Text>? Hành động này không thể hoàn tác.
+          Bạn có chắc muốn xóa bài tập <Text strong>{record.name}</Text>? Hành
+          động này không thể hoàn tác.
         </span>
       ),
       okText: 'Xóa',
@@ -465,8 +486,8 @@ export default function PtExercisesPage() {
             Bài tập của tôi
           </Typography.Title>
           <Text type="secondary">
-            Quản lý bài tập do bạn tạo. Bài tập từ hệ thống sẽ hiển thị ở chế
-            độ chỉ xem.
+            Quản lý bài tập do bạn tạo. Bài tập từ hệ thống sẽ hiển thị ở chế độ
+            chỉ xem.
           </Text>
         </div>
 
@@ -479,12 +500,16 @@ export default function PtExercisesPage() {
           />
           <div className="flex items-center gap-2">
             <Switch
-              checked={showInactive}
-              onChange={setShowInactive}
+              checked={showOnlyMine}
+              onChange={(checked) => {
+                setShowOnlyMine(checked);
+                setFilters((prev) => ({ ...prev, page: 1 }));
+              }}
               size="small"
             />
-            <Text type="secondary">Hiện cả bài tập đã tắt</Text>
+            <Text type="secondary">Chỉ bài tập của tôi</Text>
           </div>
+
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -500,13 +525,13 @@ export default function PtExercisesPage() {
           ) : (
             <Table<Exercise>
               columns={columns}
-              dataSource={filteredExercises}
+              dataSource={paginatedExercises}
               rowKey="id"
               scroll={{ x: 1200 }}
               pagination={{
                 current: filters.page,
                 pageSize: filters.itemsPerPage,
-                total: data?.meta.total,
+                total: filteredExercises.length,
                 showSizeChanger: true,
               }}
               onChange={handleTableChange}

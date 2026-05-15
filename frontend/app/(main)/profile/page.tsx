@@ -23,6 +23,8 @@ import {
   createProgram,
   getCheckInHistory,
   getProfile,
+  getPTAssistRequests,
+  getPTAssistSchedule,
   getTodayExercise,
   getPTTrainingHistory,
   updateProfile,
@@ -34,6 +36,10 @@ import type {
   Profile,
   ProfileResponse,
   ProgramRequest,
+  PTAssistRequest,
+  PTAssistSchedule,
+  PTAssistSchedulesResponse,
+  PTAssistRequestsResponse,
   PTTrainingHistoriesResponse,
   PTTrainingHistory,
   TodayExcerciseResponse,
@@ -121,6 +127,62 @@ function genderLabel(g: string | null): string | null {
   if (g === 'MALE') return 'Nam';
   if (g === 'FEMALE') return 'Nữ';
   return g;
+}
+
+function pendingRequestToSchedule(req: PTAssistRequest): PTAssistSchedule {
+  const name = req.account.profile?.name ?? req.account.email;
+  return {
+    id: req.id,
+    title: `${name} - ${req.branch.name}`,
+    start: req.startTime,
+    end: req.endTime,
+    allDay: false,
+    extendedProps: {
+      status: 'PENDING',
+      note: req.note,
+      rejectReason: req.rejectReason,
+      account: req.account,
+      branch: req.branch,
+      userPackage: req.userPackage,
+    },
+  };
+}
+
+function filterPendingInRange(
+  requests: PTAssistRequest[],
+  fromIso: string,
+  toIso: string,
+): PTAssistRequest[] {
+  const fromMs = new Date(fromIso).getTime();
+  const toMs = new Date(toIso).getTime();
+  return requests.filter((r) => {
+    if (r.status !== 'PENDING') return false;
+    const start = new Date(r.startTime).getTime();
+    const end = new Date(r.endTime).getTime();
+    return start < toMs && end > fromMs;
+  });
+}
+
+function mergePtSchedules(
+  accepted: PTAssistSchedule[],
+  pendingRaw: PTAssistRequest[],
+  fromIso: string,
+  toIso: string,
+): PTAssistSchedule[] {
+  const pendingInRange = filterPendingInRange(pendingRaw, fromIso, toIso);
+  const pendingAsSchedules = pendingInRange.map(pendingRequestToSchedule);
+  return [...pendingAsSchedules, ...accepted];
+}
+
+function ptScheduleStatusLabel(
+  status: PTAssistSchedule['extendedProps']['status'],
+): string {
+  const map: Record<PTAssistSchedule['extendedProps']['status'], string> = {
+    PENDING: 'Chờ xác nhận',
+    ACCEPTED: 'Đã xác nhận',
+    REJECTED: 'Từ chối',
+  };
+  return map[status] ?? status;
 }
 
 const exerciseMuscleGroupOptions: {
@@ -235,10 +297,47 @@ export default function ProfilePage() {
     enabled: isLoggedIn,
   });
 
+  const isPt = user?.role === 'PT';
+  const isUser = user?.role === 'USER';
+
+  const ptStatsRange = useMemo(
+    () => ({
+      from: dayjs().startOf('year').toISOString(),
+      to: dayjs().endOf('year').toISOString(),
+    }),
+    [],
+  );
+
+  const ptTodayRange = useMemo(
+    () => ({
+      from: dayjs().startOf('day').toISOString(),
+      to: dayjs().endOf('day').toISOString(),
+    }),
+    [],
+  );
+
   const { data: checkInRes } = useQuery<CheckInHistoryResponse>({
     queryKey: ['profile-checkins'],
     queryFn: () => getCheckInHistory(),
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && isUser,
+  });
+
+  const { data: ptYearScheduleRes } = useQuery<PTAssistSchedulesResponse>({
+    queryKey: ['profile-pt-schedule-year', ptStatsRange.from, ptStatsRange.to],
+    queryFn: () => getPTAssistSchedule(ptStatsRange),
+    enabled: isLoggedIn && isPt,
+  });
+
+  const { data: ptTodayScheduleRes } = useQuery<PTAssistSchedulesResponse>({
+    queryKey: ['profile-pt-schedule-today', ptTodayRange.from, ptTodayRange.to],
+    queryFn: () => getPTAssistSchedule(ptTodayRange),
+    enabled: isLoggedIn && isPt,
+  });
+
+  const { data: ptAssistRes } = useQuery<PTAssistRequestsResponse>({
+    queryKey: ['profile-pt-assist-requests'],
+    queryFn: () => getPTAssistRequests(),
+    enabled: isLoggedIn && isPt,
   });
 
   const { data: ptHistoryRes } = useQuery<PTTrainingHistoriesResponse>({
@@ -281,6 +380,47 @@ export default function ProfilePage() {
   const recentPt = useMemo(() => ptSessions.slice(0, 5), [ptSessions]);
   const todayProgramDay = todayExerciseRes?.data?.programDay;
   const todayExercises = todayExerciseRes?.data?.exercises ?? [];
+
+  const ptYearSessions = useMemo(
+    () =>
+      mergePtSchedules(
+        ptYearScheduleRes?.data ?? [],
+        ptAssistRes?.data ?? [],
+        ptStatsRange.from,
+        ptStatsRange.to,
+      ).filter((s) => s.extendedProps.status !== 'REJECTED'),
+    [
+      ptYearScheduleRes?.data,
+      ptAssistRes?.data,
+      ptStatsRange.from,
+      ptStatsRange.to,
+    ],
+  );
+
+  const ptTotalTeachingSessions = ptYearSessions.length;
+
+  const ptAcceptedTeachingCount = useMemo(
+    () =>
+      ptYearSessions.filter((s) => s.extendedProps.status === 'ACCEPTED').length,
+    [ptYearSessions],
+  );
+
+  const ptTodaySessions = useMemo(() => {
+    const merged = mergePtSchedules(
+      ptTodayScheduleRes?.data ?? [],
+      ptAssistRes?.data ?? [],
+      ptTodayRange.from,
+      ptTodayRange.to,
+    ).filter((s) => s.extendedProps.status !== 'REJECTED');
+    return merged.sort(
+      (a, b) => dayjs(a.start).valueOf() - dayjs(b.start).valueOf(),
+    );
+  }, [
+    ptTodayScheduleRes?.data,
+    ptAssistRes?.data,
+    ptTodayRange.from,
+    ptTodayRange.to,
+  ]);
 
   const displayName =
     profile?.name?.trim() || profile?.email?.split('@')[0] || 'Thành viên';
@@ -523,37 +663,100 @@ export default function ProfilePage() {
             <div className="mb-3 flex items-center gap-2">
               <CalendarOutlined className="text-neutral-900" />
               <span className="text-sm font-semibold text-neutral-900">
-                Check-in tại phòng
+                {isPt ? 'Tổng số ca dạy' : 'Check-in tại phòng'}
               </span>
             </div>
-            <p className="text-sm text-neutral-700">
-              Tổng{' '}
-              <span className="font-semibold text-neutral-900">
-                {totalCheckIns}
-              </span>{' '}
-              lượt
-            </p>
-            <p className="mt-2 text-sm text-neutral-700">
-              Chuỗi hiện tại:{' '}
-              <span className="font-semibold text-neutral-900">
-                {checkInStreak}
-              </span>{' '}
-              ngày liên tiếp có check-in
-            </p>
-            {totalCheckIns === 0 ? (
-              <p className="mt-2 text-sm text-neutral-400">Đang cập nhật</p>
-            ) : null}
+            {isPt ? (
+              <>
+                <p className="text-sm text-neutral-700">
+                  Tổng{' '}
+                  <span className="font-semibold text-neutral-900">
+                    {ptTotalTeachingSessions}
+                  </span>{' '}
+                  ca trong năm {dayjs().year()}
+                </p>
+                <p className="mt-2 text-sm text-neutral-700">
+                  Đã xác nhận:{' '}
+                  <span className="font-semibold text-neutral-900">
+                    {ptAcceptedTeachingCount}
+                  </span>{' '}
+                  ca
+                </p>
+                {ptTotalTeachingSessions === 0 ? (
+                  <p className="mt-2 text-sm text-neutral-400">
+                    Chưa có ca dạy nào trong năm nay.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-neutral-700">
+                  Tổng{' '}
+                  <span className="font-semibold text-neutral-900">
+                    {totalCheckIns}
+                  </span>{' '}
+                  lượt
+                </p>
+                <p className="mt-2 text-sm text-neutral-700">
+                  Chuỗi hiện tại:{' '}
+                  <span className="font-semibold text-neutral-900">
+                    {checkInStreak}
+                  </span>{' '}
+                  ngày liên tiếp có check-in
+                </p>
+                {totalCheckIns === 0 ? (
+                  <p className="mt-2 text-sm text-neutral-400">Đang cập nhật</p>
+                ) : null}
+              </>
+            )}
           </BentoCard>
 
           <BentoCard className="md:col-span-2">
             <div className="mb-4 flex items-center gap-2">
               <ThunderboltOutlined className="text-neutral-900" />
               <span className="text-sm font-semibold text-neutral-900">
-                Lịch tập hôm nay
+                {isPt ? 'Lịch dạy hôm nay' : 'Lịch tập hôm nay'}
               </span>
             </div>
-            {user?.role !== 'USER' ? (
-              <p className="text-sm text-neutral-400">Đang cập nhật</p>
+            {isPt ? (
+              ptTodaySessions.length === 0 ? (
+                <p className="text-sm text-neutral-500">
+                  Hôm nay bạn chưa có ca dạy.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {ptTodaySessions.map((session) => {
+                    const trainee =
+                      session.extendedProps.account.profile?.name ??
+                      session.extendedProps.account.email;
+                    return (
+                      <div
+                        key={session.id}
+                        className="rounded-xl bg-neutral-50 p-3"
+                      >
+                        <p className="text-sm font-semibold text-neutral-900">
+                          {trainee}
+                        </p>
+                        <p className="mt-1 text-xs text-neutral-600">
+                          {dayjs(session.start).format('HH:mm')} —{' '}
+                          {dayjs(session.end).format('HH:mm')} ·{' '}
+                          {session.extendedProps.branch.name}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-neutral-500">
+                          {ptScheduleStatusLabel(session.extendedProps.status)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => router.push('/pt/schedule')}
+                    className="w-full rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                  >
+                    Xem lịch dạy đầy đủ
+                  </button>
+                </div>
+              )
             ) : !todayProgramDay || todayExercises.length === 0 ? (
               <p className="text-sm text-neutral-500">
                 Hôm nay bạn chưa có bài tập.

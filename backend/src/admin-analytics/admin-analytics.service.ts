@@ -186,11 +186,9 @@ export class AdminAnalyticsService {
     >();
 
     for (const r of rows) {
-      const bucket = formatInTimeZone(
-        r.createdAt,
-        ANALYTICS_TIMEZONE,
-        groupBy === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd',
-      );
+      const bucketFormat =
+        groupBy === 'year' ? 'yyyy' : groupBy === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd';
+      const bucket = formatInTimeZone(r.createdAt, ANALYTICS_TIMEZONE, bucketFormat);
       const current = map.get(bucket) ?? {
         grossRevenue: 0,
         activeRevenue: 0,

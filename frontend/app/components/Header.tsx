@@ -13,10 +13,10 @@ import {
   Spin,
 } from 'antd';
 import type { MenuProps } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
+import { BellOutlined, UserOutlined } from '@ant-design/icons';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
@@ -46,6 +46,7 @@ const menuItems = [
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isLoggedIn, setAuth, clearAuth } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -95,6 +96,7 @@ export default function Header() {
       message.success('Đăng nhập thành công');
       form.resetFields();
       setIsModalOpen(false);
+      router.push(appRoute.home.root);
     } catch (err: unknown) {
       let msg = 'Email hoặc mật khẩu không đúng';
       if (err && typeof err === 'object') {
@@ -201,6 +203,7 @@ export default function Header() {
 
   const handleLogout = () => {
     clearAuth();
+    router.push(appRoute.home.root);
   };
 
   const userMenuItems: MenuProps['items'] = [
@@ -252,7 +255,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="w-full bg-black px-6 md:px-10">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full bg-black px-6 md:px-10 shadow-md">
       <div className="mx-auto flex min-h-[88px] w-full max-w-7xl items-center justify-between gap-4">
         <Link href="/" className="flex shrink-0 items-center">
           <Image
@@ -346,7 +349,8 @@ export default function Header() {
               trigger={['hover']}
               placement="bottomRight"
             >
-              <span className="cursor-pointer text-white hover:underline">
+              <span className="flex cursor-pointer items-center gap-2 text-white hover:underline">
+                <UserOutlined className="text-base" />
                 {user?.email}
               </span>
             </Dropdown>
