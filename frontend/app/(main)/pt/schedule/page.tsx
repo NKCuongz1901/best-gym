@@ -14,7 +14,6 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
-  Checkbox,
   DatePicker,
   Descriptions,
   Form,
@@ -26,6 +25,8 @@ import {
   Tag,
   message,
 } from 'antd';
+import { Moon, Sparkles, Sun, Sunset, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -54,7 +55,6 @@ import type {
   ReportUserSessionRequest,
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
-import { DAY_OF_WEEK_SELECT_OPTIONS } from '@/app/utils/common';
 
 dayjs.extend(isoWeek);
 
@@ -75,6 +75,104 @@ const SHIFT_LABEL_VI: Record<PtShiftType, string> = {
   AFTERNOON: 'Trưa',
   EVENING: 'Tối',
 };
+
+const SETUP_DAY_BUTTONS: { value: number; label: string }[] = [
+  { value: 1, label: 'THỨ 2' },
+  { value: 2, label: 'THỨ 3' },
+  { value: 3, label: 'THỨ 4' },
+  { value: 4, label: 'THỨ 5' },
+  { value: 5, label: 'THỨ 6' },
+  { value: 6, label: 'THỨ 7' },
+  { value: 7, label: 'CN' },
+];
+
+const SCHEDULE_LEGEND = [
+  {
+    swatch: 'bg-emerald-500/20 ring-1 ring-emerald-500/35',
+    title: 'Ca dạy đã thiết lập',
+    status: 'Nền xanh nhạt trên lịch',
+  },
+  {
+    swatch: 'bg-amber-500/90',
+    title: 'Chờ chấp nhận',
+    status: 'PENDING',
+  },
+  {
+    swatch: 'bg-violet-600/90',
+    title: 'Đã chấp nhận',
+    status: 'ACCEPTED',
+  },
+  {
+    swatch: 'bg-red-500/90',
+    title: 'Đã từ chối',
+    status: 'REJECTED',
+  },
+  {
+    swatch: 'bg-sky-500/90',
+    title: 'Trạng thái khác',
+    status: 'Khác',
+  },
+] as const;
+
+const SETUP_SHIFT_UI: Record<
+  PtShiftType,
+  { icon: typeof Sun; iconClass: string; borderClass: string }
+> = {
+  MORNING: {
+    icon: Sun,
+    iconClass: 'text-amber-400',
+    borderClass: 'border-amber-500/20 bg-amber-500/5',
+  },
+  AFTERNOON: {
+    icon: Sunset,
+    iconClass: 'text-orange-400',
+    borderClass: 'border-orange-500/20 bg-orange-500/5',
+  },
+  EVENING: {
+    icon: Moon,
+    iconClass: 'text-violet-400',
+    borderClass: 'border-violet-500/20 bg-violet-500/5',
+  },
+};
+
+function SetupDayToggleGroup({
+  value = [],
+  onChange,
+}: {
+  value?: number[];
+  onChange?: (days: number[]) => void;
+}) {
+  const selected = new Set(value);
+
+  const toggle = (day: number) => {
+    const next = new Set(selected);
+    if (next.has(day)) next.delete(day);
+    else next.add(day);
+    onChange?.([...next].sort((a, b) => a - b));
+  };
+
+  return (
+    <motion.div className="flex flex-wrap gap-2">
+      {SETUP_DAY_BUTTONS.map((d) => {
+        const active = selected.has(d.value);
+        return (
+          <button
+            key={d.value}
+            type="button"
+            onClick={() => toggle(d.value)}
+            className={`min-w-18 rounded-lg border px-3 py-2.5 text-center text-[11px] font-semibold tracking-wide transition-colors ${
+              active
+                ? 'border-amber-500/60 bg-amber-500/15 text-amber-100'
+                : 'border-neutral-600 bg-neutral-900/80 text-neutral-300 hover:border-neutral-500 hover:bg-neutral-800'
+            }`}
+          >
+            {d.label}
+          </button>
+        );
+      })}
+    </motion.div>
+  );
+}
 
 function toYyyyMmDd(iso?: string) {
   return iso ? dayjs(iso).format('YYYY-MM-DD') : undefined;
@@ -324,8 +422,41 @@ export default function PTSchedulePage() {
       ranges: slots
         .filter((s) => s.shiftType === st)
         .map((s) => `${s.startTime}–${s.endTime}`),
+      slotCount: slots.filter((s) => s.shiftType === st).length,
     }));
   }, [gridDefRes?.data?.slots]);
+
+  const watchedMorningDays = Form.useWatch('morningDays', setupForm) ?? [];
+  const watchedAfternoonDays = Form.useWatch('afternoonDays', setupForm) ?? [];
+  const watchedEveningDays = Form.useWatch('eveningDays', setupForm) ?? [];
+  const watchedBranchId = Form.useWatch('branchId', setupForm);
+
+  const setupSelectedSlotCount = useMemo(() => {
+    const byShift = {
+      MORNING: shiftSlotSummaries.find((s) => s.shiftType === 'MORNING')
+        ?.slotCount ?? 0,
+      AFTERNOON: shiftSlotSummaries.find((s) => s.shiftType === 'AFTERNOON')
+        ?.slotCount ?? 0,
+      EVENING: shiftSlotSummaries.find((s) => s.shiftType === 'EVENING')
+        ?.slotCount ?? 0,
+    };
+    return (
+      watchedMorningDays.length * byShift.MORNING +
+      watchedAfternoonDays.length * byShift.AFTERNOON +
+      watchedEveningDays.length * byShift.EVENING
+    );
+  }, [
+    shiftSlotSummaries,
+    watchedMorningDays,
+    watchedAfternoonDays,
+    watchedEveningDays,
+  ]);
+
+  const setupFooterHint = !watchedBranchId
+    ? 'Vui lòng chọn chi nhánh'
+    : setupSelectedSlotCount === 0
+      ? 'Vui lòng chọn ít nhất một thứ trong khung giờ'
+      : null;
 
   const { mutateAsync: submitTrainingSlot, isPending: isCreatingTrainingSlot } =
     useMutation({
@@ -483,9 +614,7 @@ export default function PTSchedulePage() {
           <div>
             <h1 className="text-2xl font-bold">Lịch dạy PT</h1>
             <p className="mt-1 text-sm text-neutral-300">
-              Theo dõi lịch hỗ trợ theo tuần và khung giờ chi tiết. Ô màu cam:
-              chờ bạn chấp nhận; ô màu tím: đã chấp nhận. Nền xanh nhạt: ca dạy
-              PT đã tạo.
+              Theo dõi lịch hỗ trợ theo tuần và khung giờ chi tiết.
             </p>
           </div>
           <Button
@@ -523,6 +652,26 @@ export default function PTSchedulePage() {
             </div>
           </div>
         ) : null}
+
+        <div className="mb-4 rounded-xl border border-neutral-800 bg-neutral-900 px-4 py-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            Chú thích màu & trạng thái
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {SCHEDULE_LEGEND.map((item) => (
+              <div key={item.status} className="flex items-center gap-2">
+                <span
+                  className={`h-3.5 w-3.5 shrink-0 rounded-sm ${item.swatch}`}
+                  aria-hidden
+                />
+                <span className="text-sm text-neutral-200">
+                  <span className="font-medium">{item.title}</span>
+                  <span className="text-neutral-500"> · {item.status}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 p-3">
           {isLoading ? (
@@ -716,53 +865,75 @@ export default function PTSchedulePage() {
       </Modal>
 
       <Modal
-        title="Thiết lập ca dạy"
         open={setupSlotsOpen}
-        onOk={handleSaveTeachingSlots}
         onCancel={() => setSetupSlotsOpen(false)}
-        confirmLoading={isCreatingTrainingSlot}
-        okText="Lưu"
-        cancelText="Hủy"
-        width={640}
+        footer={null}
+        closable={false}
+        width={720}
         destroyOnClose
+        className="pt-setup-slots-modal [&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:rounded-2xl [&_.ant-modal-content]:border [&_.ant-modal-content]:border-slate-800 [&_.ant-modal-content]:bg-[#0b0e14] [&_.ant-modal-content]:p-0"
         styles={{
-          body: { background: '#171717' },
-          header: { background: '#171717' },
-          footer: { background: '#171717' },
+          body: { padding: 0, background: '#0b0e14' },
         }}
       >
-        <p className="mb-4 text-xs text-neutral-400">
-          Chọn chi nhánh, khoảng ngày hiệu lực, rồi với mỗi khung{' '}
-          <strong>Sáng</strong>, <strong>Trưa</strong> hoặc <strong>Tối</strong>{' '}
-          hãy tick các <strong>thứ trong tuần</strong> bạn dạy. Hệ thống tạo các ô
-          giờ chuẩn tương ứng (xem dòng khung giờ dưới mỗi option).
-        </p>
-        {isLoadingGridDef ? (
-          <div className="mb-4 flex justify-center py-6">
-            <Spin />
-          </div>
-        ) : null}
-        <Form form={setupForm} layout="vertical">
-          <div className="rounded-xl border border-neutral-700 bg-neutral-900/70 p-4">
-            <Form.Item
-              className="mb-3"
-              label={<span className="text-neutral-200">Chi nhánh</span>}
-              name="branchId"
-              rules={[{ required: true, message: 'Chọn chi nhánh' }]}
+        <motion.div className="flex max-h-[min(90vh,880px)] flex-col">
+          <div className="flex items-start justify-between gap-4 border-b border-neutral-800 px-6 py-5">
+            <div className="flex gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-neutral-700 bg-neutral-900">
+                <Sparkles className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  Thiết lập ca dạy
+                </h2>
+                <p className="mt-1 max-w-lg text-sm leading-relaxed text-neutral-400">
+                  Chọn chi nhánh, khoảng ngày hiệu lực, rồi tick các thứ bạn dạy
+                  trong từng khung{' '}
+                  <span className="font-medium text-neutral-200">
+                    Sáng, Trưa, Tối.
+                  </span>
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSetupSlotsOpen(false)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+              aria-label="Đóng"
             >
-              <Select
-                options={branchOptions}
-                placeholder="Chọn chi nhánh"
-                showSearch
-                optionFilterProp="label"
-                size="large"
-              />
-            </Form.Item>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Form.Item
-                className="mb-0"
-                label={<span className="text-neutral-200">Từ ngày</span>}
-                name="fromDate"
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {isLoadingGridDef ? (
+              <motion.div className="mb-4 flex justify-center py-12">
+                <Spin />
+              </motion.div>
+            ) : null}
+            <Form form={setupForm} layout="vertical" requiredMark={false}>
+              <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
+                <Form.Item
+                  className="mb-4 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                  label="Chi nhánh"
+                  name="branchId"
+                  rules={[{ required: true, message: 'Chọn chi nhánh' }]}
+                  required
+                >
+                  <Select
+                    options={branchOptions}
+                    placeholder="Chọn chi nhánh giảng dạy"
+                    showSearch
+                    optionFilterProp="label"
+                    size="large"
+                    className="w-full"
+                  />
+                </Form.Item>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Form.Item
+                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                    label="Từ ngày"
+                    name="fromDate"
                 rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
               >
                 <DatePicker
@@ -771,10 +942,10 @@ export default function PTSchedulePage() {
                   size="large"
                 />
               </Form.Item>
-              <Form.Item
-                className="mb-0"
-                label={<span className="text-neutral-200">Đến ngày</span>}
-                name="toDate"
+                  <Form.Item
+                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                    label="Đến ngày"
+                    name="toDate"
                 rules={[
                   { required: true, message: 'Chọn ngày kết thúc' },
                   {
@@ -802,31 +973,89 @@ export default function PTSchedulePage() {
             </div>
           </div>
 
-          <div className="mt-4 space-y-4">
-            <p className="text-xs font-medium text-neutral-300">
-              Sáng / Trưa / Tối — chọn thứ dạy (1 = Thứ 2 … 7 = Chủ nhật)
-            </p>
-            {shiftSlotSummaries.map(({ shiftType, label, ranges }) => (
-              <div
-                key={shiftType}
-                className="rounded-xl border border-neutral-700 bg-neutral-900/50 p-4"
-              >
-                <div className="mb-1 text-sm font-semibold text-white">
-                  {label}{' '}
-                  <span className="font-normal text-neutral-400">
-                    ({ranges.length ? ranges.join(' · ') : '—'})
+              <motion.div className="mt-6">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-white">
+                    Khung giờ dạy theo thứ
+                  </h3>
+                  <span className="text-sm text-neutral-400">
+                    Đã chọn{' '}
+                    <strong className="text-white">{setupSelectedSlotCount}</strong>{' '}
+                    ô giờ
                   </span>
                 </div>
-                <Form.Item className="mb-0!" name={SHIFT_FORM_KEYS[shiftType]}>
-                  <Checkbox.Group
-                    options={DAY_OF_WEEK_SELECT_OPTIONS}
-                    className="flex flex-wrap gap-x-4 gap-y-2 [&_.ant-checkbox+span]:text-neutral-200"
-                  />
-                </Form.Item>
-              </div>
-            ))}
+
+                <div className="space-y-4">
+                  {shiftSlotSummaries.map(({ shiftType, label, ranges }) => {
+                    const ui = SETUP_SHIFT_UI[shiftType];
+                    const Icon = ui.icon;
+                    const formKey = SHIFT_FORM_KEYS[shiftType];
+                    return (
+                      <div
+                        key={shiftType}
+                        className={`rounded-xl border p-4 ${ui.borderClass}`}
+                      >
+                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <Icon
+                              className={`mt-0.5 h-5 w-5 shrink-0 ${ui.iconClass}`}
+                            />
+                            <div>
+                              <div className="text-base font-semibold text-white">
+                                {label}
+                              </div>
+                              <div className="mt-1 text-xs text-neutral-500">
+                                {ranges.length ? ranges.join(' · ') : '—'}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-sm font-medium text-amber-500/90 transition-colors hover:text-amber-400"
+                            onClick={() =>
+                              setupForm.setFieldsValue({
+                                [formKey]: [1, 2, 3, 4, 5, 6, 7],
+                              })
+                            }
+                          >
+                            Chọn tất cả
+                          </button>
+                        </div>
+                        <Form.Item className="mb-0!" name={formKey}>
+                          <SetupDayToggleGroup />
+                        </Form.Item>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            </Form>
           </div>
-        </Form>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-800 bg-neutral-950/80 px-6 py-4">
+            <p className="text-sm text-neutral-500">
+              {setupFooterHint ?? '\u00a0'}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="large"
+                onClick={() => setSetupSlotsOpen(false)}
+                className="border-neutral-600! bg-transparent! text-white! hover:border-neutral-500! hover:bg-neutral-800!"
+              >
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                size="large"
+                loading={isCreatingTrainingSlot}
+                onClick={handleSaveTeachingSlots}
+                className="min-w-[140px] border-0! bg-neutral-500! text-white! hover:bg-neutral-400!"
+              >
+                Lưu thiết lập
+              </Button>
+            </div>
+          </div>
+        </motion.div>
       </Modal>
 
       <Modal
