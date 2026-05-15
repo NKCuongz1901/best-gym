@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { CreateAccountDto } from './dto/create-account.dto';
+import { CreatePtAccountDto } from './dto/create-pt-account.dto';
 import { VerifyAccountDto } from './dto/verify-account.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -48,6 +49,13 @@ export class AccountController {
   @Get('pt-accounts')
   async getPTAccounts(@Query() filterPtDto: FilterPtDto) {
     return this.accountService.getPTAccounts(filterPtDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('pt-accounts')
+  async createPtAccount(@Body() dto: CreatePtAccountDto) {
+    return this.accountService.createPtAccount(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

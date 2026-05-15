@@ -26,6 +26,7 @@ export interface API_PROPS {
   };
   PT: {
     GET_ALL: string;
+    CREATE_PT_ACCOUNT: string;
     GET_REQUESTS_LIST: string;
     GET_ACCEPTED_REQUESTS_LIST: string;
     APPROVE_REQUEST: (requestId: string) => string;
@@ -112,6 +113,7 @@ export const API: API_PROPS = {
   },
   PT: {
     GET_ALL: '/account/pt-accounts',
+    CREATE_PT_ACCOUNT: '/account/pt-accounts',
     GET_REQUESTS_LIST: '/pt/requested-packages',
     GET_ACCEPTED_REQUESTS_LIST: '/pt/accepted-packages',
     APPROVE_REQUEST: (requestId: string) => `/pt/accepted-request/${requestId}`,

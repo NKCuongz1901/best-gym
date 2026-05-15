@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAccountDto } from './dto/create-account.dto';
+import { CreatePtAccountDto } from './dto/create-pt-account.dto';
 import {
   generateVerificationCode,
   getExpirationTime,
@@ -74,6 +75,57 @@ export class AccountService {
       email,
     );
     return account;
+  }
+
+  async createPtAccount(dto: CreatePtAccountDto) {
+    const { email, password, confirmPassword, name, phone, gender } = dto;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestException(
+        'Password and confirm password do not match',
+      );
+    }
+
+    if (await this.isEmailExists(email)) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const account = await this.prisma.account.create({
+      data: {
+        email,
+        password: hashedPassword,
+        role: Role.PT,
+        status: AccountStatus.ACTIVE,
+        profile: {
+          create: {
+            name,
+            ...(phone ? { phone } : {}),
+            ...(gender ? { gender } : {}),
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        profile: {
+          select: {
+            name: true,
+            phone: true,
+            gender: true,
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Create PT account successfully',
+      data: account,
+    };
   }
 
   async getMyProfile(accountId: string) {

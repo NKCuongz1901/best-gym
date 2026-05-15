@@ -43,6 +43,8 @@ import {
   CreateProgramDayResponse,
   CreatePtAssistRequestRequest,
   CreatePtAssistRequestResponse,
+  CreatePtAccountRequest,
+  CreatePtAccountResponse,
   CreatePTTrainingSlotRequest,
   CreateProgramResponse,
   CreateWorkoutHistoryRequest,
@@ -156,6 +158,16 @@ export const getPtAccounts = async (filter: FILTER_PROPS): Promise<any> => {
     },
   });
   return res;
+};
+
+export const createPtAccount = async (
+  payload: CreatePtAccountRequest,
+): Promise<CreatePtAccountResponse> => {
+  const res = await axios.post<CreatePtAccountResponse>(
+    API.PT.CREATE_PT_ACCOUNT,
+    payload,
+  );
+  return res as unknown as CreatePtAccountResponse;
 };
 
 export const getPackages = async (

@@ -68,6 +68,31 @@ export interface PtAccountsResponse {
   data: PtAccount[];
 }
 
+export interface CreatePtAccountRequest {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  phone?: string;
+  gender?: 'MALE' | 'FEMALE';
+}
+
+export interface CreatePtAccountResponse {
+  message: string;
+  data: {
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    createdAt: string;
+    profile: {
+      name: string;
+      phone?: string | null;
+      gender?: string | null;
+    };
+  };
+}
+
 export interface Package {
   id: string;
   name: string;

@@ -69,16 +69,20 @@ import {
 const { RangePicker } = DatePicker;
 const { Text, Title } = Typography;
 
-const CHANGE_KEY: Record<AdminAnalyticsMetricKey, keyof AdminAnalyticsChangeVsPrev> =
-  {
-    grossRevenue: 'grossRevenuePct',
-    activeRevenue: 'activeRevenuePct',
-    purchasesCount: 'purchasesCountPct',
-    newUsers: 'newUsersPct',
-    activePackages: 'activePackagesPct',
-    checkins: 'checkinsPct',
-    ptAcceptedSessions: 'ptAcceptedSessionsPct',
-  };
+const ALL_BRANCHES = '__all__';
+
+const CHANGE_KEY: Record<
+  AdminAnalyticsMetricKey,
+  keyof AdminAnalyticsChangeVsPrev
+> = {
+  grossRevenue: 'grossRevenuePct',
+  activeRevenue: 'activeRevenuePct',
+  purchasesCount: 'purchasesCountPct',
+  newUsers: 'newUsersPct',
+  activePackages: 'activePackagesPct',
+  checkins: 'checkinsPct',
+  ptAcceptedSessions: 'ptAcceptedSessionsPct',
+};
 
 function PercentTag({ value }: { value: number | null | undefined }) {
   const color = pctColor(value);
@@ -137,7 +141,10 @@ function RevenueAreaChart({ data, groupBy }: RevenueAreaChartProps) {
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis dataKey="bucket" tick={{ fontSize: 12 }} />
-        <YAxis tickFormatter={(v) => compactVnd(Number(v))} tick={{ fontSize: 12 }} />
+        <YAxis
+          tickFormatter={(v) => compactVnd(Number(v))}
+          tick={{ fontSize: 12 }}
+        />
         <Tooltip
           formatter={(value, name) => {
             const num = Number(value);
@@ -206,7 +213,10 @@ function BranchRevenueBar({ data }: { data: AnalyticsRevenueByBranchItem[] }) {
           textAnchor="end"
           height={50}
         />
-        <YAxis tickFormatter={(v) => compactVnd(Number(v))} tick={{ fontSize: 12 }} />
+        <YAxis
+          tickFormatter={(v) => compactVnd(Number(v))}
+          tick={{ fontSize: 12 }}
+        />
         <Tooltip
           formatter={(value, name) => {
             const num = Number(value);
@@ -305,7 +315,7 @@ export default function AdminPage() {
     dayjs().startOf('month'),
     dayjs().endOf('month'),
   ]);
-  const [branchId, setBranchId] = useState<string | undefined>();
+  const [branchId, setBranchId] = useState<string>(ALL_BRANCHES);
   const [packageId, setPackageId] = useState<string | undefined>();
   const [groupBy, setGroupBy] = useState<GroupBy>('day');
 
@@ -314,8 +324,8 @@ export default function AdminPage() {
       from: range[0].format('YYYY-MM-DD'),
       to: range[1].format('YYYY-MM-DD'),
       groupBy,
-      branchId,
-      packageId,
+      ...(branchId !== ALL_BRANCHES ? { branchId } : {}),
+      ...(packageId ? { packageId } : {}),
     }),
     [range, branchId, packageId, groupBy],
   );
@@ -383,7 +393,8 @@ export default function AdminPage() {
 
   const metrics: AdminAnalyticsMetrics | undefined = overviewRes?.data?.metrics;
   const change = overviewRes?.data?.changeVsPreviousPeriod;
-  const timeseries: AnalyticsRevenueTimeseriesItem[] = timeseriesRes?.data ?? [];
+  const timeseries: AnalyticsRevenueTimeseriesItem[] =
+    timeseriesRes?.data ?? [];
   const byBranch: AnalyticsRevenueByBranchItem[] = byBranchRes?.data ?? [];
   const byPackage: AnalyticsRevenueByPackageItem[] = byPackageRes?.data ?? [];
   const totalPts = ptRes?.meta?.total ?? 0;
@@ -394,6 +405,11 @@ export default function AdminPage() {
     'DD/MM/YYYY',
   )}`;
 
+  const branchFilterLabel =
+    branchId === ALL_BRANCHES
+      ? 'Tất cả chi nhánh'
+      : (branches.find((b) => b.id === branchId)?.name ?? 'Chi nhánh');
+
   return (
     <div className="space-y-5">
       <Card bordered={false} className="shadow-sm!">
@@ -403,7 +419,7 @@ export default function AdminPage() {
               Admin Dashboard
             </Title>
             <Text type="secondary">
-              Thống kê tổng quan · Khoảng: {rangeLabel}
+              Thống kê tổng quan · Khoảng: {rangeLabel} · {branchFilterLabel}
             </Text>
           </div>
           <Space wrap>
@@ -416,12 +432,13 @@ export default function AdminPage() {
               format="DD/MM/YYYY"
             />
             <Select
-              allowClear
-              placeholder="Lọc chi nhánh"
-              style={{ width: 180 }}
+              style={{ width: 200 }}
               value={branchId}
               onChange={setBranchId}
-              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              options={[
+                { value: ALL_BRANCHES, label: 'Tất cả chi nhánh' },
+                ...branches.map((b) => ({ value: b.id, label: b.name })),
+              ]}
             />
             <Select
               allowClear
@@ -557,7 +574,11 @@ export default function AdminPage() {
           className="xl:col-span-4 shadow-sm!"
           title="Top gói tập doanh thu"
         >
-          {loadingPackage ? <Skeleton active /> : <PackageRevenueDonut data={byPackage} />}
+          {loadingPackage ? (
+            <Skeleton active />
+          ) : (
+            <PackageRevenueDonut data={byPackage} />
+          )}
         </Card>
 
         <Card
@@ -565,7 +586,11 @@ export default function AdminPage() {
           className="xl:col-span-12 shadow-sm!"
           title="Top chi nhánh doanh thu"
         >
-          {loadingBranch ? <Skeleton active /> : <BranchRevenueBar data={byBranch} />}
+          {loadingBranch ? (
+            <Skeleton active />
+          ) : (
+            <BranchRevenueBar data={byBranch} />
+          )}
         </Card>
 
         {ops && (
