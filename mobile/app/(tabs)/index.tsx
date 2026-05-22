@@ -1,6 +1,7 @@
 import PackageContractCard from "@/components/card/PackageContractCard";
 import CategoryItem from "@/components/home/CategoryItem";
 import FeaturedWorkoutCard from "@/components/home/FeaturedWorkoutCard";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import {
   filterAvailablePtsByBuoi,
   type PtShiftBuoiFilter,
@@ -18,9 +19,8 @@ import {
   MyPurchasePackage,
   PTAssistSchedule,
 } from "@/types/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -105,22 +105,26 @@ const getHomeScheduleRange = () => {
   };
 };
 
-const getPtScheduleStatusLabel = (status: PTAssistSchedule["extendedProps"]["status"]) => {
+const getPtScheduleStatusLabel = (
+  status: PTAssistSchedule["extendedProps"]["status"],
+) => {
   switch (status) {
     case "ACCEPTED":
       return "Đã xác nhận";
     case "PENDING":
       return "Chờ xác nhận";
-    case "REJECTED":
-      return "Đã từ chối";
-    case "CANCELLED":
-      return "Đã hủy";
+    // case "REJECTED":
+    //   return "Đã từ chối";
+    // case "CANCELLED":
+    //   return "Đã hủy";
     default:
       return status;
   }
 };
 
-const getPtScheduleStatusColor = (status: PTAssistSchedule["extendedProps"]["status"]) => {
+const getPtScheduleStatusColor = (
+  status: PTAssistSchedule["extendedProps"]["status"],
+) => {
   switch (status) {
     case "ACCEPTED":
       return "#22C55E";
@@ -201,7 +205,11 @@ const getDateRangeInDays = (fromIso: string, toIso: string) => {
   fromDate.setHours(0, 0, 0, 0);
   toDate.setHours(0, 0, 0, 0);
 
-  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+  if (
+    Number.isNaN(fromDate.getTime()) ||
+    Number.isNaN(toDate.getTime()) ||
+    fromDate > toDate
+  ) {
     return [];
   }
 
@@ -271,7 +279,12 @@ const buildPtFilterMarkedDates = (from?: string, to?: string) => {
 
   const marked: Record<
     string,
-    { startingDay?: boolean; endingDay?: boolean; color: string; textColor: string }
+    {
+      startingDay?: boolean;
+      endingDay?: boolean;
+      color: string;
+      textColor: string;
+    }
   > = {};
   const cursor = new Date(fromDate);
   while (cursor <= toDate) {
@@ -301,7 +314,8 @@ type FreeBookingOption = {
 export default function HomeScreen() {
   const user = useAuthStore((state) => state.user);
   const isPt = user?.role === "PT";
-  const { data, isLoading, isRefetching, refetch } = useMyPurchasePackages(!isPt);
+  const { data, isLoading, isRefetching, refetch } =
+    useMyPurchasePackages(!isPt);
   const {
     data: ptScheduleData,
     isLoading: isLoadingPtSchedule,
@@ -321,9 +335,8 @@ export default function HomeScreen() {
   }, [isPt, refetch, refetchPtSchedule]);
 
   const { refreshControl } = usePullToRefresh(handleRefreshHome);
-  const [selectedPackage, setSelectedPackage] = useState<MyPurchasePackage | null>(
-    null,
-  );
+  const [selectedPackage, setSelectedPackage] =
+    useState<MyPurchasePackage | null>(null);
   const [selectedPtId, setSelectedPtId] = useState("");
   const [weekStart, setWeekStart] = useState(() => getIsoWeekStart(new Date()));
   const [selectedCell, setSelectedCell] = useState<{
@@ -356,14 +369,20 @@ export default function HomeScreen() {
     enabled: !!selectedPackage?.id && !!selectedPackage?.branchId,
   });
   const { data: weekGridData, isLoading: isLoadingWeekGrid } = useQuery({
-    queryKey: ["pt-week-booking-grid", selectedPackage?.id, selectedPtId, weekStart],
+    queryKey: [
+      "pt-week-booking-grid",
+      selectedPackage?.id,
+      selectedPtId,
+      weekStart,
+    ],
     queryFn: () =>
       getPtWeekBookingGrid({
         branchId: selectedPackage?.branchId ?? "",
         ptAccountId: selectedPtId,
         weekStart,
       }),
-    enabled: !!selectedPackage?.id && !!selectedPackage?.branchId && !!selectedPtId,
+    enabled:
+      !!selectedPackage?.id && !!selectedPackage?.branchId && !!selectedPtId,
   });
 
   const purchasePackages = useMemo(() => data?.data ?? [], [data]);
@@ -464,9 +483,10 @@ export default function HomeScreen() {
       sessionDate: selectedCell.sessionDate,
     });
   };
-  const availablePts = useMemo<AvailablePtAccount[]>(() => availablePtData?.data ?? [], [
-    availablePtData,
-  ]);
+  const availablePts = useMemo<AvailablePtAccount[]>(
+    () => availablePtData?.data ?? [],
+    [availablePtData],
+  );
   const filteredPts = useMemo(
     () =>
       filterAvailablePtsByBuoi(availablePts, ptShiftBuoi, {
@@ -480,10 +500,7 @@ export default function HomeScreen() {
     [ptFromDate, ptToDate],
   );
   const hasActivePtFilters =
-    !!ptSearch.trim() ||
-    !!ptFromDate ||
-    !!ptToDate ||
-    ptShiftBuoi !== "all";
+    !!ptSearch.trim() || !!ptFromDate || !!ptToDate || ptShiftBuoi !== "all";
   const selectedPt = useMemo(
     () => filteredPts.find((item) => item.id === selectedPtId) ?? null,
     [filteredPts, selectedPtId],
@@ -591,12 +608,16 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   renderItem={({ item }) => {
-                    const statusColor = getPtScheduleStatusColor(item.extendedProps.status);
+                    const statusColor = getPtScheduleStatusColor(
+                      item.extendedProps.status,
+                    );
 
                     return (
                       <View style={styles.ptScheduleCard}>
                         <View style={styles.ptScheduleHeader}>
-                          <Text style={styles.ptScheduleTitle}>Lịch hẹn tập</Text>
+                          <Text style={styles.ptScheduleTitle}>
+                            Lịch hẹn tập
+                          </Text>
                           <View
                             style={[
                               styles.ptScheduleStatusBadge,
@@ -609,25 +630,37 @@ export default function HomeScreen() {
                                 { color: statusColor },
                               ]}
                             >
-                              {getPtScheduleStatusLabel(item.extendedProps.status)}
+                              {getPtScheduleStatusLabel(
+                                item.extendedProps.status,
+                              )}
                             </Text>
                           </View>
                         </View>
 
-                        <Text style={styles.ptScheduleName}>{getTraineeName(item)}</Text>
+                        <Text style={styles.ptScheduleName}>
+                          {getTraineeName(item)}
+                        </Text>
                         <Text style={styles.ptSchedulePackage}>
                           {item.extendedProps.userPackage.package.name}
                         </Text>
 
                         <View style={styles.ptScheduleDetailRow}>
-                          <Ionicons name="time-outline" size={18} color="#22C55E" />
+                          <Ionicons
+                            name="time-outline"
+                            size={18}
+                            color="#22C55E"
+                          />
                           <Text style={styles.ptScheduleDetailText}>
                             {formatPtScheduleTime(item.start, item.end)}
                           </Text>
                         </View>
 
                         <View style={styles.ptScheduleDetailRow}>
-                          <Ionicons name="location-outline" size={18} color="#22C55E" />
+                          <Ionicons
+                            name="location-outline"
+                            size={18}
+                            color="#22C55E"
+                          />
                           <Text style={styles.ptScheduleDetailText}>
                             {item.extendedProps.branch.name}
                           </Text>
@@ -746,7 +779,10 @@ export default function HomeScreen() {
                 </Text>
               </View>
 
-              <Pressable onPress={handleClosePtRequestModal} style={styles.closeButton}>
+              <Pressable
+                onPress={handleClosePtRequestModal}
+                style={styles.closeButton}
+              >
                 <Ionicons name="close" size={22} color="#F8FAFC" />
               </Pressable>
             </View>
@@ -758,380 +794,468 @@ export default function HomeScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator
             >
-            <Text style={styles.inputLabel}>Chọn huấn luyện viên</Text>
+              <Text style={styles.inputLabel}>Chọn huấn luyện viên</Text>
 
-            <View style={styles.ptFilterBox}>
-              <TextInput
-                style={styles.ptFilterSearch}
-                placeholder="Tìm theo tên/email PT"
-                placeholderTextColor="#64748B"
-                value={ptSearch}
-                onChangeText={setPtSearch}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <Pressable
-                style={styles.ptFilterDateRow}
-                onPress={() => setShowPtDateCalendar((v) => !v)}
-              >
-                <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
-                <Text style={styles.ptFilterDateText} numberOfLines={1}>
-                  {ptFromDate && ptToDate
-                    ? `${formatYmdDisplay(ptFromDate)} – ${formatYmdDisplay(ptToDate)}`
-                    : ptFromDate
-                      ? `Từ ${formatYmdDisplay(ptFromDate)} (chọn đến ngày)`
-                      : "Chọn khoảng ngày (tùy chọn)"}
-                </Text>
-                <Ionicons
-                  name={showPtDateCalendar ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color="#64748B"
+              <View style={styles.ptFilterBox}>
+                <TextInput
+                  style={styles.ptFilterSearch}
+                  placeholder="Tìm theo tên/email PT"
+                  placeholderTextColor="#64748B"
+                  value={ptSearch}
+                  onChangeText={setPtSearch}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-              </Pressable>
 
-              {showPtDateCalendar ? (
-                <View style={styles.ptFilterCalendarWrap}>
-                  <Calendar
-                    markingType="period"
-                    markedDates={ptFilterMarkedDates}
-                    onDayPress={(day) => handlePtFilterDayPress(day.dateString)}
-                    hideExtraDays
-                    theme={{
-                      calendarBackground: "#101826",
-                      monthTextColor: "#F8FAFC",
-                      dayTextColor: "#F8FAFC",
-                      textDisabledColor: "#475569",
-                      todayTextColor: "#22C55E",
-                      arrowColor: "#22C55E",
-                      textSectionTitleColor: "#94A3B8",
-                      textMonthFontWeight: "800",
-                      textDayFontWeight: "700",
-                      textDayHeaderFontWeight: "700",
-                    }}
-                    style={styles.ptFilterCalendar}
+                <Pressable
+                  style={styles.ptFilterDateRow}
+                  onPress={() => setShowPtDateCalendar((v) => !v)}
+                >
+                  <Ionicons name="calendar-outline" size={18} color="#94A3B8" />
+                  <Text style={styles.ptFilterDateText} numberOfLines={1}>
+                    {ptFromDate && ptToDate
+                      ? `${formatYmdDisplay(ptFromDate)} – ${formatYmdDisplay(ptToDate)}`
+                      : ptFromDate
+                        ? `Từ ${formatYmdDisplay(ptFromDate)} (chọn đến ngày)`
+                        : "Chọn khoảng ngày (tùy chọn)"}
+                  </Text>
+                  <Ionicons
+                    name={showPtDateCalendar ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="#64748B"
                   />
-                  <Text style={styles.ptFilterCalendarHint}>
-                    Chạm ngày bắt đầu, rồi chạm ngày kết thúc.
+                </Pressable>
+
+                {showPtDateCalendar ? (
+                  <View style={styles.ptFilterCalendarWrap}>
+                    <Calendar
+                      markingType="period"
+                      markedDates={ptFilterMarkedDates}
+                      onDayPress={(day) =>
+                        handlePtFilterDayPress(day.dateString)
+                      }
+                      hideExtraDays
+                      theme={{
+                        calendarBackground: "#101826",
+                        monthTextColor: "#F8FAFC",
+                        dayTextColor: "#F8FAFC",
+                        textDisabledColor: "#475569",
+                        todayTextColor: "#22C55E",
+                        arrowColor: "#22C55E",
+                        textSectionTitleColor: "#94A3B8",
+                        textMonthFontWeight: "800",
+                        textDayFontWeight: "700",
+                        textDayHeaderFontWeight: "700",
+                      }}
+                      style={styles.ptFilterCalendar}
+                    />
+                    <Text style={styles.ptFilterCalendarHint}>
+                      Chạm ngày bắt đầu, rồi chạm ngày kết thúc.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {(ptFromDate || ptToDate) && (
+                  <Pressable
+                    style={styles.ptFilterClearDates}
+                    onPress={() => {
+                      setPtFromDate(undefined);
+                      setPtToDate(undefined);
+                    }}
+                  >
+                    <Text style={styles.ptFilterClearDatesText}>
+                      Xóa khoảng ngày
+                    </Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.ptFilterBuoiLabel}>
+                  Buổi (lọc trên máy)
+                </Text>
+                <View style={styles.ptFilterBuoiRow}>
+                  {PT_SHIFT_BUOI_OPTIONS.map((opt) => {
+                    const isActive = ptShiftBuoi === opt.value;
+                    return (
+                      <Pressable
+                        key={opt.value}
+                        style={[
+                          styles.ptFilterBuoiChip,
+                          isActive && styles.ptFilterBuoiChipActive,
+                        ]}
+                        onPress={() => setPtShiftBuoi(opt.value)}
+                      >
+                        <Text
+                          style={[
+                            styles.ptFilterBuoiChipText,
+                            isActive && styles.ptFilterBuoiChipTextActive,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {hasActivePtFilters ? (
+                  <Pressable
+                    style={styles.ptFilterResetAll}
+                    onPress={() => {
+                      resetPtBookingFilters();
+                    }}
+                  >
+                    <Text style={styles.ptFilterResetAllText}>
+                      Xóa tất cả bộ lọc
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              {isLoadingPts ? (
+                <View style={styles.slotLoadingBox}>
+                  <ActivityIndicator color="#22C55E" />
+                  <Text style={styles.slotLoadingText}>
+                    Đang tải danh sách PT...
+                  </Text>
+                </View>
+              ) : filteredPts.length ? (
+                <View style={styles.ptListBlock}>
+                  {filteredPts.map((pt) => {
+                    const isActive = pt.id === selectedPtId;
+                    const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
+                      (acc, win) => acc + (win.weeklySlots?.length ?? 0),
+                      0,
+                    );
+                    return (
+                      <Pressable
+                        key={pt.id}
+                        onPress={() => {
+                          setSelectedPtId(pt.id);
+                        }}
+                        style={[
+                          styles.slotCard,
+                          isActive && styles.slotCardActive,
+                        ]}
+                      >
+                        <View style={styles.slotCardHeader}>
+                          <Text
+                            style={[
+                              styles.slotDate,
+                              isActive && styles.slotDateActive,
+                            ]}
+                          >
+                            {pt.profile?.name || pt.email}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.slotTime,
+                            isActive && styles.slotTimeActive,
+                          ]}
+                        >
+                          {pt.email}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.slotBranch,
+                            isActive && styles.slotBranchActive,
+                          ]}
+                        >
+                          {totalSlots} khung giờ / tuần
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.slotEmptyBox}>
+                  <Text style={styles.slotEmptyText}>
+                    {availablePts.length
+                      ? "Không có PT phù hợp bộ lọc. Thử đổi từ khóa, khoảng ngày hoặc buổi."
+                      : "Chưa có PT khả dụng cho chi nhánh này."}
+                  </Text>
+                </View>
+              )}
+
+              {selectedPt ? (
+                <>
+                  <View style={styles.weekHeader}>
+                    <Text style={styles.inputLabel}>
+                      Chọn khung giờ trong tuần
+                    </Text>
+                    <View style={styles.weekActions}>
+                      <Pressable
+                        style={styles.weekNavButton}
+                        onPress={() => {
+                          const prev = parseYmdToLocalDate(weekStart);
+                          if (!prev) {
+                            return;
+                          }
+                          prev.setDate(prev.getDate() - 7);
+                          const minWeek = getIsoWeekStart(new Date());
+                          const prevWeekStart = getIsoWeekStart(prev);
+                          if (prevWeekStart >= minWeek) {
+                            setWeekStart(prevWeekStart);
+                          }
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={16}
+                          color="#F8FAFC"
+                        />
+                      </Pressable>
+                      <Pressable
+                        style={styles.weekNavButton}
+                        onPress={() => {
+                          const next = parseYmdToLocalDate(weekStart);
+                          if (!next) {
+                            return;
+                          }
+                          next.setDate(next.getDate() + 7);
+                          setWeekStart(getIsoWeekStart(next));
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={16}
+                          color="#F8FAFC"
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {isLoadingWeekGrid ? (
+                    <View style={styles.slotLoadingBox}>
+                      <ActivityIndicator color="#22C55E" />
+                      <Text style={styles.slotLoadingText}>
+                        Đang tải lịch tuần...
+                      </Text>
+                    </View>
+                  ) : weekDays.length && visibleWeekRows.length ? (
+                    <>
+                      <Text style={styles.weekCompactHint}>
+                        Chỉ hiển thị khung giờ còn trống. Dùng mũi tên để đổi
+                        tuần.
+                      </Text>
+                      {freeBookingOptions.length ? (
+                        <ScrollView
+                          style={styles.freeSlotListScroll}
+                          nestedScrollEnabled
+                          showsVerticalScrollIndicator={false}
+                        >
+                          {freeBookingOptions.map((opt) => {
+                            const isActive =
+                              selectedCell?.weeklySlotId === opt.weeklySlotId &&
+                              selectedCell?.sessionDate === opt.sessionDate;
+                            const d = parseYmdToLocalDate(opt.sessionDate);
+                            const datePart = d
+                              ? d.toLocaleDateString("vi-VN", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })
+                              : opt.sessionDate;
+                            return (
+                              <Pressable
+                                key={opt.id}
+                                style={[
+                                  styles.freeSlotRow,
+                                  isActive && styles.freeSlotRowActive,
+                                ]}
+                                onPress={() =>
+                                  setSelectedCell({
+                                    weeklySlotId: opt.weeklySlotId,
+                                    sessionDate: opt.sessionDate,
+                                    startTime: opt.startTime,
+                                    endTime: opt.endTime,
+                                  })
+                                }
+                              >
+                                <View style={styles.freeSlotRowMain}>
+                                  <Text style={styles.freeSlotDay}>
+                                    {DAY_OF_WEEK_LABELS[opt.dayOfWeek] ?? "—"}{" "}
+                                    <Text style={styles.freeSlotDate}>
+                                      {datePart}
+                                    </Text>
+                                  </Text>
+                                  <Text style={styles.freeSlotTime}>
+                                    {formatSlotTimeLabel(
+                                      opt.startTime,
+                                      opt.endTime,
+                                    )}
+                                  </Text>
+                                </View>
+                                <Ionicons
+                                  name={
+                                    isActive
+                                      ? "checkmark-circle"
+                                      : "chevron-forward"
+                                  }
+                                  size={20}
+                                  color={isActive ? "#22C55E" : "#64748B"}
+                                />
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      ) : (
+                        <View style={styles.slotEmptyBox}>
+                          <Text style={styles.slotEmptyText}>
+                            Tuần này không còn khung trống. Thử tuần sau hoặc
+                            chọn PT khác.
+                          </Text>
+                        </View>
+                      )}
+
+                      <Pressable
+                        style={styles.weekGridToggle}
+                        onPress={() => setShowFullWeekGrid((v) => !v)}
+                      >
+                        <Text style={styles.weekGridToggleText}>
+                          {showFullWeekGrid
+                            ? "Ẩn lưới tuần"
+                            : "Xem lưới tuần (chi tiết)"}
+                        </Text>
+                        <Ionicons
+                          name={
+                            showFullWeekGrid ? "chevron-up" : "chevron-down"
+                          }
+                          size={18}
+                          color="#94A3B8"
+                        />
+                      </Pressable>
+
+                      {showFullWeekGrid ? (
+                        <ScrollView
+                          style={styles.weekGridOuterScroll}
+                          nestedScrollEnabled
+                          showsVerticalScrollIndicator
+                        >
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                          >
+                            <View style={styles.weekGridWrap}>
+                              <View style={styles.weekDayHeaderRow}>
+                                {weekDays.map((day) => (
+                                  <View
+                                    key={day.date}
+                                    style={styles.weekDayHeaderCell}
+                                  >
+                                    <Text style={styles.weekDayText}>
+                                      {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
+                                    </Text>
+                                    <Text style={styles.weekDateText}>
+                                      {new Date(
+                                        `${day.date}T12:00:00`,
+                                      ).toLocaleDateString("vi-VN", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                      })}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                              {visibleWeekRows.map((row) => (
+                                <View key={row.key} style={styles.weekSlotRow}>
+                                  {weekDays.map((day) => {
+                                    const cell = day.slots.find(
+                                      (s) => s.gridKey === row.key,
+                                    );
+                                    const isFree =
+                                      cell?.state === "FREE" &&
+                                      !!cell.weeklySlotId;
+                                    const isActive =
+                                      !!cell &&
+                                      !!selectedCell &&
+                                      selectedCell.weeklySlotId ===
+                                        cell.weeklySlotId &&
+                                      selectedCell.sessionDate === day.date;
+                                    const cellStyle = [
+                                      styles.weekSlotCell,
+                                      isFree
+                                        ? styles.weekSlotCellFree
+                                        : styles.weekSlotCellDisabled,
+                                      isActive && styles.weekSlotCellActive,
+                                    ];
+
+                                    return (
+                                      <Pressable
+                                        key={`${row.key}-${day.date}`}
+                                        style={cellStyle}
+                                        disabled={!isFree}
+                                        onPress={() => {
+                                          if (!isFree || !cell) {
+                                            return;
+                                          }
+                                          setSelectedCell({
+                                            weeklySlotId:
+                                              cell.weeklySlotId as string,
+                                            sessionDate: day.date,
+                                            startTime: cell.startTime,
+                                            endTime: cell.endTime,
+                                          });
+                                        }}
+                                      >
+                                        <Text style={styles.weekSlotTimeText}>
+                                          {formatSlotTimeLabel(
+                                            row.startTime,
+                                            row.endTime,
+                                          )}
+                                        </Text>
+                                        <Text style={styles.weekSlotStatusText}>
+                                          {cell?.state === "FREE"
+                                            ? "TRỐNG"
+                                            : cell?.state === "OCCUPIED"
+                                              ? "ĐÃ ĐẶT"
+                                              : cell?.state === "PASSED"
+                                                ? "ĐÃ QUA"
+                                                : "—"}
+                                        </Text>
+                                      </Pressable>
+                                    );
+                                  })}
+                                </View>
+                              ))}
+                            </View>
+                          </ScrollView>
+                        </ScrollView>
+                      ) : null}
+                    </>
+                  ) : (
+                    <View style={styles.slotEmptyBox}>
+                      <Text style={styles.slotEmptyText}>
+                        PT chưa mở lịch tuần cho giai đoạn này.
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : null}
+
+              {selectedCell ? (
+                <View style={styles.selectedCellBox}>
+                  <Text style={styles.selectedCellText}>
+                    Đã chọn:{" "}
+                    {new Date(
+                      `${selectedCell.sessionDate}T00:00:00.000Z`,
+                    ).toLocaleDateString("vi-VN", {
+                      weekday: "long",
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}{" "}
+                    •{" "}
+                    {formatSlotTimeLabel(
+                      selectedCell.startTime,
+                      selectedCell.endTime,
+                    )}
                   </Text>
                 </View>
               ) : null}
 
-              {(ptFromDate || ptToDate) && (
-                <Pressable
-                  style={styles.ptFilterClearDates}
-                  onPress={() => {
-                    setPtFromDate(undefined);
-                    setPtToDate(undefined);
-                  }}
-                >
-                  <Text style={styles.ptFilterClearDatesText}>Xóa khoảng ngày</Text>
-                </Pressable>
-              )}
-
-              <Text style={styles.ptFilterBuoiLabel}>Buổi (lọc trên máy)</Text>
-              <View style={styles.ptFilterBuoiRow}>
-                {PT_SHIFT_BUOI_OPTIONS.map((opt) => {
-                  const isActive = ptShiftBuoi === opt.value;
-                  return (
-                    <Pressable
-                      key={opt.value}
-                      style={[styles.ptFilterBuoiChip, isActive && styles.ptFilterBuoiChipActive]}
-                      onPress={() => setPtShiftBuoi(opt.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.ptFilterBuoiChipText,
-                          isActive && styles.ptFilterBuoiChipTextActive,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {hasActivePtFilters ? (
-                <Pressable
-                  style={styles.ptFilterResetAll}
-                  onPress={() => {
-                    resetPtBookingFilters();
-                  }}
-                >
-                  <Text style={styles.ptFilterResetAllText}>Xóa tất cả bộ lọc</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {isLoadingPts ? (
-              <View style={styles.slotLoadingBox}>
-                <ActivityIndicator color="#22C55E" />
-                <Text style={styles.slotLoadingText}>Đang tải danh sách PT...</Text>
-              </View>
-            ) : filteredPts.length ? (
-              <View style={styles.ptListBlock}>
-                {filteredPts.map((pt) => {
-                  const isActive = pt.id === selectedPtId;
-                  const totalSlots = (pt.ptAvailabilityWindows ?? []).reduce(
-                    (acc, win) => acc + (win.weeklySlots?.length ?? 0),
-                    0,
-                  );
-                  return (
-                    <Pressable
-                      key={pt.id}
-                      onPress={() => {
-                        setSelectedPtId(pt.id);
-                      }}
-                      style={[styles.slotCard, isActive && styles.slotCardActive]}
-                    >
-                      <View style={styles.slotCardHeader}>
-                        <Text style={[styles.slotDate, isActive && styles.slotDateActive]}>
-                          {pt.profile?.name || pt.email}
-                        </Text>
-                      </View>
-                      <Text style={[styles.slotTime, isActive && styles.slotTimeActive]}>
-                        {pt.email}
-                      </Text>
-                      <Text style={[styles.slotBranch, isActive && styles.slotBranchActive]}>
-                        {totalSlots} khung giờ / tuần
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <View style={styles.slotEmptyBox}>
-                <Text style={styles.slotEmptyText}>
-                  {availablePts.length
-                    ? "Không có PT phù hợp bộ lọc. Thử đổi từ khóa, khoảng ngày hoặc buổi."
-                    : "Chưa có PT khả dụng cho chi nhánh này."}
-                </Text>
-              </View>
-            )}
-
-            {selectedPt ? (
-              <>
-                <View style={styles.weekHeader}>
-                  <Text style={styles.inputLabel}>Chọn khung giờ trong tuần</Text>
-                  <View style={styles.weekActions}>
-                    <Pressable
-                      style={styles.weekNavButton}
-                      onPress={() => {
-                        const prev = parseYmdToLocalDate(weekStart);
-                        if (!prev) {
-                          return;
-                        }
-                        prev.setDate(prev.getDate() - 7);
-                        const minWeek = getIsoWeekStart(new Date());
-                        const prevWeekStart = getIsoWeekStart(prev);
-                        if (prevWeekStart >= minWeek) {
-                          setWeekStart(prevWeekStart);
-                        }
-                      }}
-                    >
-                      <Ionicons name="chevron-back" size={16} color="#F8FAFC" />
-                    </Pressable>
-                    <Pressable
-                      style={styles.weekNavButton}
-                      onPress={() => {
-                        const next = parseYmdToLocalDate(weekStart);
-                        if (!next) {
-                          return;
-                        }
-                        next.setDate(next.getDate() + 7);
-                        setWeekStart(getIsoWeekStart(next));
-                      }}
-                    >
-                      <Ionicons name="chevron-forward" size={16} color="#F8FAFC" />
-                    </Pressable>
-                  </View>
-                </View>
-
-                {isLoadingWeekGrid ? (
-                  <View style={styles.slotLoadingBox}>
-                    <ActivityIndicator color="#22C55E" />
-                    <Text style={styles.slotLoadingText}>Đang tải lịch tuần...</Text>
-                  </View>
-                ) : weekDays.length && visibleWeekRows.length ? (
-                  <>
-                    <Text style={styles.weekCompactHint}>
-                      Chỉ hiển thị khung giờ còn trống. Dùng mũi tên để đổi tuần.
-                    </Text>
-                    {freeBookingOptions.length ? (
-                      <ScrollView
-                        style={styles.freeSlotListScroll}
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator={false}
-                      >
-                        {freeBookingOptions.map((opt) => {
-                          const isActive =
-                            selectedCell?.weeklySlotId === opt.weeklySlotId &&
-                            selectedCell?.sessionDate === opt.sessionDate;
-                          const d = parseYmdToLocalDate(opt.sessionDate);
-                          const datePart = d
-                            ? d.toLocaleDateString("vi-VN", {
-                                day: "2-digit",
-                                month: "2-digit",
-                              })
-                            : opt.sessionDate;
-                          return (
-                            <Pressable
-                              key={opt.id}
-                              style={[styles.freeSlotRow, isActive && styles.freeSlotRowActive]}
-                              onPress={() =>
-                                setSelectedCell({
-                                  weeklySlotId: opt.weeklySlotId,
-                                  sessionDate: opt.sessionDate,
-                                  startTime: opt.startTime,
-                                  endTime: opt.endTime,
-                                })
-                              }
-                            >
-                              <View style={styles.freeSlotRowMain}>
-                                <Text style={styles.freeSlotDay}>
-                                  {DAY_OF_WEEK_LABELS[opt.dayOfWeek] ?? "—"}{" "}
-                                  <Text style={styles.freeSlotDate}>{datePart}</Text>
-                                </Text>
-                                <Text style={styles.freeSlotTime}>
-                                  {formatSlotTimeLabel(opt.startTime, opt.endTime)}
-                                </Text>
-                              </View>
-                              <Ionicons
-                                name={isActive ? "checkmark-circle" : "chevron-forward"}
-                                size={20}
-                                color={isActive ? "#22C55E" : "#64748B"}
-                              />
-                            </Pressable>
-                          );
-                        })}
-                      </ScrollView>
-                    ) : (
-                      <View style={styles.slotEmptyBox}>
-                        <Text style={styles.slotEmptyText}>
-                          Tuần này không còn khung trống. Thử tuần sau hoặc chọn PT khác.
-                        </Text>
-                      </View>
-                    )}
-
-                    <Pressable
-                      style={styles.weekGridToggle}
-                      onPress={() => setShowFullWeekGrid((v) => !v)}
-                    >
-                      <Text style={styles.weekGridToggleText}>
-                        {showFullWeekGrid ? "Ẩn lưới tuần" : "Xem lưới tuần (chi tiết)"}
-                      </Text>
-                      <Ionicons
-                        name={showFullWeekGrid ? "chevron-up" : "chevron-down"}
-                        size={18}
-                        color="#94A3B8"
-                      />
-                    </Pressable>
-
-                    {showFullWeekGrid ? (
-                      <ScrollView
-                        style={styles.weekGridOuterScroll}
-                        nestedScrollEnabled
-                        showsVerticalScrollIndicator
-                      >
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                          <View style={styles.weekGridWrap}>
-                            <View style={styles.weekDayHeaderRow}>
-                              {weekDays.map((day) => (
-                                <View key={day.date} style={styles.weekDayHeaderCell}>
-                                  <Text style={styles.weekDayText}>
-                                    {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
-                                  </Text>
-                                  <Text style={styles.weekDateText}>
-                                    {new Date(`${day.date}T12:00:00`).toLocaleDateString("vi-VN", {
-                                      day: "2-digit",
-                                      month: "2-digit",
-                                    })}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                            {visibleWeekRows.map((row) => (
-                              <View key={row.key} style={styles.weekSlotRow}>
-                                {weekDays.map((day) => {
-                                  const cell = day.slots.find((s) => s.gridKey === row.key);
-                                  const isFree = cell?.state === "FREE" && !!cell.weeklySlotId;
-                                  const isActive =
-                                    !!cell &&
-                                    !!selectedCell &&
-                                    selectedCell.weeklySlotId === cell.weeklySlotId &&
-                                    selectedCell.sessionDate === day.date;
-                                  const cellStyle = [
-                                    styles.weekSlotCell,
-                                    isFree ? styles.weekSlotCellFree : styles.weekSlotCellDisabled,
-                                    isActive && styles.weekSlotCellActive,
-                                  ];
-
-                                  return (
-                                    <Pressable
-                                      key={`${row.key}-${day.date}`}
-                                      style={cellStyle}
-                                      disabled={!isFree}
-                                      onPress={() => {
-                                        if (!isFree || !cell) {
-                                          return;
-                                        }
-                                        setSelectedCell({
-                                          weeklySlotId: cell.weeklySlotId as string,
-                                          sessionDate: day.date,
-                                          startTime: cell.startTime,
-                                          endTime: cell.endTime,
-                                        });
-                                      }}
-                                    >
-                                      <Text style={styles.weekSlotTimeText}>
-                                        {formatSlotTimeLabel(row.startTime, row.endTime)}
-                                      </Text>
-                                      <Text style={styles.weekSlotStatusText}>
-                                        {cell?.state === "FREE"
-                                          ? "TRỐNG"
-                                          : cell?.state === "OCCUPIED"
-                                            ? "ĐÃ ĐẶT"
-                                            : cell?.state === "PASSED"
-                                              ? "ĐÃ QUA"
-                                              : "—"}
-                                      </Text>
-                                    </Pressable>
-                                  );
-                                })}
-                              </View>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </ScrollView>
-                    ) : null}
-                  </>
-                ) : (
-                  <View style={styles.slotEmptyBox}>
-                    <Text style={styles.slotEmptyText}>
-                      PT chưa mở lịch tuần cho giai đoạn này.
-                    </Text>
-                  </View>
-                )}
-              </>
-            ) : null}
-
-            {selectedCell ? (
-              <View style={styles.selectedCellBox}>
-                <Text style={styles.selectedCellText}>
-                  Đã chọn:{" "}
-                  {new Date(`${selectedCell.sessionDate}T00:00:00.000Z`).toLocaleDateString(
-                    "vi-VN",
-                    { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" },
-                  )}{" "}
-                  • {formatSlotTimeLabel(selectedCell.startTime, selectedCell.endTime)}
-                </Text>
-              </View>
-            ) : null}
-
-            <Text style={styles.helperText}>
-              Chỉ có thể đặt lịch theo các ca dạy PT đã mở từ hệ thống.
-            </Text>
+              <Text style={styles.helperText}>
+                Chỉ có thể đặt lịch theo các ca dạy PT đã mở từ hệ thống.
+              </Text>
             </ScrollView>
 
             <View style={styles.modalActions}>

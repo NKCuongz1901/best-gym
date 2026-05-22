@@ -3,7 +3,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, DatePicker, Form, Input, InputNumber, Modal, Result, Select, Spin, message } from 'antd';
+import {
+  Avatar,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Result,
+  Select,
+  Spin,
+  message,
+} from 'antd';
 import {
   AimOutlined,
   PlusOutlined,
@@ -206,7 +218,10 @@ const levelOptions: { value: ProgramRequest['level']; label: string }[] = [
   { value: 'ADVANCED', label: 'Advanced' },
 ];
 
-function renderUpdating(value: unknown, formatter?: (v: any) => React.ReactNode) {
+function renderUpdating(
+  value: unknown,
+  formatter?: (v: any) => React.ReactNode,
+) {
   if (value === null || value === undefined || value === '') {
     return <span className="text-neutral-400">Đang cập nhật</span>;
   }
@@ -216,11 +231,15 @@ function renderUpdating(value: unknown, formatter?: (v: any) => React.ReactNode)
 function cleanUpdatePayload(values: any): UpdateProfileRequest {
   const payload: UpdateProfileRequest = {};
 
-  if (typeof values.name === 'string' && values.name.trim()) payload.name = values.name.trim();
+  if (typeof values.name === 'string' && values.name.trim())
+    payload.name = values.name.trim();
   if (values.gender) payload.gender = values.gender;
-  if (typeof values.phone === 'string' && values.phone.trim()) payload.phone = values.phone.trim();
-  if (values.dateOfBirth) payload.dateOfBirth = dayjs(values.dateOfBirth).toISOString();
-  if (typeof values.avatar === 'string' && values.avatar.trim()) payload.avatar = values.avatar.trim();
+  if (typeof values.phone === 'string' && values.phone.trim())
+    payload.phone = values.phone.trim();
+  if (values.dateOfBirth)
+    payload.dateOfBirth = dayjs(values.dateOfBirth).toISOString();
+  if (typeof values.avatar === 'string' && values.avatar.trim())
+    payload.avatar = values.avatar.trim();
   if (typeof values.height === 'number') payload.height = values.height;
   if (typeof values.weight === 'number') payload.weight = values.weight;
   if (values.fitnessGoal) payload.fitnessGoal = values.fitnessGoal;
@@ -377,8 +396,7 @@ export default function ProfilePage() {
   const ptSessions: PTTrainingHistory[] = useMemo(() => {
     const list = ptHistoryRes?.data ?? [];
     return [...list].sort(
-      (a, b) =>
-        dayjs(b.startTime).valueOf() - dayjs(a.startTime).valueOf(),
+      (a, b) => dayjs(b.startTime).valueOf() - dayjs(a.startTime).valueOf(),
     );
   }, [ptHistoryRes?.data]);
 
@@ -411,7 +429,8 @@ export default function ProfilePage() {
 
   const ptAcceptedTeachingCount = useMemo(
     () =>
-      ptYearSessions.filter((s) => s.extendedProps.status === 'ACCEPTED').length,
+      ptYearSessions.filter((s) => s.extendedProps.status === 'ACCEPTED')
+        .length,
     [ptYearSessions],
   );
 
@@ -442,28 +461,21 @@ export default function ProfilePage() {
       const s =
         parts.length >= 2
           ? `${parts[0][0]}${parts[parts.length - 1][0]}`
-          : parts[0]?.slice(0, 2) ?? '';
+          : (parts[0]?.slice(0, 2) ?? '');
       return s.toUpperCase();
     }
     return profile?.email?.slice(0, 2).toUpperCase() ?? '?';
   }, [profile?.name, profile?.email]);
 
   const bmi =
-    profile?.height != null &&
-    profile?.weight != null &&
-    profile.height > 0
+    profile?.height != null && profile?.weight != null && profile.height > 0
       ? profile.weight / Math.pow(profile.height / 100, 2)
       : null;
 
   const hasBmi = bmi != null && Number.isFinite(bmi);
 
   if (!isLoggedIn && !authLoading) {
-    return (
-      <Result
-        status="warning"
-        title="Vui lòng đăng nhập để xem hồ sơ"
-      />
-    );
+    return <Result status="warning" title="Vui lòng đăng nhập để xem hồ sơ" />;
   }
 
   if (authLoading || profileLoading) {
@@ -612,21 +624,33 @@ export default function ProfilePage() {
             >
               ← Quay lại
             </button>
-            <h1 className="text-3xl font-bold text-neutral-900">Hồ sơ của tôi</h1>
+            <h1 className="text-3xl font-bold text-neutral-900">
+              Hồ sơ của tôi
+            </h1>
           </div>
 
           <div className="flex items-center gap-2">
             {user?.role !== 'USER' ? (
               <>
-                <Button icon={<PlusOutlined />} onClick={openCreateExerciseModal}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={openCreateExerciseModal}
+                >
                   Tạo bài tập
                 </Button>
-                <Button icon={<PlusOutlined />} onClick={openCreateProgramModal}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={openCreateProgramModal}
+                >
                   Tạo chương trình
                 </Button>
               </>
             ) : null}
-            <Button type="primary" className="bg-black!" onClick={openEditModal}>
+            <Button
+              type="primary"
+              className="bg-black!"
+              onClick={openEditModal}
+            >
               Cập nhật hồ sơ
             </Button>
           </div>
@@ -669,7 +693,9 @@ export default function ProfilePage() {
               Buổi tập với PT (đã xác nhận)
             </span>
             {user?.role !== 'USER' ? (
-              <span className="mt-1 text-xs text-neutral-400">Đang cập nhật</span>
+              <span className="mt-1 text-xs text-neutral-400">
+                Đang cập nhật
+              </span>
             ) : null}
           </BentoCard>
 
@@ -788,10 +814,7 @@ export default function ProfilePage() {
                   ) : null}
                 </div>
                 {todayExercises.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-xl bg-neutral-50 p-3"
-                  >
+                  <div key={item.id} className="rounded-xl bg-neutral-50 p-3">
                     <p className="text-sm font-medium text-neutral-900">
                       {item.sortOrder}. {item.exercise.name}
                     </p>
@@ -981,11 +1004,14 @@ export default function ProfilePage() {
                 </span>
               </div>
               <p className="text-sm text-neutral-700">
-                Bạn có thể tạo mới bài tập và chương trình tập trực tiếp từ trang hồ sơ.
+                Bạn có thể tạo mới bài tập và chương trình tập trực tiếp từ
+                trang hồ sơ.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button onClick={openCreateExerciseModal}>Tạo bài tập</Button>
-                <Button onClick={openCreateProgramModal}>Tạo chương trình</Button>
+                <Button onClick={openCreateProgramModal}>
+                  Tạo chương trình
+                </Button>
               </div>
             </BentoCard>
           ) : null}
@@ -1103,7 +1129,11 @@ export default function ProfilePage() {
         destroyOnClose
       >
         <Form form={createExerciseForm} layout="vertical" className="mt-2">
-          <Form.Item name="name" label="Tên bài tập" rules={[{ required: true }]}>
+          <Form.Item
+            name="name"
+            label="Tên bài tập"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item
@@ -1132,13 +1162,25 @@ export default function ProfilePage() {
               <Select options={levelOptions} />
             </Form.Item>
           </div>
-          <Form.Item name="equipments" label="Dụng cụ" rules={[{ required: true }]}>
+          <Form.Item
+            name="equipments"
+            label="Dụng cụ"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="thumbnail" label="Thumbnail URL" rules={[{ required: true }]}>
+          <Form.Item
+            name="thumbnail"
+            label="Thumbnail URL"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="videoUrl" label="Video URL" rules={[{ required: true }]}>
+          <Form.Item
+            name="videoUrl"
+            label="Video URL"
+            rules={[{ required: true }]}
+          >
             <Input
               onChange={() => {
                 setVideoLoadOk(false);
@@ -1149,12 +1191,18 @@ export default function ProfilePage() {
             <Button onClick={triggerVideoCheck}>Kiểm tra video</Button>
             {videoCheckTriggered ? (
               videoLoadOk ? (
-                <span className="text-xs text-green-600">Video hiển thị tốt.</span>
+                <span className="text-xs text-green-600">
+                  Video hiển thị tốt.
+                </span>
               ) : (
-                <span className="text-xs text-neutral-500">Đang kiểm tra video...</span>
+                <span className="text-xs text-neutral-500">
+                  Đang kiểm tra video...
+                </span>
               )
             ) : (
-              <span className="text-xs text-neutral-500">Cần kiểm tra video trước khi tạo.</span>
+              <span className="text-xs text-neutral-500">
+                Cần kiểm tra video trước khi tạo.
+              </span>
             )}
           </div>
           {videoPreviewUrl ? (
