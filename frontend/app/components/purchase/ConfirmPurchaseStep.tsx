@@ -38,7 +38,8 @@ export default function ConfirmPurchaseStep({
           Xác nhận đăng ký gói tập
         </h2>
         <p className="mt-2 text-sm text-neutral-500">
-          Vui lòng kiểm tra lại thông tin trước khi hoàn tất thanh toán.
+          Vui lòng kiểm tra lại thông tin. Bạn sẽ được chuyển sang cổng VNPay để
+          thanh toán, sau đó hệ thống tự kích hoạt gói tập.
         </p>
       </motion.div>
 
@@ -74,9 +75,13 @@ export default function ConfirmPurchaseStep({
           )}
         </Descriptions>
 
+        <p className="mt-4 text-center text-xs text-neutral-500">
+          Hỗ trợ thanh toán qua VNPay (thẻ ATM, Internet Banking, QR...). Giao
+          dịch có hiệu lực trong 15 phút.
+        </p>
         {selectedPackage.hasPt ? (
-          <p className="mt-4 text-center text-xs text-neutral-500">
-            Sau khi đăng ký, bạn có thể đặt từng buổi tập với PT trong mục
+          <p className="mt-2 text-center text-xs text-neutral-500">
+            Sau khi thanh toán, bạn có thể đặt từng buổi tập với PT trong mục
             &quot;Gói tập của tôi&quot;.
           </p>
         ) : null}

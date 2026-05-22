@@ -19,6 +19,11 @@ export const appRoute = {
     profile: '/profile',
     workoutHistory: '/my-workout-history',
     programLearn: (programId: string) => `/programs/${programId}/learn`,
+    purchasePackage: '/purchasePackage',
+  },
+  payment: {
+    success: '/payment/success',
+    fail: '/payment/fail',
   },
   pt: {
     root: '/pt',

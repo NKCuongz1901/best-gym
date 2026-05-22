@@ -6,16 +6,14 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, Result, Steps, message } from 'antd';
 
 import {
+  createVnpayDemoCheckout,
   getBranches,
   getPackages,
-  purchasePackage,
 } from '@/app/services/api';
+import { savePendingPurchase } from '@/app/lib/vnpayPurchase';
 import type { FILTER_PACKAGE_PROPS, FILTER_PROPS } from '@/app/types/filters';
-import type {
-  Branch,
-  Package,
-  PurchasePackageRequest,
-} from '@/app/types/types';
+import type { Branch, Package } from '@/app/types/types';
+import { AxiosError } from 'axios';
 import { useAuthStore } from '@/app/stores/authStore';
 import SelectPackageStep from '@/app/components/purchase/SelectPackageStep';
 import SelectBranchStep from '@/app/components/purchase/SelectBranchStep';
@@ -124,14 +122,27 @@ export default function PurchasePackagePage() {
     }
   };
 
-  const { mutate: doPurchase, isPending: isPurchasing } = useMutation({
-    mutationFn: (body: PurchasePackageRequest) => purchasePackage(body),
-    onSuccess: () => {
-      message.success('Đăng ký gói tập thành công!');
-      router.push('/my-packages');
+  const { mutate: startVnpayCheckout, isPending: isPaying } = useMutation({
+    mutationFn: (packageId: string) => createVnpayDemoCheckout({ packageId }),
+    onSuccess: (res) => {
+      if (!selectedPackageId || !selectedBranchId) return;
+
+      savePendingPurchase({
+        packageId: selectedPackageId,
+        branchId: selectedBranchId,
+        packageName: selectedPackage?.name ?? res.data.packageName,
+        branchName: selectedBranch?.name,
+        amount: res.data.amount,
+      });
+
+      window.location.href = res.data.paymentUrl;
     },
-    onError: () => {
-      message.error('Đăng ký gói tập thất bại, vui lòng thử lại.');
+    onError: (err) => {
+      const axiosErr = err as AxiosError<{ message?: string }>;
+      message.error(
+        axiosErr?.response?.data?.message ??
+          'Không thể tạo link thanh toán VNPay. Vui lòng thử lại.',
+      );
     },
   });
 
@@ -141,12 +152,7 @@ export default function PurchasePackagePage() {
       return;
     }
 
-    const payload: PurchasePackageRequest = {
-      packageId: selectedPackageId,
-      branchId: selectedBranchId,
-    };
-
-    doPurchase(payload);
+    startVnpayCheckout(selectedPackageId);
   };
 
   if (!isLoggedIn && !authLoading) {
@@ -216,9 +222,9 @@ export default function PurchasePackagePage() {
               <Button
                 type="primary"
                 onClick={handleConfirm}
-                loading={isPurchasing}
+                loading={isPaying}
               >
-                Hoàn tất đăng ký
+                Thanh toán VNPay
               </Button>
             ) : (
               <Button

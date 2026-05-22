@@ -83,6 +83,9 @@ export interface API_PROPS {
     REVENUE_BY_PACKAGE: string;
     OPERATIONS: string;
   };
+  PAYMENT: {
+    VNPAY_DEMO_CHECKOUT: string;
+  };
 }
 
 export const API: API_PROPS = {
@@ -173,5 +176,8 @@ export const API: API_PROPS = {
     REVENUE_BY_BRANCH: '/admin/analytics/revenue/by-branch',
     REVENUE_BY_PACKAGE: '/admin/analytics/revenue/by-package',
     OPERATIONS: '/admin/analytics/operations',
+  },
+  PAYMENT: {
+    VNPAY_DEMO_CHECKOUT: '/payments/vnpay/demo-checkout',
   },
 };

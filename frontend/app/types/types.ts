@@ -171,6 +171,22 @@ export interface PurchasePackageResponse {
   data: Package;
 }
 
+export interface VnpayDemoCheckoutRequest {
+  packageId: string;
+}
+
+export interface VnpayDemoCheckoutResponse {
+  message: string;
+  data: {
+    paymentUrl: string;
+    txnRef: string;
+    amount: number;
+    packageId: string;
+    packageName: string;
+    expiresAt: string;
+  };
+}
+
 export interface MyPurchasePackage {
   id: string;
   accountId: string;

@@ -33,6 +33,8 @@ import {
   UpsertPtKpiPolicyRequest,
   UpdatePackageRequest,
   UpdatePackageResponse,
+  VnpayDemoCheckoutRequest,
+  VnpayDemoCheckoutResponse,
   UpsertPtKpiPolicyResponse,
   CreatePackageRequest,
   CreatePackageResponse,
@@ -233,6 +235,16 @@ export const purchasePackage = async (
     request,
   );
   return res;
+};
+
+export const createVnpayDemoCheckout = async (
+  request: VnpayDemoCheckoutRequest,
+): Promise<VnpayDemoCheckoutResponse> => {
+  const res = await axios.post<VnpayDemoCheckoutResponse>(
+    API.PAYMENT.VNPAY_DEMO_CHECKOUT,
+    request,
+  );
+  return res as unknown as VnpayDemoCheckoutResponse;
 };
 
 export const getMyPurchasePackages = async (): Promise<any> => {
