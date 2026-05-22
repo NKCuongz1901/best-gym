@@ -70,9 +70,7 @@ export class UserPackageService {
         },
         _count: { _all: true },
       });
-      usedMap = new Map(
-        usages.map((u) => [u.userPackageId, u._count._all]),
-      );
+      usedMap = new Map(usages.map((u) => [u.userPackageId, u._count._all]));
     }
 
     return userPackages.map((up) => {
@@ -141,6 +139,11 @@ export class UserPackageService {
             name: true,
             phone: true,
             avatar: true,
+            height: true,
+            weight: true,
+            fitnessGoal: true,
+            gender: true,
+            dateOfBirth: true,
           },
         },
         ptAvailabilityWindows: {
@@ -897,10 +900,7 @@ export class UserPackageService {
         where: {
           userPackageId: userPackage.id,
           status: {
-            in: [
-              PtAssistRequestStatus.PENDING,
-              PtAssistRequestStatus.ACCEPTED,
-            ],
+            in: [PtAssistRequestStatus.PENDING, PtAssistRequestStatus.ACCEPTED],
           },
         },
       });

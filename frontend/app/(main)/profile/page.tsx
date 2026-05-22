@@ -17,7 +17,9 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { AxiosError } from 'axios';
 
+import { profileFieldRules } from '@/app/lib/profileValidation';
 import {
   createExercise,
   createProgram,
@@ -247,8 +249,16 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['account-profile'] });
       setEditOpen(false);
     },
-    onError: () => {
-      message.error('Cập nhật thất bại. Vui lòng thử lại.');
+    onError: (err) => {
+      const axiosErr = err as AxiosError<{ message?: string | string[] }>;
+      const raw = axiosErr?.response?.data?.message;
+      if (Array.isArray(raw)) {
+        message.error(raw.join(', '));
+      } else if (typeof raw === 'string' && raw.trim()) {
+        message.error(raw);
+      } else {
+        message.error('Cập nhật thất bại. Vui lòng thử lại.');
+      }
     },
   });
 
@@ -498,6 +508,10 @@ export default function ProfilePage() {
     try {
       const values = await editForm.validateFields();
       const payload = cleanUpdatePayload(values);
+      if (Object.keys(payload).length === 0) {
+        message.warning('Chưa có thay đổi nào để lưu');
+        return;
+      }
       submitUpdate(payload);
     } catch {
       // validation error
@@ -989,8 +1003,13 @@ export default function ProfilePage() {
         destroyOnClose
       >
         <Form form={editForm} layout="vertical" className="mt-3">
-          <Form.Item name="name" label="Họ và tên">
-            <Input placeholder="Nguyễn Văn A" />
+          <Form.Item
+            name="name"
+            label="Họ và tên"
+            rules={profileFieldRules.name}
+            validateTrigger={['onBlur', 'onChange']}
+          >
+            <Input placeholder="Nguyễn Văn A" maxLength={100} />
           </Form.Item>
 
           <Form.Item name="gender" label="Giới tính">
@@ -1003,24 +1022,52 @@ export default function ProfilePage() {
             />
           </Form.Item>
 
-          <Form.Item name="phone" label="Số điện thoại">
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={profileFieldRules.phone}
+            validateTrigger="onBlur"
+          >
             <Input placeholder="09xxxxxxxx" />
           </Form.Item>
 
-          <Form.Item name="dateOfBirth" label="Ngày sinh">
-            <DatePicker className="w-full" format="DD/MM/YYYY" />
+          <Form.Item
+            name="dateOfBirth"
+            label="Ngày sinh"
+            rules={profileFieldRules.dateOfBirth}
+          >
+            <DatePicker
+              className="w-full"
+              format="DD/MM/YYYY"
+              disabledDate={(current) =>
+                current != null && current > dayjs().endOf('day')
+              }
+            />
           </Form.Item>
 
-          <Form.Item name="avatar" label="Avatar URL">
-            <Input placeholder="https://..." />
+          <Form.Item
+            name="avatar"
+            label="Avatar URL"
+            rules={profileFieldRules.avatar}
+            validateTrigger="onBlur"
+          >
+            <Input placeholder="https://... hoặc /uploads/..." />
           </Form.Item>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Form.Item name="height" label="Chiều cao (cm)">
-              <InputNumber className="w-full" min={0} max={300} />
+            <Form.Item
+              name="height"
+              label="Chiều cao (cm)"
+              rules={profileFieldRules.height}
+            >
+              <InputNumber className="w-full" min={50} max={300} />
             </Form.Item>
-            <Form.Item name="weight" label="Cân nặng (kg)">
-              <InputNumber className="w-full" min={0} max={1000} />
+            <Form.Item
+              name="weight"
+              label="Cân nặng (kg)"
+              rules={profileFieldRules.weight}
+            >
+              <InputNumber className="w-full" min={20} max={500} />
             </Form.Item>
           </div>
 

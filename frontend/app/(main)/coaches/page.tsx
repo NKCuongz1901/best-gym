@@ -1,6 +1,18 @@
 'use client';
 
 import { appRoute } from '@/app/config/appRoute';
+import {
+  fitnessGoalLabel,
+  fitnessGoalSpecialty,
+  ptExpertiseIntro,
+} from '@/app/lib/ptFitnessGoal';
+import {
+  displayPtHeightCm,
+  displayPtName,
+  displayPtWeightKg,
+  genderLabelVi,
+  resolvePtAvatarSrcWithFallback,
+} from '@/app/lib/ptProfileDisplay';
 import { getPtAccounts } from '@/app/services/api';
 import type { PtAccount, PtAccountsResponse } from '@/app/types/types';
 import {
@@ -39,55 +51,13 @@ function extrasForPt(pt: PtAccount) {
   };
 }
 
-function displayName(pt: PtAccount) {
-  const profile = pt.profile;
-  return (
-    profile?.name?.trim() ||
-    pt.email.split('@')[0]?.replace(/\./g, ' ') ||
-    'Huấn luyện viên'
-  );
-}
-
-function specialty(pt: PtAccount) {
-  return pt.profile?.fitnessGoal?.trim() || 'Huấn luyện viên chuyên nghiệp';
-}
-
-function bioText(pt: PtAccount) {
-  const name = displayName(pt);
-  const goal = pt.profile?.fitnessGoal?.trim();
-  const g = genderVi(pt.profile?.gender);
-  const bits: string[] = [];
-  bits.push(
-    `${name} là huấn luyện viên của PowerFit, đồng hành cùng hội viên trong từng buổi tập.`,
-  );
-  if (goal) {
-    bits.push(`Chuyên hướng tới các mục tiêu: ${goal}.`);
-  }
-  if (g) {
-    bits.push(`Đăng ký gói có PT để được xếp lịch và hỗ trợ phù hợp (${g}).`);
-  } else {
-    bits.push(
-      'Bạn có thể đăng ký gói tập có PT để được xếp lịch và theo dõi tiến độ.',
-    );
-  }
-  return bits.join(' ');
-}
-
-function genderVi(gender?: string | null) {
-  if (!gender) return null;
-  const u = gender.toUpperCase();
-  if (u === 'MALE') return 'Nam';
-  if (u === 'FEMALE') return 'Nữ';
-  return gender;
-}
-
 function modalSkills(pt: PtAccount) {
-  const goal = pt.profile?.fitnessGoal?.trim();
+  const goalLabel = fitnessGoalLabel(pt.profile?.fitnessGoal);
   const seed = seededFromString(pt.id);
   const level = 68 + (seed % 27);
-  if (goal) {
+  if (goalLabel) {
     return [
-      { name: goal, level },
+      { name: goalLabel, level },
       { name: 'Kỹ thuật & an toàn tập luyện', level: 72 + (seed % 23) },
     ];
   }
@@ -97,32 +67,8 @@ function modalSkills(pt: PtAccount) {
   ];
 }
 
-/** Chỉ dùng khi API không trả `profile.avatar` (null / rỗng). */
-const FALLBACK_IMG =
-  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&q=80&auto=format&fit=crop';
-
-/**
- * Ảnh đại diện PT: luôn ưu tiên `profile.avatar` từ API.
- * Đường dẫn tương đối (`/uploads/...`) được nối với `NEXT_PUBLIC_API_URL`.
- */
 function resolveCoachAvatarSrc(pt: PtAccount): string {
-  const raw = pt.profile?.avatar?.trim();
-  if (!raw) return FALLBACK_IMG;
-
-  if (
-    raw.startsWith('http://') ||
-    raw.startsWith('https://') ||
-    raw.startsWith('data:')
-  ) {
-    return raw;
-  }
-
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
-  if (!base) {
-    return raw.startsWith('/') ? raw : `/${raw}`;
-  }
-  if (raw.startsWith('/')) return `${base}${raw}`;
-  return `${base}/${raw}`;
+  return resolvePtAvatarSrcWithFallback(pt.profile?.avatar);
 }
 
 interface CoachSkillBarProps {
@@ -271,7 +217,7 @@ export default function CoachesPage() {
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {pts.map((pt, i) => {
-                const name = displayName(pt);
+                const name = displayPtName(pt);
                 const img = resolveCoachAvatarSrc(pt);
                 const { rating, students } = extrasForPt(pt);
                 return (
@@ -303,7 +249,7 @@ export default function CoachesPage() {
                           {name}
                         </h3>
                         <p className="mt-0.5 text-sm font-medium text-amber-300">
-                          {specialty(pt)}
+                          {fitnessGoalSpecialty(pt.profile?.fitnessGoal)}
                         </p>
                         <div className="mt-2 flex items-center justify-between text-xs text-white/85">
                           <span className="flex items-center gap-1">
@@ -376,7 +322,7 @@ export default function CoachesPage() {
                 <div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
                   <img
                     src={resolveCoachAvatarSrc(selected)}
-                    alt={displayName(selected)}
+                    alt={displayPtName(selected)}
                     className="h-32 w-32 rounded-2xl border-4 border-white object-cover shadow-lg"
                   />
                   <div className="flex-1 pb-2">
@@ -384,10 +330,10 @@ export default function CoachesPage() {
                       id="coach-modal-title"
                       className="text-2xl font-bold text-neutral-900 md:text-3xl"
                     >
-                      {displayName(selected)}
+                      {displayPtName(selected)}
                     </h2>
                     <p className="mt-0.5 font-medium text-amber-600">
-                      {specialty(selected)}
+                      {fitnessGoalSpecialty(selected.profile?.fitnessGoal)}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-500">
                       <span className="flex items-center gap-1">
@@ -411,12 +357,15 @@ export default function CoachesPage() {
 
               <div className="grid gap-6 p-6 md:grid-cols-3 md:p-8">
                 <div className="space-y-6 md:col-span-2">
-                  <div>
-                    <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-neutral-900">
-                      Giới thiệu
+                  <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-4">
+                    <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-amber-800/90">
+                      Giới thiệu chuyên môn
                     </h3>
-                    <p className="text-sm leading-relaxed text-neutral-600">
-                      {bioText(selected)}
+                    <p className="text-sm leading-relaxed text-neutral-700">
+                      {ptExpertiseIntro(
+                        displayPtName(selected),
+                        selected.profile?.fitnessGoal,
+                      )}
                     </p>
                   </div>
 
@@ -460,25 +409,21 @@ export default function CoachesPage() {
                         />
                         Email: {selected.email}
                       </li>
-                      {(selected.profile?.height != null &&
-                        selected.profile.height > 0) ||
-                      (selected.profile?.weight != null &&
-                        selected.profile.weight > 0) ? (
+                      <li className="flex items-start gap-2">
+                        <Check
+                          size={14}
+                          className="mt-0.5 shrink-0 text-amber-600"
+                        />
+                        {displayPtHeightCm(selected.profile?.height)} ·{' '}
+                        {displayPtWeightKg(selected.profile?.weight)}
+                      </li>
+                      {genderLabelVi(selected.profile?.gender) ? (
                         <li className="flex items-start gap-2">
                           <Check
                             size={14}
                             className="mt-0.5 shrink-0 text-amber-600"
                           />
-                          {(selected.profile?.height ?? 0) > 0
-                            ? `${selected.profile!.height} cm`
-                            : ''}
-                          {(selected.profile?.height ?? 0) > 0 &&
-                          (selected.profile?.weight ?? 0) > 0
-                            ? ' · '
-                            : ''}
-                          {(selected.profile?.weight ?? 0) > 0
-                            ? `${selected.profile!.weight} kg`
-                            : ''}
+                          Giới tính: {genderLabelVi(selected.profile?.gender)}
                         </li>
                       ) : null}
                     </ul>

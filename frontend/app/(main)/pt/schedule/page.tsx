@@ -102,11 +102,11 @@ const SCHEDULE_LEGEND = [
     title: 'Đã chấp nhận',
     status: 'ACCEPTED',
   },
-  {
-    swatch: 'bg-red-500/90',
-    title: 'Đã từ chối',
-    status: 'REJECTED',
-  },
+  // {
+  //   swatch: 'bg-red-500/90',
+  //   title: 'Đã từ chối',
+  //   status: 'REJECTED',
+  // },
   {
     swatch: 'bg-sky-500/90',
     title: 'Trạng thái khác',
@@ -433,12 +433,15 @@ export default function PTSchedulePage() {
 
   const setupSelectedSlotCount = useMemo(() => {
     const byShift = {
-      MORNING: shiftSlotSummaries.find((s) => s.shiftType === 'MORNING')
-        ?.slotCount ?? 0,
-      AFTERNOON: shiftSlotSummaries.find((s) => s.shiftType === 'AFTERNOON')
-        ?.slotCount ?? 0,
-      EVENING: shiftSlotSummaries.find((s) => s.shiftType === 'EVENING')
-        ?.slotCount ?? 0,
+      MORNING:
+        shiftSlotSummaries.find((s) => s.shiftType === 'MORNING')?.slotCount ??
+        0,
+      AFTERNOON:
+        shiftSlotSummaries.find((s) => s.shiftType === 'AFTERNOON')
+          ?.slotCount ?? 0,
+      EVENING:
+        shiftSlotSummaries.find((s) => s.shiftType === 'EVENING')?.slotCount ??
+        0,
     };
     return (
       watchedMorningDays.length * byShift.MORNING +
@@ -934,44 +937,44 @@ export default function PTSchedulePage() {
                     className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
                     label="Từ ngày"
                     name="fromDate"
-                rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
-              >
-                <DatePicker
-                  format="DD/MM/YYYY"
-                  className="w-full"
-                  size="large"
-                />
-              </Form.Item>
+                    rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
+                  >
+                    <DatePicker
+                      format="DD/MM/YYYY"
+                      className="w-full"
+                      size="large"
+                    />
+                  </Form.Item>
                   <Form.Item
                     className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
                     label="Đến ngày"
                     name="toDate"
-                rules={[
-                  { required: true, message: 'Chọn ngày kết thúc' },
-                  {
-                    validator: (_, value: Dayjs | undefined) => {
-                      const fromValue = setupForm.getFieldValue(
-                        'fromDate',
-                      ) as Dayjs | undefined;
-                      if (!value || !fromValue) return Promise.resolve();
-                      if (value.isBefore(fromValue, 'day')) {
-                        return Promise.reject(
-                          new Error('Đến ngày phải >= Từ ngày'),
-                        );
-                      }
-                      return Promise.resolve();
-                    },
-                  },
-                ]}
-              >
-                <DatePicker
-                  format="DD/MM/YYYY"
-                  className="w-full"
-                  size="large"
-                />
-              </Form.Item>
-            </div>
-          </div>
+                    rules={[
+                      { required: true, message: 'Chọn ngày kết thúc' },
+                      {
+                        validator: (_, value: Dayjs | undefined) => {
+                          const fromValue = setupForm.getFieldValue(
+                            'fromDate',
+                          ) as Dayjs | undefined;
+                          if (!value || !fromValue) return Promise.resolve();
+                          if (value.isBefore(fromValue, 'day')) {
+                            return Promise.reject(
+                              new Error('Đến ngày phải >= Từ ngày'),
+                            );
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                  >
+                    <DatePicker
+                      format="DD/MM/YYYY"
+                      className="w-full"
+                      size="large"
+                    />
+                  </Form.Item>
+                </div>
+              </div>
 
               <motion.div className="mt-6">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -980,7 +983,9 @@ export default function PTSchedulePage() {
                   </h3>
                   <span className="text-sm text-neutral-400">
                     Đã chọn{' '}
-                    <strong className="text-white">{setupSelectedSlotCount}</strong>{' '}
+                    <strong className="text-white">
+                      {setupSelectedSlotCount}
+                    </strong>{' '}
                     ô giờ
                   </span>
                 </div>

@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Avatar,
+  Button,
   Card,
   Col,
   DatePicker,
@@ -17,24 +19,31 @@ import {
 import {
   CalendarOutlined,
   CheckOutlined,
+  EyeOutlined,
   MailOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { motion } from 'motion/react';
 import dayjs from 'dayjs';
+
+import PtDetailModal from '@/app/components/purchase/PtDetailModal';
+import {
+  fitnessGoalLabel,
+  fitnessGoalSpecialty,
+  ptExpertiseIntro,
+} from '@/app/lib/ptFitnessGoal';
+import {
+  displayPtHeightCm,
+  displayPtName,
+  displayPtWeightKg,
+  genderLabelVi,
+  resolvePtAvatarSrc,
+} from '@/app/lib/ptProfileDisplay';
 import type { AvailablePtAccount } from '@/app/types/types';
 import type { PtShiftBuoiFilter } from '@/app/lib/ptShiftClientFilter';
 import { formatDate } from '@/app/utils/common';
 
 const { Text, Paragraph } = Typography;
-
-function genderVi(g?: string | null) {
-  if (!g) return null;
-  const u = g.toUpperCase();
-  if (u === 'MALE') return 'Nam';
-  if (u === 'FEMALE') return 'Nữ';
-  return g;
-}
 
 interface SelectPtStepProps {
   loading: boolean;
@@ -63,6 +72,8 @@ export default function SelectPtStep({
   onSearchChange,
   onDateRangeChange,
 }: SelectPtStepProps) {
+  const [detailPt, setDetailPt] = useState<AvailablePtAccount | null>(null);
+
   return (
     <div>
       <motion.div
@@ -135,7 +146,10 @@ export default function SelectPtStep({
               (acc, win) => acc + (win.weeklySlots?.length ?? 0),
               0,
             );
-            const gLabel = genderVi(pt.profile?.gender);
+            const name = displayPtName(pt);
+            const gLabel = genderLabelVi(pt.profile?.gender);
+            const goalLabel = fitnessGoalLabel(pt.profile?.fitnessGoal);
+
             return (
               <Col xs={24} md={12} key={pt.id}>
                 <motion.div
@@ -157,36 +171,52 @@ export default function SelectPtStep({
                       <div className="flex items-start gap-3">
                         <Avatar
                           size={48}
-                          src={pt.profile?.avatar || undefined}
-                          icon={!pt.profile?.avatar ? <UserOutlined /> : undefined}
+                          src={resolvePtAvatarSrc(pt.profile?.avatar)}
+                          icon={
+                            !pt.profile?.avatar ? <UserOutlined /> : undefined
+                          }
                         />
                         <div>
                           <h3 className="text-base font-semibold text-neutral-900">
-                            {pt.profile?.name || pt.email}
+                            {name}
                           </h3>
-                          {pt.profile?.phone && (
+                          <p className="mt-0.5 text-xs font-medium text-amber-700/90">
+                            {fitnessGoalSpecialty(pt.profile?.fitnessGoal)}
+                          </p>
+                          {pt.profile?.phone ? (
                             <p className="mt-0.5 text-xs text-neutral-500">
                               {pt.profile.phone}
                             </p>
-                          )}
+                          ) : null}
                         </div>
                       </div>
-                      {isSelected && (
+                      {isSelected ? (
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-white">
                           <CheckOutlined />
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {gLabel ? <Tag>{gLabel}</Tag> : null}
-                      {pt.profile?.fitnessGoal && (
-                        <Tag color="blue">{pt.profile.fitnessGoal}</Tag>
-                      )}
+                      {goalLabel ? <Tag color="blue">{goalLabel}</Tag> : null}
                       {totalSlots > 0 ? (
                         <Tag color="green">{totalSlots} ô lịch rảnh</Tag>
                       ) : null}
                     </div>
+
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<EyeOutlined />}
+                      className="mt-2! px-0!"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailPt(pt);
+                      }}
+                    >
+                      Xem giới thiệu chuyên môn
+                    </Button>
 
                     {isSelected ? (
                       <>
@@ -195,6 +225,18 @@ export default function SelectPtStep({
                           className="rounded-lg bg-neutral-50 px-3 py-3 text-left"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <div className="mb-4 rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-3">
+                            <Paragraph className="mb-2! text-xs font-semibold uppercase tracking-wide text-amber-800/80">
+                              Giới thiệu chuyên môn
+                            </Paragraph>
+                            <p className="text-sm leading-relaxed text-neutral-700">
+                              {ptExpertiseIntro(
+                                name,
+                                pt.profile?.fitnessGoal,
+                              )}
+                            </p>
+                          </div>
+
                           <Paragraph className="mb-2! text-xs font-semibold uppercase tracking-wide text-neutral-500">
                             Thông tin chi tiết
                           </Paragraph>
@@ -202,7 +244,10 @@ export default function SelectPtStep({
                           <div className="space-y-2 text-sm text-neutral-700">
                             <div className="flex gap-2">
                               <MailOutlined className="mt-0.5 shrink-0 text-neutral-400" />
-                              <Text copyable={{ text: pt.email }} className="text-neutral-800">
+                              <Text
+                                copyable={{ text: pt.email }}
+                                className="text-neutral-800"
+                              >
                                 {pt.email}
                               </Text>
                             </div>
@@ -212,7 +257,9 @@ export default function SelectPtStep({
                                 <CalendarOutlined className="mt-0.5 shrink-0 text-neutral-400" />
                                 <span>
                                   Ngày sinh:{' '}
-                                  <strong>{formatDate(pt.profile.dateOfBirth)}</strong>
+                                  <strong>
+                                    {formatDate(pt.profile.dateOfBirth)}
+                                  </strong>
                                 </span>
                               </div>
                             ) : null}
@@ -224,19 +271,19 @@ export default function SelectPtStep({
                           </Paragraph>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm">
-                              <div className="text-xs text-neutral-500">Chiều cao</div>
+                              <div className="text-xs text-neutral-500">
+                                Chiều cao
+                              </div>
                               <div className="font-semibold text-neutral-900">
-                                {pt.profile?.height != null && pt.profile.height > 0
-                                  ? `${pt.profile.height} cm`
-                                  : '180 cm'}
+                                {displayPtHeightCm(pt.profile?.height)}
                               </div>
                             </div>
                             <div className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm">
-                              <div className="text-xs text-neutral-500">Cân nặng</div>
+                              <div className="text-xs text-neutral-500">
+                                Cân nặng
+                              </div>
                               <div className="font-semibold text-neutral-900">
-                                {pt.profile?.weight != null && pt.profile.weight > 0
-                                  ? `${pt.profile.weight} kg`
-                                  : '70 kg'}
+                                {displayPtWeightKg(pt.profile?.weight)}
                               </div>
                             </div>
                           </div>
@@ -250,6 +297,21 @@ export default function SelectPtStep({
           })}
         </Row>
       )}
+
+      <PtDetailModal
+        pt={detailPt}
+        open={!!detailPt}
+        onClose={() => setDetailPt(null)}
+        onSelect={onSelect}
+        totalSlots={
+          detailPt
+            ? (detailPt.ptAvailabilityWindows ?? []).reduce(
+                (acc, win) => acc + (win.weeklySlots?.length ?? 0),
+                0,
+              )
+            : 0
+        }
+      />
     </div>
   );
 }
