@@ -16,7 +16,13 @@ import {
   AdminAnalyticsRevenueByBranchResponse,
   AdminAnalyticsRevenueByPackageResponse,
   AdminAnalyticsRevenueTimeseriesResponse,
+  AdminUpdatePtRequest,
+  AdminUpdatePtResponse,
+  AdminUpdateUserRequest,
+  AdminUpdateUserResponse,
+  DeactivatePtAccountResponse,
   AdminOperationsResponse,
+  DeactivateUserAccountResponse,
   BranchDetailResponse,
   BranchesResponse,
   CheckInHistoryResponse,
@@ -151,6 +157,26 @@ export const getAccountUser = async (filter: FILTER_PROPS): Promise<any> => {
   return res;
 };
 
+export const updateUserAccountByAdmin = async (
+  accountId: string,
+  payload: AdminUpdateUserRequest,
+): Promise<AdminUpdateUserResponse> => {
+  const res = await axios.patch<AdminUpdateUserResponse>(
+    API.ADMIN.UPDATE_USER_ACCOUNT(accountId),
+    payload,
+  );
+  return res as unknown as AdminUpdateUserResponse;
+};
+
+export const deactivateUserAccountByAdmin = async (
+  accountId: string,
+): Promise<DeactivateUserAccountResponse> => {
+  const res = await axios.delete<DeactivateUserAccountResponse>(
+    API.ADMIN.DEACTIVATE_USER_ACCOUNT(accountId),
+  );
+  return res as unknown as DeactivateUserAccountResponse;
+};
+
 export const getPtAccounts = async (filter: FILTER_PROPS): Promise<any> => {
   const res = await axios.get<PtAccountsResponse>(API.PT.GET_ALL, {
     params: {
@@ -170,6 +196,26 @@ export const createPtAccount = async (
     payload,
   );
   return res as unknown as CreatePtAccountResponse;
+};
+
+export const updatePtAccountByAdmin = async (
+  accountId: string,
+  payload: AdminUpdatePtRequest,
+): Promise<AdminUpdatePtResponse> => {
+  const res = await axios.patch<AdminUpdatePtResponse>(
+    API.PT.UPDATE_PT_ACCOUNT(accountId),
+    payload,
+  );
+  return res as unknown as AdminUpdatePtResponse;
+};
+
+export const deactivatePtAccountByAdmin = async (
+  accountId: string,
+): Promise<DeactivatePtAccountResponse> => {
+  const res = await axios.delete<DeactivatePtAccountResponse>(
+    API.PT.DEACTIVATE_PT_ACCOUNT(accountId),
+  );
+  return res as unknown as DeactivatePtAccountResponse;
 };
 
 export const getPackages = async (

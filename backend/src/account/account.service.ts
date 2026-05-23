@@ -17,6 +17,10 @@ import { AccountStatus, Role } from 'generated/prisma/enums';
 import { FilterPtDto } from './dto/filter-pt.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { AdminUpdatePtDto } from './dto/admin-update-pt.dto';
+
+type AdminAccountProfileUpdateDto = AdminUpdateUserDto | AdminUpdatePtDto;
 
 @Injectable()
 export class AccountService {
@@ -263,6 +267,178 @@ export class AccountService {
       },
       data: ptAccounts,
     };
+  }
+
+  private async findAccountByRoleOrThrow(
+    accountId: string,
+    role: typeof Role.USER | typeof Role.PT,
+  ) {
+    const label = role === Role.USER ? 'User' : 'PT';
+    const account = await this.prisma.account.findFirst({
+      where: { id: accountId, role },
+      include: { profile: true },
+    });
+    if (!account) {
+      throw new NotFoundException(`${label} account not found`);
+    }
+    return account;
+  }
+
+  private adminManagedAccountSelect() {
+    return {
+      id: true,
+      email: true,
+      status: true,
+      role: true,
+      createdAt: true,
+      profile: {
+        select: {
+          name: true,
+          gender: true,
+          phone: true,
+          dateOfBirth: true,
+          avatar: true,
+          height: true,
+          weight: true,
+          fitnessGoal: true,
+        },
+      },
+    } as const;
+  }
+
+  private async applyAdminEmailProfileUpdate(
+    accountId: string,
+    dto: AdminAccountProfileUpdateDto,
+  ) {
+    const {
+      email,
+      dateOfBirth,
+      name,
+      gender,
+      phone,
+      avatar,
+      height,
+      weight,
+      fitnessGoal,
+    } = dto;
+
+    const hasProfileField =
+      name !== undefined ||
+      gender !== undefined ||
+      phone !== undefined ||
+      dateOfBirth !== undefined ||
+      avatar !== undefined ||
+      height !== undefined ||
+      weight !== undefined ||
+      fitnessGoal !== undefined;
+
+    if (!email && !hasProfileField) {
+      throw new BadRequestException('At least one field is required to update');
+    }
+
+    if (email) {
+      const existing = await this.prisma.account.findFirst({
+        where: { email, NOT: { id: accountId } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new BadRequestException('Email already exists');
+      }
+    }
+
+    const profileData = hasProfileField
+      ? {
+          ...(name !== undefined ? { name } : {}),
+          ...(gender !== undefined ? { gender } : {}),
+          ...(phone !== undefined ? { phone } : {}),
+          ...(dateOfBirth !== undefined
+            ? { dateOfBirth: new Date(dateOfBirth) }
+            : {}),
+          ...(avatar !== undefined ? { avatar } : {}),
+          ...(height !== undefined ? { height } : {}),
+          ...(weight !== undefined ? { weight } : {}),
+          ...(fitnessGoal !== undefined ? { fitnessGoal } : {}),
+        }
+      : undefined;
+
+    return this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        ...(email ? { email } : {}),
+        ...(profileData
+          ? {
+              profile: {
+                upsert: {
+                  create: profileData,
+                  update: profileData,
+                },
+              },
+            }
+          : {}),
+      },
+      select: this.adminManagedAccountSelect(),
+    });
+  }
+
+  private async deactivateAccountByRole(
+    accountId: string,
+    role: typeof Role.USER | typeof Role.PT,
+  ) {
+    const label = role === Role.USER ? 'User' : 'PT';
+    const account = await this.findAccountByRoleOrThrow(accountId, role);
+
+    if (account.status === AccountStatus.INACTIVE) {
+      return {
+        message: `${label} account is already inactive`,
+        data: {
+          id: account.id,
+          email: account.email,
+          status: account.status,
+        },
+      };
+    }
+
+    const updated = await this.prisma.account.update({
+      where: { id: accountId },
+      data: { status: AccountStatus.INACTIVE },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        role: true,
+      },
+    });
+
+    return {
+      message: `Deactivate ${label.toLowerCase()} account successfully`,
+      data: updated,
+    };
+  }
+
+  async updateUserAccountByAdmin(accountId: string, dto: AdminUpdateUserDto) {
+    await this.findAccountByRoleOrThrow(accountId, Role.USER);
+    const updated = await this.applyAdminEmailProfileUpdate(accountId, dto);
+    return {
+      message: 'Update user account successfully',
+      data: updated,
+    };
+  }
+
+  async deactivateUserAccountByAdmin(accountId: string) {
+    return this.deactivateAccountByRole(accountId, Role.USER);
+  }
+
+  async updatePtAccountByAdmin(accountId: string, dto: AdminUpdatePtDto) {
+    await this.findAccountByRoleOrThrow(accountId, Role.PT);
+    const updated = await this.applyAdminEmailProfileUpdate(accountId, dto);
+    return {
+      message: 'Update PT account successfully',
+      data: updated,
+    };
+  }
+
+  async deactivatePtAccountByAdmin(accountId: string) {
+    return this.deactivateAccountByRole(accountId, Role.PT);
   }
 
   async getUserAccounts(filterUserDto: FilterUserDto) {

@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Param,
   Patch,
   Post,
   Query,
@@ -19,6 +21,8 @@ import { Role } from 'generated/prisma/enums';
 import { FilterPtDto } from './dto/filter-pt.dto';
 import { FilterUserDto } from './dto/filter-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { AdminUpdatePtDto } from './dto/admin-update-pt.dto';
 
 @Controller('account')
 export class AccountController {
@@ -60,8 +64,42 @@ export class AccountController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @Patch('pt-accounts/:id')
+  async updatePtAccount(
+    @Param('id') id: string,
+    @Body() dto: AdminUpdatePtDto,
+  ) {
+    return this.accountService.updatePtAccountByAdmin(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('pt-accounts/:id')
+  async deactivatePtAccount(@Param('id') id: string) {
+    return this.accountService.deactivatePtAccountByAdmin(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Get('user-accounts')
   async getUserAccounts(@Query() filterUserDto: FilterUserDto) {
     return this.accountService.getUserAccounts(filterUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Patch('user-accounts/:id')
+  async updateUserAccount(
+    @Param('id') id: string,
+    @Body() dto: AdminUpdateUserDto,
+  ) {
+    return this.accountService.updateUserAccountByAdmin(id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('user-accounts/:id')
+  async deactivateUserAccount(@Param('id') id: string) {
+    return this.accountService.deactivateUserAccountByAdmin(id);
   }
 }

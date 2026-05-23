@@ -27,6 +27,8 @@ export interface API_PROPS {
   PT: {
     GET_ALL: string;
     CREATE_PT_ACCOUNT: string;
+    UPDATE_PT_ACCOUNT: (accountId: string) => string;
+    DEACTIVATE_PT_ACCOUNT: (accountId: string) => string;
     GET_REQUESTS_LIST: string;
     GET_ACCEPTED_REQUESTS_LIST: string;
     APPROVE_REQUEST: (requestId: string) => string;
@@ -50,6 +52,8 @@ export interface API_PROPS {
   };
   ADMIN: {
     GET_ACCOUNT_USER: string;
+    UPDATE_USER_ACCOUNT: (accountId: string) => string;
+    DEACTIVATE_USER_ACCOUNT: (accountId: string) => string;
     CREATE_PACKAGE: string;
   };
   EXERCISE: {
@@ -117,6 +121,10 @@ export const API: API_PROPS = {
   PT: {
     GET_ALL: '/account/pt-accounts',
     CREATE_PT_ACCOUNT: '/account/pt-accounts',
+    UPDATE_PT_ACCOUNT: (accountId: string) =>
+      `/account/pt-accounts/${accountId}`,
+    DEACTIVATE_PT_ACCOUNT: (accountId: string) =>
+      `/account/pt-accounts/${accountId}`,
     GET_REQUESTS_LIST: '/pt/requested-packages',
     GET_ACCEPTED_REQUESTS_LIST: '/pt/accepted-packages',
     APPROVE_REQUEST: (requestId: string) => `/pt/accepted-request/${requestId}`,
@@ -142,6 +150,10 @@ export const API: API_PROPS = {
   },
   ADMIN: {
     GET_ACCOUNT_USER: '/account/user-accounts',
+    UPDATE_USER_ACCOUNT: (accountId: string) =>
+      `/account/user-accounts/${accountId}`,
+    DEACTIVATE_USER_ACCOUNT: (accountId: string) =>
+      `/account/user-accounts/${accountId}`,
     CREATE_PACKAGE: '/package',
   },
   EXERCISE: {

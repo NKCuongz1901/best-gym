@@ -75,6 +75,11 @@ function validateDateOfBirth(value: Dayjs | null | undefined): Promise<void> {
 }
 
 export const profileFieldRules = {
+  email: [
+    { required: true, message: 'Vui lòng nhập email' },
+    { type: 'email', message: 'Email không hợp lệ' },
+  ] satisfies Rule[],
+
   name: [
     { required: true, message: 'Vui lòng nhập họ và tên' },
     { whitespace: true, message: 'Họ và tên không được chỉ có khoảng trắng' },

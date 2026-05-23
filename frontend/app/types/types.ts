@@ -1,24 +1,65 @@
+export interface UserAccountProfile {
+  name: string | null;
+  gender: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  avatar: string | null;
+  height: number | null;
+  weight: number | null;
+  fitnessGoal: string | null;
+}
+
 export interface UserAccount {
   id: string;
   email: string;
-  profile?: {
-    name: string | null;
+  status?: string;
+  role?: string;
+  createdAt?: string;
+  profile?: UserAccountProfile | null;
+}
+
+export interface AdminUpdateUserRequest {
+  email?: string;
+  name?: string;
+  gender?: Gender;
+  phone?: string;
+  dateOfBirth?: string;
+  avatar?: string;
+  height?: number;
+  weight?: number;
+  fitnessGoal?: FitnessGoal;
+}
+
+export interface AdminUpdateUserResponse {
+  message: string;
+  data: UserAccount;
+}
+
+export interface DeactivateUserAccountResponse {
+  message: string;
+  data: {
+    id: string;
+    email: string;
+    status: string;
+    role?: string;
   };
 }
+
+export type AdminUpdatePtRequest = AdminUpdateUserRequest;
+
+export interface AdminUpdatePtResponse {
+  message: string;
+  data: PtAccount;
+}
+
+export type DeactivatePtAccountResponse = DeactivateUserAccountResponse;
 
 export interface PtAccount {
   id: string;
   email: string;
-  profile?: {
-    name: string | null;
-    gender: string;
-    phone: string;
-    dateOfBirth: string | null;
-    avatar: string | null;
-    height: number | null;
-    weight: number | null;
-    fitnessGoal: string | null;
-  };
+  status?: string;
+  role?: string;
+  profile?: UserAccountProfile | null;
 }
 
 export interface PtWeeklySlotItem {
