@@ -2,14 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Descriptions,
-  Modal,
-  Spin,
-  Tabs,
-  Tag,
-  Typography,
-} from 'antd';
+import { Descriptions, Modal, Spin, Tabs, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/vi';
 import FullCalendar from '@fullcalendar/react';
@@ -159,8 +152,7 @@ export default function MySchedulePage() {
     }
     for (const arr of map.values()) {
       arr.sort(
-        (a, b) =>
-          dayjs(b.startTime).valueOf() - dayjs(a.startTime).valueOf(),
+        (a, b) => dayjs(b.startTime).valueOf() - dayjs(a.startTime).valueOf(),
       );
     }
     return map;
@@ -175,6 +167,7 @@ export default function MySchedulePage() {
         start: date,
         allDay: true,
         classNames: ['my-checkin-event'],
+        textColor: '#065f46',
       })),
     [checkInMap],
   );
@@ -183,11 +176,11 @@ export default function MySchedulePage() {
     () =>
       Array.from(ptHistoryByDate.entries()).map(([date, items]) => ({
         id: `pt-${date}`,
-        title:
-          items.length > 1 ? `Buổi PT (${items.length})` : 'Buổi tập PT',
+        title: items.length > 1 ? `Buổi PT (${items.length})` : 'Buổi tập PT',
         start: date,
         allDay: true,
         classNames: ['my-pt-training-event'],
+        textColor: '#171717',
       })),
     [ptHistoryByDate],
   );
@@ -440,16 +433,28 @@ export default function MySchedulePage() {
             box-shadow: inset 0 0 0 2px rgba(139, 92, 246, 0.45);
           }
           .my-schedule-fullcalendar .fc .my-checkin-event {
+            --fc-event-text-color: #065f46;
+            --fc-event-bg-color: rgba(16, 185, 129, 0.15);
+            --fc-event-border-color: rgba(16, 185, 129, 0.35);
             background: rgba(16, 185, 129, 0.15);
             border: 1px solid rgba(16, 185, 129, 0.35);
-            color: #065f46;
             font-weight: 600;
           }
+          .my-schedule-fullcalendar .fc .my-checkin-event .fc-event-main,
+          .my-schedule-fullcalendar .fc .my-checkin-event .fc-event-title {
+            color: #065f46 !important;
+          }
           .my-schedule-fullcalendar .fc .my-pt-training-event {
+            --fc-event-text-color: #171717;
+            --fc-event-bg-color: rgba(139, 92, 246, 0.12);
+            --fc-event-border-color: rgba(139, 92, 246, 0.35);
             background: rgba(139, 92, 246, 0.12);
             border: 1px solid rgba(139, 92, 246, 0.35);
-            color: #5b21b6;
             font-weight: 600;
+          }
+          .my-schedule-fullcalendar .fc .my-pt-training-event .fc-event-main,
+          .my-schedule-fullcalendar .fc .my-pt-training-event .fc-event-title {
+            color: #171717 !important;
           }
         `}</style>
       </div>
