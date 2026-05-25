@@ -27,6 +27,7 @@ import {
   signin,
   verifyAccount,
 } from '../services/api';
+import { getApiErrorMessage } from '@/app/lib/apiError';
 import { appRoute } from '../config/appRoute';
 import type { TodayExcerciseResponse } from '../types/types';
 
@@ -98,12 +99,9 @@ export default function Header() {
       setIsModalOpen(false);
       router.push(appRoute.home.root);
     } catch (err: unknown) {
-      let msg = 'Email hoặc mật khẩu không đúng';
-      if (err && typeof err === 'object') {
-        const obj = err as { message?: unknown };
-        if (typeof obj.message === 'string') msg = obj.message;
-      }
-      message.error(msg);
+      message.error(
+        getApiErrorMessage(err, 'Email hoặc mật khẩu không đúng'),
+      );
     } finally {
       setLoading(false);
     }
@@ -152,12 +150,9 @@ export default function Header() {
         'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực.',
       );
     } catch (err: unknown) {
-      let msg = 'Đăng ký thất bại. Vui lòng thử lại.';
-      if (err && typeof err === 'object') {
-        const obj = err as { message?: unknown };
-        if (typeof obj.message === 'string') msg = obj.message;
-      }
-      message.error(msg);
+      message.error(
+        getApiErrorMessage(err, 'Đăng ký thất bại. Vui lòng thử lại.'),
+      );
     } finally {
       setSignUpLoading(false);
     }
@@ -190,12 +185,9 @@ export default function Header() {
       message.success('Xác minh tài khoản thành công');
       handleSignUpCancel();
     } catch (err: unknown) {
-      let msg = 'Xác minh thất bại. Vui lòng thử lại.';
-      if (err && typeof err === 'object') {
-        const obj = err as { message?: unknown };
-        if (typeof obj.message === 'string') msg = obj.message;
-      }
-      message.error(msg);
+      message.error(
+        getApiErrorMessage(err, 'Xác minh thất bại. Vui lòng thử lại.'),
+      );
     } finally {
       setSignUpLoading(false);
     }
