@@ -11,6 +11,7 @@ import {
   PTAssistSchedule,
   PTTrainingHistory,
   ReportUserSessionRequest,
+  SessionReport,
 } from "@/types/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -91,6 +92,9 @@ const getSessionStatusLabel = (status: SessionStatus) => {
   }
 };
 
+const getCompletionLabel = (completion: SessionReport["completion"]) =>
+  completion === "COMPLETED" ? "Hoàn thành" : "Chưa hoàn thành";
+
 const getSessionStatusColor = (status: SessionStatus) => {
   switch (status) {
     case "ACCEPTED":
@@ -156,7 +160,9 @@ export default function ScheduleScreen() {
   const [selectedAssistSchedule, setSelectedAssistSchedule] = useState<PTAssistSchedule | null>(
     null,
   );
+  const [selectedPtTraining, setSelectedPtTraining] = useState<PTTrainingHistory | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [ptTrainingDetailOpen, setPtTrainingDetailOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState<ReportUserSessionRequest>({
     ptAssistRequestId: "",
@@ -376,6 +382,16 @@ export default function ScheduleScreen() {
   const openAssistDetail = (item: PTAssistSchedule) => {
     setSelectedAssistSchedule(item);
     setDetailOpen(true);
+  };
+
+  const openPtTrainingDetail = (item: PTTrainingHistory) => {
+    setSelectedPtTraining(item);
+    setPtTrainingDetailOpen(true);
+  };
+
+  const closePtTrainingDetail = () => {
+    setPtTrainingDetailOpen(false);
+    setSelectedPtTraining(null);
   };
 
   const openFeedbackModal = () => {
@@ -697,7 +713,11 @@ export default function ScheduleScreen() {
                   ))
                 ) : (
                   selectedPtItems.map((item) => (
-                    <View key={item.id} style={styles.ptSessionCard}>
+                    <Pressable
+                      key={item.id}
+                      style={styles.ptSessionCard}
+                      onPress={() => openPtTrainingDetail(item)}
+                    >
                       <View style={styles.ptSessionHeader}>
                         <View style={styles.ptSessionHeaderContent}>
                           <Text style={styles.ptSessionTitle}>
@@ -752,14 +772,26 @@ export default function ScheduleScreen() {
                       ) : null}
 
                       {item.sessionReport ? (
-                        <View style={styles.ptReportBox}>
-                          <Text style={styles.ptReportTitle}>Nhận xét buổi tập</Text>
-                          <Text style={styles.ptReportText}>
+                        <Pressable
+                          style={styles.ptReportBox}
+                          onPress={() => openPtTrainingDetail(item)}
+                        >
+                          <View style={styles.ptReportHeader}>
+                            <Text style={styles.ptReportTitle}>Nhận xét buổi tập</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#22C55E" />
+                          </View>
+                          <Text style={styles.ptReportText} numberOfLines={2}>
                             {item.sessionReport.summary || "Chưa có tóm tắt buổi tập."}
                           </Text>
+                          <Text style={styles.ptReportHint}>Chạm để xem đầy đủ</Text>
+                        </Pressable>
+                      ) : (
+                        <View style={styles.detailActionRow}>
+                          <Text style={styles.detailActionText}>Chạm để xem chi tiết</Text>
+                          <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                         </View>
-                      ) : null}
-                    </View>
+                      )}
+                    </Pressable>
                   ))
                 )
               ) : (
@@ -885,6 +917,189 @@ export default function ScheduleScreen() {
               </Pressable>
               <Pressable style={styles.modalPrimaryButton} onPress={openFeedbackModal}>
                 <Text style={styles.modalPrimaryButtonText}>Nhận xét</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={ptTrainingDetailOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closePtTrainingDetail}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <Text style={styles.modalTitle}>Chi tiết buổi tập với PT</Text>
+                <Text style={styles.modalSubtitle}>
+                  {selectedPtTraining?.userPackage.package.name || "Buổi tập với PT"}
+                </Text>
+              </View>
+              <Pressable onPress={closePtTrainingDetail} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={22} color="#F8FAFC" />
+              </Pressable>
+            </View>
+
+            {selectedPtTraining ? (
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Huấn luyện viên</Text>
+                  <Text style={styles.detailInfoValue}>
+                    {selectedPtTraining.ptAccount.profile?.name ||
+                      selectedPtTraining.ptAccount.email}
+                  </Text>
+                </View>
+
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Email PT</Text>
+                  <Text style={styles.detailInfoValue}>
+                    {selectedPtTraining.ptAccount.email}
+                  </Text>
+                </View>
+
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Thời gian</Text>
+                  <Text style={styles.detailInfoValue}>
+                    {formatDisplayDate(selectedPtTraining.startTime)}
+                  </Text>
+                  <Text style={styles.detailInfoSecondary}>
+                    {formatSessionTime(
+                      selectedPtTraining.startTime,
+                      selectedPtTraining.endTime,
+                    )}
+                  </Text>
+                </View>
+
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Trạng thái</Text>
+                  <Text
+                    style={[
+                      styles.detailStatusText,
+                      { color: getSessionStatusColor(selectedPtTraining.status) },
+                    ]}
+                  >
+                    {getSessionStatusLabel(selectedPtTraining.status)}
+                  </Text>
+                </View>
+
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Chi nhánh</Text>
+                  <Text style={styles.detailInfoValue}>
+                    {selectedPtTraining.branch.name}
+                  </Text>
+                </View>
+
+                <View style={styles.detailInfoCard}>
+                  <Text style={styles.detailInfoLabel}>Gói tập</Text>
+                  <Text style={styles.detailInfoValue}>
+                    {selectedPtTraining.userPackage.package.name}
+                  </Text>
+                </View>
+
+                {selectedPtTraining.note ? (
+                  <View style={styles.detailInfoCard}>
+                    <Text style={styles.detailInfoLabel}>Ghi chú</Text>
+                    <Text style={styles.detailInfoValue}>{selectedPtTraining.note}</Text>
+                  </View>
+                ) : null}
+
+                {selectedPtTraining.rejectReason ? (
+                  <View style={styles.detailInfoCard}>
+                    <Text style={styles.detailRejectLabel}>Lý do từ chối</Text>
+                    <Text style={styles.detailInfoValue}>
+                      {selectedPtTraining.rejectReason}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <Text style={styles.reportSectionTitle}>Nhận xét từ PT</Text>
+
+                {!selectedPtTraining.sessionReport ? (
+                  <View style={styles.reportEmptyBox}>
+                    <Text style={styles.reportEmptyText}>
+                      PT chưa gửi nhận xét cho buổi tập này.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.detailInfoCard}>
+                      <Text style={styles.detailInfoLabel}>Hoàn thành buổi</Text>
+                      <Text style={styles.detailInfoValue}>
+                        {getCompletionLabel(selectedPtTraining.sessionReport.completion)}
+                      </Text>
+                    </View>
+
+                    {selectedPtTraining.sessionReport.summary ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Tóm tắt</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.summary}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPtTraining.sessionReport.techniqueNote ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Kỹ thuật</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.techniqueNote}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPtTraining.sessionReport.improvement ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Cần cải thiện</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.improvement}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPtTraining.sessionReport.nextSessionPlan ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Kế hoạch buổi sau</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.nextSessionPlan}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPtTraining.sessionReport.weightKg != null ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Cân nặng (kg)</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.weightKg}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {selectedPtTraining.sessionReport.bodyNote ? (
+                      <View style={styles.detailInfoCard}>
+                        <Text style={styles.detailInfoLabel}>Ghi chú cơ thể</Text>
+                        <Text style={styles.detailInfoValue}>
+                          {selectedPtTraining.sessionReport.bodyNote}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              </ScrollView>
+            ) : null}
+
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={[styles.modalSecondaryButton, styles.modalFooterSingle]}
+                onPress={closePtTrainingDetail}
+              >
+                <Text style={styles.modalSecondaryButtonText}>Đóng</Text>
               </Pressable>
             </View>
           </View>
@@ -1285,17 +1500,52 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "rgba(34,197,94,0.10)",
     padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.25)",
+  },
+  ptReportHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
   },
   ptReportTitle: {
     color: "#22C55E",
     fontSize: 13,
     fontWeight: "800",
-    marginBottom: 4,
   },
   ptReportText: {
     color: "#DCFCE7",
     fontSize: 13,
     lineHeight: 20,
+  },
+  ptReportHint: {
+    color: "#86EFAC",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  reportSectionTitle: {
+    color: "#F8FAFC",
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  reportEmptyBox: {
+    borderRadius: 14,
+    backgroundColor: "#182235",
+    padding: 14,
+    marginBottom: 8,
+  },
+  reportEmptyText: {
+    color: "#94A3B8",
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  modalFooterSingle: {
+    flex: undefined,
+    width: "100%",
   },
   detailActionRow: {
     marginTop: 12,
