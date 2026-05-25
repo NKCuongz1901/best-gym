@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Avatar,
   Button,
   DatePicker,
   Form,
@@ -14,7 +15,7 @@ import {
   Space,
   Table,
   TableProps,
-  Tag,
+  Typography,
   message,
 } from 'antd';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
@@ -36,8 +37,16 @@ import type {
   UserAccountsResponse,
 } from '@/app/types/types';
 import { fitnessGoalLabel } from '@/app/lib/ptFitnessGoal';
+import { genderLabelVi, resolvePtAvatarSrcWithFallback } from '@/app/lib/ptProfileDisplay';
+import { formatDate } from '@/app/utils/common';
 
 const { Search } = Input;
+const { Text } = Typography;
+
+function cellOrDash(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}
 
 const genderOptions = [
   { value: 'MALE', label: 'Nam' },
@@ -168,43 +177,88 @@ export default function AdminUserPage() {
 
   const columns: TableProps<UserAccount>['columns'] = [
     {
-      title: 'Họ tên',
-      key: 'name',
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 120,
       ellipsis: true,
-      render: (_: unknown, record) => record.profile?.name?.trim() || '—',
+      render: (id: string) => (
+        <Text copyable={{ text: id }} className="text-xs">
+          {id.slice(0, 8)}…
+        </Text>
+      ),
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
+      width: 180,
       ellipsis: true,
+    },
+    {
+      title: 'Họ tên',
+      key: 'name',
+      width: 120,
+      ellipsis: true,
+      render: (_: unknown, record) => cellOrDash(record.profile?.name?.trim()),
+    },
+    {
+      title: 'Giới tính',
+      key: 'gender',
+      width: 90,
+      render: (_: unknown, record) =>
+        genderLabelVi(record.profile?.gender) ?? '—',
     },
     {
       title: 'SĐT',
       key: 'phone',
       width: 120,
-      render: (_: unknown, record) => record.profile?.phone?.trim() || '—',
+      render: (_: unknown, record) => cellOrDash(record.profile?.phone?.trim()),
+    },
+    {
+      title: 'Ngày sinh',
+      key: 'dateOfBirth',
+      width: 110,
+      render: (_: unknown, record) =>
+        record.profile?.dateOfBirth
+          ? formatDate(record.profile.dateOfBirth)
+          : '—',
+    },
+    {
+      title: 'Avatar',
+      key: 'avatar',
+      width: 72,
+      render: (_: unknown, record) => {
+        const src = record.profile?.avatar?.trim();
+        if (!src) return '—';
+        return (
+          <Avatar
+            size={40}
+            src={resolvePtAvatarSrcWithFallback(src)}
+            className="shrink-0"
+          />
+        );
+      },
+    },
+    {
+      title: 'Chiều cao (cm)',
+      key: 'height',
+      width: 110,
+      render: (_: unknown, record) => cellOrDash(record.profile?.height),
+    },
+    {
+      title: 'Cân nặng (kg)',
+      key: 'weight',
+      width: 110,
+      render: (_: unknown, record) => cellOrDash(record.profile?.weight),
     },
     {
       title: 'Mục tiêu',
       key: 'fitnessGoal',
-      width: 140,
+      width: 150,
+      ellipsis: true,
       render: (_: unknown, record) =>
-        fitnessGoalLabel(record.profile?.fitnessGoal) || '—',
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      width: 110,
-      render: (status: string | undefined) =>
-        status === 'ACTIVE' ? (
-          <Tag color="green">Hoạt động</Tag>
-        ) : status === 'INACTIVE' ? (
-          <Tag color="default">Ngưng</Tag>
-        ) : (
-          <Tag>{status ?? '—'}</Tag>
-        ),
+        fitnessGoalLabel(record.profile?.fitnessGoal) ?? '—',
     },
     {
       title: 'Thao tác',
@@ -251,7 +305,7 @@ export default function AdminUserPage() {
             columns={columns}
             dataSource={usersData}
             rowKey="id"
-            scroll={{ x: 800 }}
+            scroll={{ x: 1400 }}
             pagination={{
               current: filters.page,
               pageSize: filters.itemsPerPage,

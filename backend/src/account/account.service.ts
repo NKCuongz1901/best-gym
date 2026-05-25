@@ -471,6 +471,13 @@ export class AccountService {
         profile: {
           select: {
             name: true,
+            gender: true,
+            phone: true,
+            dateOfBirth: true,
+            avatar: true,
+            height: true,
+            weight: true,
+            fitnessGoal: true,
           },
         },
       },

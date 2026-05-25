@@ -917,7 +917,7 @@ export default function PTSchedulePage() {
             <Form form={setupForm} layout="vertical" requiredMark={false}>
               <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
                 <Form.Item
-                  className="mb-4 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                  className="mb-4 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:!text-white"
                   label="Chi nhánh"
                   name="branchId"
                   rules={[{ required: true, message: 'Chọn chi nhánh' }]}
@@ -934,7 +934,7 @@ export default function PTSchedulePage() {
                 </Form.Item>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Form.Item
-                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:!text-white"
                     label="Từ ngày"
                     name="fromDate"
                     rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
@@ -946,7 +946,7 @@ export default function PTSchedulePage() {
                     />
                   </Form.Item>
                   <Form.Item
-                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:text-neutral-400"
+                    className="mb-0 [&_.ant-form-item-label>label]:text-xs [&_.ant-form-item-label>label]:font-semibold [&_.ant-form-item-label>label]:uppercase [&_.ant-form-item-label>label]:tracking-wide [&_.ant-form-item-label>label]:!text-white"
                     label="Đến ngày"
                     name="toDate"
                     rules={[
