@@ -15,3 +15,15 @@ export interface FILTER_PT_ASSIST_SCHEDULE_PROPS {
   from?: string;
   to?: string;
 }
+
+export interface FILTER_ADMIN_USER_PACKAGES_PROPS {
+  accountId?: string;
+  status?: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'REJECTED';
+  branchId?: string;
+  packageId?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  page?: number;
+  itemsPerPage?: number;
+}

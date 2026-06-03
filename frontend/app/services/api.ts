@@ -1,4 +1,5 @@
 import {
+  FILTER_ADMIN_USER_PACKAGES_PROPS,
   FILTER_PACKAGE_PROPS,
   FILTER_PROPS,
   FILTER_PT_ASSIST_SCHEDULE_PROPS,
@@ -20,6 +21,7 @@ import {
   AdminUpdatePtResponse,
   AdminUpdateUserRequest,
   AdminUpdateUserResponse,
+  AdminUserPackagePurchaseHistoryResponse,
   DeactivatePtAccountResponse,
   AdminOperationsResponse,
   DeactivateUserAccountResponse,
@@ -175,6 +177,16 @@ export const deactivateUserAccountByAdmin = async (
     API.ADMIN.DEACTIVATE_USER_ACCOUNT(accountId),
   );
   return res as unknown as DeactivateUserAccountResponse;
+};
+
+export const getAdminUserPackagePurchaseHistory = async (
+  filter: FILTER_ADMIN_USER_PACKAGES_PROPS,
+): Promise<AdminUserPackagePurchaseHistoryResponse> => {
+  const res = await axios.get<AdminUserPackagePurchaseHistoryResponse>(
+    API.ADMIN.GET_USER_PACKAGE_PURCHASE_HISTORY,
+    { params: filter },
+  );
+  return res as unknown as AdminUserPackagePurchaseHistoryResponse;
 };
 
 export const getPtAccounts = async (filter: FILTER_PROPS): Promise<any> => {

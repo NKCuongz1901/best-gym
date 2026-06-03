@@ -256,6 +256,20 @@ export interface MyPurchasePackagesResponse {
   data: MyPurchasePackage[];
 }
 
+export interface AdminUserPackagePurchase extends MyPurchasePackage {
+  account: {
+    id: string;
+    email: string;
+    profile?: { name: string | null; phone: string | null } | null;
+  };
+}
+
+export interface AdminUserPackagePurchaseHistoryResponse {
+  message: string;
+  meta: PaginationMeta;
+  data: AdminUserPackagePurchase[];
+}
+
 export interface Program {
   id: string;
   name: string;

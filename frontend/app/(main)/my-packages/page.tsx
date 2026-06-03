@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Result, Spin, Tag } from 'antd';
+import { Button, Result, Spin, Tag, message } from 'antd';
 import { motion } from 'motion/react';
 import {
   CalendarOutlined,
   EnvironmentOutlined,
+  FilePdfOutlined,
   ThunderboltOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 
-import { getMyPurchasePackages } from '@/app/services/api';
-import type { MyPurchasePackage } from '@/app/types/types';
+import { downloadPackageReceipt } from '@/app/lib/downloadPackagePdf';
+import { getMyPurchasePackages, getProfile } from '@/app/services/api';
+import type { MyPurchasePackage, ProfileResponse } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const statusMap: Record<
@@ -29,7 +31,8 @@ const statusMap: Record<
 
 export default function MyPackagesPage() {
   const router = useRouter();
-  const { isLoggedIn, loading: authLoading } = useAuthStore();
+  const { isLoggedIn, loading: authLoading, user } = useAuthStore();
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isLoggedIn) {
@@ -43,7 +46,31 @@ export default function MyPackagesPage() {
     enabled: isLoggedIn,
   });
 
+  const { data: profileRes } = useQuery<ProfileResponse>({
+    queryKey: ['account-profile'],
+    queryFn: () => getProfile(),
+    enabled: isLoggedIn,
+  });
+
+  const memberLabel = useMemo(() => {
+    const name = profileRes?.data?.name?.trim();
+    if (name) return name;
+    return user?.email ?? 'Hội viên';
+  }, [profileRes?.data?.name, user?.email]);
+
   const purchases: MyPurchasePackage[] = data?.data ?? [];
+
+  const handleExportPdf = async (item: MyPurchasePackage) => {
+    try {
+      setExportingId(item.id);
+      await downloadPackageReceipt(item, memberLabel);
+      message.success('Đã tải PDF gói tập');
+    } catch {
+      message.error('Không thể xuất PDF. Vui lòng thử lại.');
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   if (!isLoggedIn && !authLoading) {
     return (
@@ -187,8 +214,15 @@ export default function MyPackagesPage() {
                     )}
                   </div>
 
-                  {pkg.hasPt ? (
-                    <div className="mt-4">
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button
+                      icon={<FilePdfOutlined />}
+                      loading={exportingId === item.id}
+                      onClick={() => handleExportPdf(item)}
+                    >
+                      Xuất PDF
+                    </Button>
+                    {pkg.hasPt ? (
                       <Button
                         type="primary"
                         block
@@ -201,8 +235,8 @@ export default function MyPackagesPage() {
                           ? 'Đã hết quota PT'
                           : 'Đặt buổi PT'}
                       </Button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </motion.div>
               );
             })}

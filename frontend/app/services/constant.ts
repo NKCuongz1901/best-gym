@@ -54,6 +54,7 @@ export interface API_PROPS {
     GET_ACCOUNT_USER: string;
     UPDATE_USER_ACCOUNT: (accountId: string) => string;
     DEACTIVATE_USER_ACCOUNT: (accountId: string) => string;
+    GET_USER_PACKAGE_PURCHASE_HISTORY: string;
     CREATE_PACKAGE: string;
   };
   EXERCISE: {
@@ -154,6 +155,7 @@ export const API: API_PROPS = {
       `/account/user-accounts/${accountId}`,
     DEACTIVATE_USER_ACCOUNT: (accountId: string) =>
       `/account/user-accounts/${accountId}`,
+    GET_USER_PACKAGE_PURCHASE_HISTORY: '/admin/user-packages',
     CREATE_PACKAGE: '/package',
   },
   EXERCISE: {

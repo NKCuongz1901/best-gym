@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Avatar,
   Button,
   DatePicker,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -15,10 +16,11 @@ import {
   Space,
   Table,
   TableProps,
+  Tag,
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons';
 import { AxiosError } from 'axios';
 import dayjs from 'dayjs';
 
@@ -28,17 +30,21 @@ import { profileFieldRules } from '@/app/lib/profileValidation';
 import {
   deactivateUserAccountByAdmin,
   getAccountUser,
+  getAdminUserPackagePurchaseHistory,
   updateUserAccountByAdmin,
 } from '@/app/services/api';
-import { FILTER_PROPS } from '@/app/types/filters';
+import { FILTER_ADMIN_USER_PACKAGES_PROPS, FILTER_PROPS } from '@/app/types/filters';
 import type {
   AdminUpdateUserRequest,
+  AdminUserPackagePurchase,
+  AdminUserPackagePurchaseHistoryResponse,
+  MyPurchasePackage,
   UserAccount,
   UserAccountsResponse,
 } from '@/app/types/types';
 import { fitnessGoalLabel } from '@/app/lib/ptFitnessGoal';
 import { genderLabelVi, resolvePtAvatarSrcWithFallback } from '@/app/lib/ptProfileDisplay';
-import { formatDate } from '@/app/utils/common';
+import { formatDate, formatNumber } from '@/app/utils/common';
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -60,6 +66,17 @@ const fitnessGoalOptions = [
   { value: 'MAINTAIN_WEIGHT', label: 'Duy trì cân nặng' },
 ];
 
+const packageStatusMap: Record<
+  MyPurchasePackage['status'],
+  { label: string; color: string }
+> = {
+  PENDING: { label: 'Chờ kích hoạt', color: 'gold' },
+  ACTIVE: { label: 'Đang hoạt động', color: 'green' },
+  EXPIRED: { label: 'Hết hạn', color: 'default' },
+  CANCELLED: { label: 'Đã hủy', color: 'default' },
+  REJECTED: { label: 'Bị từ chối', color: 'red' },
+};
+
 function getApiErrorMessage(err: unknown, fallback: string): string {
   const axiosErr = err as AxiosError<{ message?: string | string[] }>;
   const raw = axiosErr?.response?.data?.message;
@@ -73,6 +90,9 @@ export default function AdminUserPage() {
   const [editForm] = Form.useForm();
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [historyUser, setHistoryUser] = useState<UserAccount | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize] = useState(8);
 
   const [filters, setFilters] = useState<FILTER_PROPS>({
     page: 1,
@@ -102,6 +122,105 @@ export default function AdminUserPage() {
   });
 
   const usersData: UserAccount[] = data?.data ?? [];
+
+  const historyQuery: FILTER_ADMIN_USER_PACKAGES_PROPS = useMemo(
+    () => ({
+      accountId: historyUser?.id,
+      page: historyPage,
+      itemsPerPage: historyPageSize,
+    }),
+    [historyUser?.id, historyPage, historyPageSize],
+  );
+
+  const {
+    data: purchaseHistoryRes,
+    isLoading: isLoadingPurchaseHistory,
+    isFetching: isFetchingPurchaseHistory,
+  } = useQuery<AdminUserPackagePurchaseHistoryResponse>({
+    queryKey: ['admin-user-package-history', historyQuery],
+    queryFn: () => getAdminUserPackagePurchaseHistory(historyQuery),
+    enabled: !!historyUser?.id,
+  });
+
+  const purchaseHistory: AdminUserPackagePurchase[] =
+    purchaseHistoryRes?.data ?? [];
+
+  const openPurchaseHistory = (user: UserAccount) => {
+    setHistoryUser(user);
+    setHistoryPage(1);
+  };
+
+  const closePurchaseHistory = () => {
+    setHistoryUser(null);
+    setHistoryPage(1);
+  };
+
+  const purchaseHistoryColumns: TableProps<AdminUserPackagePurchase>['columns'] =
+    [
+      {
+        title: 'Gói tập',
+        key: 'package',
+        ellipsis: true,
+        render: (_: unknown, record) => record.package?.name ?? '—',
+      },
+      {
+        title: 'Chi nhánh',
+        key: 'branch',
+        ellipsis: true,
+        render: (_: unknown, record) => record.branch?.name ?? '—',
+      },
+      {
+        title: 'Giá',
+        key: 'price',
+        width: 110,
+        render: (_: unknown, record) =>
+          record.package?.price != null
+            ? `${formatNumber(record.package.price)} đ`
+            : '—',
+      },
+      {
+        title: 'Trạng thái',
+        key: 'status',
+        width: 130,
+        render: (_: unknown, record) => {
+          const s = packageStatusMap[record.status];
+          return <Tag color={s?.color}>{s?.label ?? record.status}</Tag>;
+        },
+      },
+      {
+        title: 'Ngày mua',
+        key: 'createdAt',
+        width: 110,
+        render: (_: unknown, record) => formatDate(record.createdAt),
+      },
+      {
+        title: 'Hiệu lực',
+        key: 'period',
+        width: 180,
+        render: (_: unknown, record) => {
+          if (!record.startAt && !record.endAt) return '—';
+          const start = record.startAt ? formatDate(record.startAt) : '—';
+          const end = record.endAt ? formatDate(record.endAt) : '—';
+          return `${start} → ${end}`;
+        },
+      },
+      {
+        title: 'PT',
+        key: 'pt',
+        width: 100,
+        render: (_: unknown, record) =>
+          record.package?.hasPt ? (
+            <span>
+              {record.ptSessionsRemaining ?? '—'}/
+              {record.ptSessionsGranted ??
+                record.package.ptSessionsIncluded ??
+                '—'}
+            </span>
+          ) : (
+            '—'
+          ),
+      },
+    ];
 
   const { mutate: submitUpdate, isPending: isUpdating } = useMutation({
     mutationFn: ({
@@ -182,10 +301,16 @@ export default function AdminUserPage() {
       key: 'id',
       width: 120,
       ellipsis: true,
-      render: (id: string) => (
-        <Text copyable={{ text: id }} className="text-xs">
+      render: (id: string, record) => (
+        <Button
+          type="link"
+          size="small"
+          className="h-auto px-0! font-mono text-xs"
+          icon={<HistoryOutlined />}
+          onClick={() => openPurchaseHistory(record)}
+        >
           {id.slice(0, 8)}…
-        </Text>
+        </Button>
       ),
     },
     {
@@ -406,6 +531,53 @@ export default function AdminUserPage() {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={
+          historyUser ? (
+            <span>
+              Lịch sử mua gói —{' '}
+              {historyUser.profile?.name?.trim() || historyUser.email}
+            </span>
+          ) : (
+            'Lịch sử mua gói'
+          )
+        }
+        open={!!historyUser}
+        onCancel={closePurchaseHistory}
+        footer={null}
+        width={920}
+        destroyOnClose
+      >
+        {historyUser ? (
+          <p className="mb-3 text-sm text-neutral-500">
+            Email: {historyUser.email}
+            <Text copyable={{ text: historyUser.id }} className="ml-3 text-xs">
+              ID: {historyUser.id.slice(0, 8)}…
+            </Text>
+          </p>
+        ) : null}
+        <Table<AdminUserPackagePurchase>
+          rowKey="id"
+          size="small"
+          loading={isLoadingPurchaseHistory || isFetchingPurchaseHistory}
+          columns={purchaseHistoryColumns}
+          dataSource={purchaseHistory}
+          scroll={{ x: 800 }}
+          locale={{
+            emptyText: (
+              <Empty description="Hội viên chưa có lịch sử mua gói nào" />
+            ),
+          }}
+          pagination={{
+            current: historyPage,
+            pageSize: historyPageSize,
+            total: purchaseHistoryRes?.meta.total ?? 0,
+            showSizeChanger: false,
+            onChange: (page) => setHistoryPage(page),
+          }}
+        />
       </Modal>
     </>
   );
