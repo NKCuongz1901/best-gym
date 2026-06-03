@@ -49,8 +49,8 @@ import {
   CreateProgramDayExerciseResponse,
   CreateProgramDayRequest,
   CreateProgramDayResponse,
-  CreatePtAssistRequestRequest,
-  CreatePtAssistRequestResponse,
+  CreatePtAssistRequestsRequest,
+  CreatePtAssistRequestsResponse,
   CreatePtAccountRequest,
   CreatePtAccountResponse,
   CreatePTTrainingSlotRequest,
@@ -641,14 +641,14 @@ export const getListWorkoutHistory = async (
   return res;
 };
 
-export const createPtAssistRequest = async (
-  request: CreatePtAssistRequestRequest,
-): Promise<any> => {
-  const res = await axios.post<CreatePtAssistRequestResponse>(
-    API.USER.CREATE_PT_ASSIST_REQUEST,
+export const createPtAssistRequests = async (
+  request: CreatePtAssistRequestsRequest,
+): Promise<CreatePtAssistRequestsResponse> => {
+  const res = await axios.post<CreatePtAssistRequestsResponse>(
+    API.USER.CREATE_PT_ASSIST_REQUESTS,
     request,
   );
-  return res;
+  return res as unknown as CreatePtAssistRequestsResponse;
 };
 
 export const getPtKpiPolicy = async (

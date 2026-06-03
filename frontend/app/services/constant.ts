@@ -16,7 +16,7 @@ export interface API_PROPS {
     GET_TODAY_EXERCISE: string;
     CREATE_WORKOUT_HISTORY: string;
     GET_LIST_WORKOUT_HISTORY: string;
-    CREATE_PT_ASSIST_REQUEST: string;
+    CREATE_PT_ASSIST_REQUESTS: string;
     GET_PT_WEEK_BOOKING_GRID: string;
   };
   PACKAGE: {
@@ -110,7 +110,7 @@ export const API: API_PROPS = {
     GET_TODAY_EXERCISE: '/user-package/today-exercises',
     CREATE_WORKOUT_HISTORY: '/user-package/workout-history',
     GET_LIST_WORKOUT_HISTORY: '/user-package/workout-history',
-    CREATE_PT_ASSIST_REQUEST: '/user-package/pt-assist-request',
+    CREATE_PT_ASSIST_REQUESTS: '/user-package/pt-assist-requests',
     GET_PT_WEEK_BOOKING_GRID: '/user-package/pt-week-booking-grid',
   },
   PACKAGE: {

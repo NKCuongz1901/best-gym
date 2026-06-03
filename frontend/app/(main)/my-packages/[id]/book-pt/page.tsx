@@ -18,14 +18,14 @@ import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 
 import {
-  createPtAssistRequest,
+  createPtAssistRequests,
   getAvailablePTs,
   getMyPurchasePackages,
   getPtWeekBookingGrid,
 } from '@/app/services/api';
 import type {
   AvailablePtAccount,
-  CreatePtAssistRequestRequest,
+  CreatePtAssistRequestsRequest,
   MyPurchasePackage,
   MyPurchasePackagesResponse,
   PtWeekBookingGridResponse,
@@ -33,6 +33,7 @@ import type {
 } from '@/app/types/types';
 import { useAuthStore } from '@/app/stores/authStore';
 import SelectPtStep from '@/app/components/purchase/SelectPtStep';
+import { getApiErrorMessage } from '@/app/lib/apiError';
 import {
   filterAvailablePtsByBuoi,
   type PtShiftBuoiFilter,
@@ -67,6 +68,10 @@ interface SelectedCell {
   endTime: string;
 }
 
+function cellKey(weeklySlotId: string, sessionDate: string) {
+  return `${weeklySlotId}:${sessionDate}`;
+}
+
 export default function BookPtSessionPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -82,7 +87,7 @@ export default function BookPtSessionPage() {
   const [weekStart, setWeekStart] = useState<dayjs.Dayjs>(() =>
     dayjs().startOf('isoWeek'),
   );
-  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+  const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
 
   useEffect(() => {
     if (!authLoading && !isLoggedIn) {
@@ -146,7 +151,7 @@ export default function BookPtSessionPage() {
   );
 
   useEffect(() => {
-    setSelectedCell(null);
+    setSelectedCells([]);
   }, [selectedPtId, branchId]);
 
   const weekStartYmd = weekStart.format('YYYY-MM-DD');
@@ -171,18 +176,20 @@ export default function BookPtSessionPage() {
   );
 
   const { mutate: submitBooking, isPending: isSubmitting } = useMutation({
-    mutationFn: (payload: CreatePtAssistRequestRequest) =>
-      createPtAssistRequest(payload),
-    onSuccess: () => {
-      message.success('Đã gửi yêu cầu đặt buổi PT');
+    mutationFn: (payload: CreatePtAssistRequestsRequest) =>
+      createPtAssistRequests(payload),
+    onSuccess: (res) => {
+      const count = res.data?.count ?? selectedCells.length;
+      message.success(
+        res.message ||
+          `Đã gửi yêu cầu đặt ${count} buổi PT. Chờ PT xác nhận.`,
+      );
       router.push('/my-packages');
     },
-    onError: (err: any) => {
-      const msg =
-        err?.response?.data?.message ??
-        err?.message ??
-        'Không thể đặt buổi. Vui lòng thử lại.';
-      message.error(typeof msg === 'string' ? msg : 'Đặt buổi thất bại');
+    onError: (err) => {
+      message.error(
+        getApiErrorMessage(err, 'Không thể đặt buổi. Vui lòng thử lại.'),
+      );
     },
   });
 
@@ -197,44 +204,81 @@ export default function BookPtSessionPage() {
     0;
 
   const outOfQuota = remaining !== null && remaining <= 0;
+  const selectedCount = selectedCells.length;
+  const slotsLeftToPick =
+    remaining !== null ? Math.max(0, remaining - selectedCount) : null;
 
   const todayIsoWeekStart = dayjs().startOf('isoWeek');
   const canGoPrev = weekStart.isAfter(todayIsoWeekStart, 'day');
 
+  const isCellSelected = (weeklySlotId: string, sessionDate: string) =>
+    selectedCells.some(
+      (c) =>
+        c.weeklySlotId === weeklySlotId && c.sessionDate === sessionDate,
+    );
+
   const handleClickCell = (date: string, cell: PtWeekGridCell) => {
     if (cell.state !== 'FREE' || !cell.weeklySlotId) return;
-    setSelectedCell({
-      weeklySlotId: cell.weeklySlotId,
-      sessionDate: date,
-      startTime: cell.startTime,
-      endTime: cell.endTime,
-    });
+
+    const key = cellKey(cell.weeklySlotId, date);
+    const already = selectedCells.find(
+      (c) => cellKey(c.weeklySlotId, c.sessionDate) === key,
+    );
+
+    if (already) {
+      setSelectedCells((prev) =>
+        prev.filter((c) => cellKey(c.weeklySlotId, c.sessionDate) !== key),
+      );
+      return;
+    }
+
+    if (remaining !== null && selectedCells.length >= remaining) {
+      message.warning(`Bạn chỉ còn ${remaining} buổi PT trong gói này.`);
+      return;
+    }
+
+    setSelectedCells((prev) => [
+      ...prev,
+      {
+        weeklySlotId: cell.weeklySlotId!,
+        sessionDate: date,
+        startTime: cell.startTime,
+        endTime: cell.endTime,
+      },
+    ]);
+  };
+
+  const removeSelectedCell = (weeklySlotId: string, sessionDate: string) => {
+    const key = cellKey(weeklySlotId, sessionDate);
+    setSelectedCells((prev) =>
+      prev.filter((c) => cellKey(c.weeklySlotId, c.sessionDate) !== key),
+    );
   };
 
   const goPrevWeek = () => {
     if (!canGoPrev) return;
     setWeekStart((prev) => prev.subtract(1, 'week'));
-    setSelectedCell(null);
   };
 
   const goNextWeek = () => {
     setWeekStart((prev) => prev.add(1, 'week'));
-    setSelectedCell(null);
   };
 
   const canSubmit =
     !!userPackageId &&
-    !!selectedCell &&
+    selectedCount > 0 &&
     !outOfQuota &&
     userPackage?.status === 'ACTIVE';
 
   const handleSubmit = () => {
-    if (!canSubmit || !selectedCell || !userPackageId) return;
+    if (!canSubmit || !userPackageId) return;
     submitBooking({
       userPackageId,
-      slotId: selectedCell.weeklySlotId,
-      sessionDate: selectedCell.sessionDate,
       note: note.trim() || undefined,
+      sessions: selectedCells.map((c) => ({
+        slotId: c.weeklySlotId,
+        sessionDate: c.sessionDate,
+      })),
     });
   };
 
@@ -299,6 +343,9 @@ export default function BookPtSessionPage() {
               Gói {userPackage.package.name} · Chi nhánh{' '}
               {userPackage.branch.name}
             </p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Chọn nhiều ô trên lưới (có thể khác ngày), rồi gửi một lần.
+            </p>
           </div>
 
           <div className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700 shadow-sm">
@@ -307,6 +354,12 @@ export default function BookPtSessionPage() {
               {remaining ?? '—'}
             </span>{' '}
             / <span className="font-semibold">{granted || '—'}</span>
+            {selectedCount > 0 ? (
+              <span className="ml-2 text-emerald-700">
+                · Đã chọn {selectedCount}
+                {slotsLeftToPick !== null ? ` (còn chọn thêm ${slotsLeftToPick})` : ''}
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -411,11 +464,14 @@ export default function BookPtSessionPage() {
                       );
                       const state = cell?.state ?? 'UNAVAILABLE';
                       const isSelected =
-                        !!cell &&
-                        selectedCell?.weeklySlotId === cell.weeklySlotId &&
-                        selectedCell?.sessionDate === day.date;
+                        !!cell?.weeklySlotId &&
+                        isCellSelected(cell.weeklySlotId, day.date);
                       const isFreeQuotaOk = state === 'FREE' && !outOfQuota;
-                      const clickable = isFreeQuotaOk;
+                      const atQuotaLimit =
+                        remaining !== null &&
+                        selectedCount >= remaining &&
+                        !isSelected;
+                      const clickable = isFreeQuotaOk && !atQuotaLimit;
 
                       let stateClasses =
                         'border-neutral-800 bg-neutral-900/40 text-neutral-600';
@@ -434,26 +490,33 @@ export default function BookPtSessionPage() {
                           stateClasses =
                             'border-neutral-800 bg-neutral-900/60 text-neutral-500';
                           label = 'HẾT BUỔI';
+                        } else if (atQuotaLimit) {
+                          stateClasses =
+                            'border-neutral-800 bg-neutral-900/60 text-neutral-500';
+                          label = 'ĐỦ RỒI';
                         } else {
                           stateClasses =
                             'border-neutral-700 bg-neutral-900 text-white hover:border-emerald-500 hover:bg-neutral-800';
-                          label = `${remaining ?? 0} BUỔI`;
+                          label = isSelected ? 'ĐÃ CHỌN' : 'CHỌN';
                         }
                       }
 
                       if (isSelected) {
                         stateClasses =
                           'border-emerald-400 bg-emerald-500/10 text-emerald-100 ring-2 ring-emerald-500/40';
+                        label = 'ĐÃ CHỌN';
                       }
 
                       return (
                         <button
                           key={`${row.key}-${day.date}`}
                           type="button"
-                          disabled={!clickable}
+                          disabled={!isFreeQuotaOk && !isSelected}
                           onClick={() => cell && handleClickCell(day.date, cell)}
                           className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-lg border text-[11px] font-semibold uppercase tracking-wide transition-colors ${stateClasses} ${
-                            clickable ? 'cursor-pointer' : 'cursor-not-allowed'
+                            isFreeQuotaOk || isSelected
+                              ? 'cursor-pointer'
+                              : 'cursor-not-allowed'
                           }`}
                         >
                           <span className="text-sm font-bold tracking-normal">
@@ -472,26 +535,56 @@ export default function BookPtSessionPage() {
           </div>
         ) : null}
 
-        {selectedCell ? (
+        {selectedCount > 0 ? (
           <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-neutral-900">
-              Thông tin buổi tập
+              Buổi đã chọn ({selectedCount})
             </h2>
-            <div className="mb-3 flex flex-wrap gap-2">
-              <Tag color="blue" className="m-0!">
-                {dayjs(selectedCell.sessionDate).format('dddd, DD/MM/YYYY')}
-              </Tag>
-              <Tag color="geekblue" className="m-0!">
-                {selectedCell.startTime} – {selectedCell.endTime}
-              </Tag>
-            </div>
+            <ul className="mb-4 space-y-2">
+              {[...selectedCells]
+                .sort((a, b) =>
+                  `${a.sessionDate}${a.startTime}`.localeCompare(
+                    `${b.sessionDate}${b.startTime}`,
+                  ),
+                )
+                .map((cell) => (
+                  <li
+                    key={cellKey(cell.weeklySlotId, cell.sessionDate)}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      <Tag color="blue" className="m-0!">
+                        {dayjs(cell.sessionDate).format('dddd, DD/MM/YYYY')}
+                      </Tag>
+                      <Tag color="geekblue" className="m-0!">
+                        {cell.startTime} – {cell.endTime}
+                      </Tag>
+                    </div>
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      className="px-0!"
+                      onClick={() =>
+                        removeSelectedCell(cell.weeklySlotId, cell.sessionDate)
+                      }
+                    >
+                      Bỏ chọn
+                    </Button>
+                  </li>
+                ))}
+            </ul>
             <Form layout="vertical">
-              <Form.Item label="Ghi chú" className="mb-0">
+              <Form.Item
+                label="Ghi chú chung (tuỳ chọn)"
+                className="mb-0"
+                extra="Áp dụng cho tất cả buổi trong lần đặt này."
+              >
                 <Input.TextArea
                   rows={3}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Mong muốn của bạn cho buổi tập (tuỳ chọn)"
+                  placeholder="Mong muốn của bạn cho các buổi tập"
                 />
               </Form.Item>
             </Form>
@@ -507,7 +600,9 @@ export default function BookPtSessionPage() {
               disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              Gửi yêu cầu đặt buổi
+              {selectedCount > 0
+                ? `Gửi yêu cầu đặt ${selectedCount} buổi`
+                : 'Gửi yêu cầu đặt buổi'}
             </Button>
           </div>
         </div>

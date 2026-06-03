@@ -486,18 +486,23 @@ export interface PTAssistSchedulesResponse {
   data: PTAssistSchedule[];
 }
 
-export interface CreatePtAssistRequestRequest {
-  userPackageId: string;
+export interface PtAssistSessionItem {
   slotId: string;
   sessionDate: string;
   note?: string;
 }
 
-export interface CreatePtAssistRequestResponse {
+export interface CreatePtAssistRequestsRequest {
+  userPackageId: string;
+  note?: string;
+  sessions: PtAssistSessionItem[];
+}
+
+export interface CreatePtAssistRequestsResponse {
   message: string;
   data: {
-    id: string;
-    status: 'PENDING';
+    count: number;
+    created: PTAssistRequest[];
   };
 }
 
